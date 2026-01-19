@@ -23,7 +23,8 @@ interface OpenFile {
   name: string;
   content: string;
   language: string;
-  isDirty?: boolean;
+  isDirty: boolean;
+  viewState?: unknown;
 }
 
 /**

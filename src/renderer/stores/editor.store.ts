@@ -27,8 +27,10 @@ interface OpenFile {
   content: string;
   /** Monaco language identifier */
   language: string;
-  /** Has unsaved changes (for future editing features) */
-  isDirty?: boolean;
+  /** Has unsaved changes */
+  isDirty: boolean;
+  /** Monaco editor view state (cursor position, scroll position) */
+  viewState?: unknown;
 }
 
 /**
@@ -48,6 +50,12 @@ interface EditorState {
   closeFile: (path: string) => void;
   /** Sets the active file */
   setActiveFile: (path: string) => void;
+  /** Updates file content and marks as dirty */
+  updateFileContent: (path: string, content: string) => void;
+  /** Saves file to disk */
+  saveFile: (path: string) => Promise<void>;
+  /** Updates view state for a file */
+  updateViewState: (path: string, viewState: unknown) => void;
   /** Resets store to initial state */
   reset: () => void;
 }
@@ -104,6 +112,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         content: result.data.content,
         language: detectLanguage(path),
         isDirty: false,
+        viewState: undefined,
       };
 
       // Add file to openFiles and set as active
@@ -172,6 +181,89 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } else {
       console.warn(`Cannot set active file: ${path} is not open`);
     }
+  },
+
+  /**
+   * Updates file content and marks as dirty
+   *
+   * @param path - Absolute path to the file
+   * @param content - New content
+   */
+  updateFileContent: (path: string, content: string) => {
+    const { openFiles } = get();
+
+    const updatedFiles = openFiles.map((file) =>
+      file.path === path
+        ? {
+            ...file,
+            content,
+            isDirty: true,
+          }
+        : file
+    );
+
+    set({ openFiles: updatedFiles });
+  },
+
+  /**
+   * Saves file to disk
+   * Writes content via IPC and clears dirty flag on success.
+   *
+   * @param path - Absolute path to the file
+   * @throws Error if file not found or save fails
+   */
+  saveFile: async (path: string) => {
+    const { openFiles } = get();
+
+    // Find file in openFiles
+    const file = openFiles.find((f) => f.path === path);
+
+    if (!file) {
+      throw new Error(`File not found in open files: ${path}`);
+    }
+
+    // Write to disk via IPC
+    const result = await window.electronAPI.fileSystem.writeFile({
+      path,
+      content: file.content,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error?.message || 'Failed to save file');
+    }
+
+    // Clear dirty flag on successful save
+    const updatedFiles = openFiles.map((f) =>
+      f.path === path
+        ? {
+            ...f,
+            isDirty: false,
+          }
+        : f
+    );
+
+    set({ openFiles: updatedFiles });
+  },
+
+  /**
+   * Updates view state for a file (cursor position, scroll position)
+   *
+   * @param path - Absolute path to the file
+   * @param viewState - Monaco editor view state
+   */
+  updateViewState: (path: string, viewState: unknown) => {
+    const { openFiles } = get();
+
+    const updatedFiles = openFiles.map((file) =>
+      file.path === path
+        ? {
+            ...file,
+            viewState,
+          }
+        : file
+    );
+
+    set({ openFiles: updatedFiles });
   },
 
   /**

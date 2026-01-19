@@ -5,13 +5,15 @@
  * Integrates with file explorer to open files and editor store to manage tabs.
  *
  * Features:
- * - Tab bar for multiple open files
- * - Monaco Editor integration with syntax highlighting
- * - Tab switching and closing
+ * - Tab bar for multiple open files with unsaved changes indicator
+ * - Monaco Editor integration with full editing capabilities
+ * - Tab switching and closing with view state persistence
+ * - Save functionality with Ctrl+S / Cmd+S keyboard shortcut
+ * - Error handling and user feedback for save failures
  * - Empty state when no files are open
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useFileExplorerStore } from '@renderer/stores/fileExplorer.store';
 import { useEditorStore } from '@renderer/stores/editor.store';
 import { MonacoEditorContainer } from '@renderer/components/editor/MonacoEditorContainer';
@@ -24,15 +26,28 @@ import { FileCode } from 'lucide-react';
  * Displays open files in a tabbed interface with Monaco Editor.
  * Listens to fileExplorer for file selection and opens files in new tabs.
  * Uses editor store to manage tab state (open files, active file).
+ * Handles editing, saving, and view state persistence.
  *
  * @returns Code editor panel component
  */
 const CodeEditorPanel: React.FC = () => {
-  // Subscribe to editor store
-  const { openFiles, activeFilePath, openFile, closeFile, setActiveFile } = useEditorStore();
+  // Subscribe to editor store with all actions
+  const {
+    openFiles,
+    activeFilePath,
+    openFile,
+    closeFile,
+    setActiveFile,
+    updateFileContent,
+    saveFile,
+    updateViewState,
+  } = useEditorStore();
 
   // Subscribe to file explorer for file selection
   const selectedFilePath = useFileExplorerStore((state) => state.selectedFilePath);
+
+  // Track save errors for user feedback
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // When file selected in explorer, open it
   useEffect(() => {
@@ -43,6 +58,49 @@ const CodeEditorPanel: React.FC = () => {
 
   // Get active file from openFiles
   const activeFile = openFiles.find((f) => f.path === activeFilePath);
+
+  /**
+   * Handle content change in editor
+   * Called on every keystroke - updates content and marks as dirty
+   */
+  const handleContentChange = useCallback(
+    (content: string) => {
+      if (activeFilePath) {
+        updateFileContent(activeFilePath, content);
+      }
+    },
+    [activeFilePath, updateFileContent]
+  );
+
+  /**
+   * Handle save operation (Ctrl+S / Cmd+S)
+   * Saves file to disk and clears dirty flag on success
+   */
+  const handleSave = useCallback(async () => {
+    if (!activeFilePath) return;
+
+    try {
+      await saveFile(activeFilePath);
+      setSaveError(null);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      setSaveError(`Failed to save file: ${errorMsg}`);
+      console.error('Save error:', error);
+    }
+  }, [activeFilePath, saveFile]);
+
+  /**
+   * Handle view state change (when switching tabs)
+   * Saves cursor position and scroll position for later restoration
+   */
+  const handleViewStateChange = useCallback(
+    (viewState: unknown) => {
+      if (activeFilePath) {
+        updateViewState(activeFilePath, viewState);
+      }
+    },
+    [activeFilePath, updateViewState]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -56,13 +114,31 @@ const CodeEditorPanel: React.FC = () => {
         />
       )}
 
+      {/* Save Error Display */}
+      {saveError && (
+        <div className="bg-red-900/50 text-red-200 px-4 py-2 text-sm border-b border-red-800">
+          {saveError}
+          <button
+            onClick={() => setSaveError(null)}
+            className="ml-2 underline hover:text-red-100 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Editor or Empty State */}
       {activeFile ? (
         <MonacoEditorContainer
           filepath={activeFile.path}
           content={activeFile.content}
           language={activeFile.language}
-          readOnly={true}
+          initialViewState={activeFile.viewState}
+          onChange={handleContentChange}
+          onSave={() => {
+            void handleSave();
+          }}
+          onViewStateChange={handleViewStateChange}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center">

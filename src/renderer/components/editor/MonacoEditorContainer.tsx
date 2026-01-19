@@ -9,11 +9,12 @@
  * - VS Code Dark+ theme
  * - Line numbers and minimap
  * - Auto-resize to fill container
- * - Read-only mode support
+ * - Full editing capabilities with save support
+ * - View state persistence (cursor position, scroll position)
  */
 
-import React from 'react';
-import Editor from '@monaco-editor/react';
+import React, { useRef, useEffect } from 'react';
+import Editor, { type OnMount } from '@monaco-editor/react';
 
 /**
  * Props for MonacoEditorContainer component
@@ -25,17 +26,21 @@ interface MonacoEditorContainerProps {
   content: string;
   /** Monaco language identifier (e.g., 'typescript', 'python', 'json') */
   language: string;
-  /** Callback when content changes (for future editing features) */
-  onChange?: (value: string) => void;
-  /** Whether editor is read-only (default: true) */
-  readOnly?: boolean;
+  /** Monaco editor view state (cursor position, scroll position) */
+  initialViewState?: unknown;
+  /** Callback when content changes */
+  onChange: (content: string) => void;
+  /** Callback when save is triggered (Ctrl+S / Cmd+S) */
+  onSave: () => void;
+  /** Callback when view state changes (for persistence) */
+  onViewStateChange?: (viewState: unknown) => void;
 }
 
 /**
  * Monaco Editor Container
  *
  * Renders Monaco Editor with professional configuration matching VS Code Dark+ theme.
- * Supports syntax highlighting, line numbers, minimap, and automatic layout.
+ * Supports full editing capabilities, save shortcuts, and view state persistence.
  *
  * @param props - Component props
  * @returns Monaco Editor component
@@ -44,9 +49,56 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
   filepath: _filepath,
   content,
   language,
+  initialViewState,
   onChange,
-  readOnly = true,
+  onSave,
+  onViewStateChange,
 }) => {
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+
+  /**
+   * Handle editor mount
+   * Registers keyboard shortcuts and restores view state
+   */
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+
+    // Register Ctrl+S / Cmd+S keyboard shortcut for save
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      onSave();
+    });
+
+    // Restore view state if available (cursor position, scroll position)
+    if (initialViewState) {
+      editor.restoreViewState(initialViewState as ReturnType<typeof editor.saveViewState>);
+    }
+
+    // Focus editor after mount
+    editor.focus();
+  };
+
+  /**
+   * Handle content change
+   * Called on every keystroke or edit operation
+   */
+  const handleChange = (value: string | undefined) => {
+    onChange(value || '');
+  };
+
+  /**
+   * Save view state before unmount
+   * Preserves cursor position and scroll position when switching tabs
+   */
+  useEffect(() => {
+    return () => {
+      if (editorRef.current && onViewStateChange) {
+        const viewState = editorRef.current.saveViewState();
+        onViewStateChange(viewState);
+      }
+    };
+  }, [onViewStateChange]);
+
   return (
     <div className="h-full w-full">
       <Editor
@@ -64,7 +116,7 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
           lineNumbers: 'on',
           minimap: { enabled: true },
           automaticLayout: true,
-          readOnly,
+          readOnly: false,
           scrollBeyondLastLine: false,
           renderWhitespace: 'selection',
           tabSize: 2,
@@ -82,7 +134,8 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
             bracketPairs: true,
           },
         }}
-        onChange={(value) => onChange?.(value || '')}
+        onChange={handleChange}
+        onMount={handleEditorMount}
       />
     </div>
   );

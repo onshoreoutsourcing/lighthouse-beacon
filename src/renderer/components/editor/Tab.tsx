@@ -23,7 +23,8 @@ interface OpenFile {
   name: string;
   content: string;
   language: string;
-  isDirty?: boolean;
+  isDirty: boolean;
+  viewState?: unknown;
 }
 
 /**
@@ -78,6 +79,7 @@ export const Tab: React.FC<TabProps> = ({ file, isActive, onSelect, onClose }) =
     >
       <span className="truncate text-sm" title={file.path}>
         {file.name}
+        {file.isDirty && <span className="text-yellow-400 ml-1">*</span>}
       </span>
       <X
         className="w-4 h-4 flex-shrink-0 hover:text-red-400 transition-colors"
