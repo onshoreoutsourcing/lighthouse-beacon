@@ -4,13 +4,6 @@ import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-// Note: electron-squirrel-startup requires CommonJS, disabling rule for this line
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-if (require('electron-squirrel-startup') as boolean) {
-  app.quit();
-}
-
 let mainWindow: BrowserWindow | null = null;
 
 const createMainWindow = (): void => {
