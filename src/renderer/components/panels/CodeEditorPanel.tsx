@@ -18,7 +18,7 @@ import { useFileExplorerStore } from '@renderer/stores/fileExplorer.store';
 import { useEditorStore } from '@renderer/stores/editor.store';
 import { MonacoEditorContainer } from '@renderer/components/editor/MonacoEditorContainer';
 import { TabBar } from '@renderer/components/editor/TabBar';
-import { FileCode } from 'lucide-react';
+import { FileCode, Loader2 } from 'lucide-react';
 
 /**
  * CodeEditorPanel Component
@@ -35,12 +35,15 @@ const CodeEditorPanel: React.FC = () => {
   const {
     openFiles,
     activeFilePath,
+    isLoading,
+    error,
     openFile,
     closeFile,
     setActiveFile,
     updateFileContent,
     saveFile,
     updateViewState,
+    clearError,
   } = useEditorStore();
 
   // Subscribe to file explorer for file selection
@@ -102,6 +105,17 @@ const CodeEditorPanel: React.FC = () => {
     [activeFilePath, updateViewState]
   );
 
+  /**
+   * Handle error retry
+   * Clears error state and re-attempts to open the selected file
+   */
+  const handleRetry = useCallback(() => {
+    clearError();
+    if (selectedFilePath) {
+      void openFile(selectedFilePath);
+    }
+  }, [clearError, selectedFilePath, openFile]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Tab Bar - only show if files are open */}
@@ -127,8 +141,38 @@ const CodeEditorPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Editor or Empty State */}
-      {activeFile ? (
+      {/* File Load Error Display */}
+      {error && (
+        <div className="bg-red-900/50 text-red-200 px-4 py-2 text-sm border-b border-red-800 flex items-center justify-between">
+          <span>{error}</span>
+          <div>
+            <button
+              onClick={handleRetry}
+              className="ml-2 underline hover:text-red-100 transition-colors"
+            >
+              Retry
+            </button>
+            <button
+              onClick={clearError}
+              className="ml-2 underline hover:text-red-100 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Content Area */}
+      {isLoading ? (
+        // Loading State
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-16 h-16 mx-auto mb-4 text-blue-400 animate-spin" />
+            <p className="text-gray-400">Loading file...</p>
+          </div>
+        </div>
+      ) : activeFile ? (
+        // Active File - Monaco Editor
         <MonacoEditorContainer
           filepath={activeFile.path}
           content={activeFile.content}
@@ -141,6 +185,7 @@ const CodeEditorPanel: React.FC = () => {
           onViewStateChange={handleViewStateChange}
         />
       ) : (
+        // Empty State - No File Open
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <FileCode className="w-16 h-16 mx-auto mb-4 text-gray-500" />

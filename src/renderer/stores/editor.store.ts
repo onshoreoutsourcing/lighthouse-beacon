@@ -42,6 +42,10 @@ interface EditorState {
   openFiles: OpenFile[];
   /** Path of currently active file */
   activeFilePath: string | null;
+  /** Loading state during file operations */
+  isLoading: boolean;
+  /** Error message from failed file operations */
+  error: string | null;
 
   // Actions
   /** Opens a file (or activates if already open) */
@@ -56,6 +60,8 @@ interface EditorState {
   saveFile: (path: string) => Promise<void>;
   /** Updates view state for a file */
   updateViewState: (path: string, viewState: unknown) => void;
+  /** Clears error state */
+  clearError: () => void;
   /** Resets store to initial state */
   reset: () => void;
 }
@@ -76,6 +82,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Initial state
   openFiles: [],
   activeFilePath: null,
+  isLoading: false,
+  error: null,
 
   /**
    * Opens a file in the editor
@@ -92,16 +100,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     if (existingFile) {
       // File already open, just activate it
-      set({ activeFilePath: path });
+      set({ activeFilePath: path, error: null });
       return;
     }
+
+    // Set loading state
+    set({ isLoading: true, error: null });
 
     try {
       // Load file content via IPC
       const result = await window.electronAPI.fileSystem.readFile(path);
 
       if (!result.success) {
-        console.error('Failed to load file:', result.error?.message || 'Unknown error');
+        // Set error state
+        set({
+          isLoading: false,
+          error: `Failed to load file ${getFileName(path)}: ${result.error?.message || 'Unknown error'}`,
+        });
         return;
       }
 
@@ -115,13 +130,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         viewState: undefined,
       };
 
-      // Add file to openFiles and set as active
+      // Add file to openFiles and set as active, clear loading state
       set({
         openFiles: [...openFiles, newFile],
         activeFilePath: path,
+        isLoading: false,
+        error: null,
       });
     } catch (err) {
-      console.error('Error opening file:', err instanceof Error ? err.message : err);
+      // Set error state
+      set({
+        isLoading: false,
+        error: `Error opening file ${getFileName(path)}: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      });
     }
   },
 
@@ -267,12 +288,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   /**
+   * Clears the error state
+   */
+  clearError: () => {
+    set({ error: null });
+  },
+
+  /**
    * Resets the store to initial state
    */
   reset: () => {
     set({
       openFiles: [],
       activeFilePath: null,
+      isLoading: false,
+      error: null,
     });
   },
 }));
