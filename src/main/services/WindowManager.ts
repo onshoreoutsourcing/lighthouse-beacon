@@ -36,6 +36,8 @@ export class WindowManager {
     const { width, height } = this.calculateWindowSize();
 
     // Create the browser window with security-first configuration
+    const preloadPath = path.join(__dirname, '../preload/index.mjs');
+
     this.mainWindow = new BrowserWindow({
       width,
       height,
@@ -43,10 +45,10 @@ export class WindowManager {
       minHeight: 768,
       webPreferences: {
         // Security configuration (ADR-001: Electron Security)
-        preload: path.join(__dirname, '../../preload/index.js'),
+        preload: preloadPath,
         nodeIntegration: false, // Prevent Node.js access in renderer
         contextIsolation: true, // Isolate context for security
-        sandbox: true, // Enable sandbox for renderer process
+        sandbox: false, // Temporarily disabled for debugging
       },
       show: false, // Prevent flickering - show when ready
     });

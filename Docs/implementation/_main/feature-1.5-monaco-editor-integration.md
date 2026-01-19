@@ -2,7 +2,7 @@
 
 **Feature ID:** Feature-1.5
 **Epic:** Epic-1 (Desktop Foundation with Basic UI)
-**Status:** Planning
+**Status:** ✅ Complete
 **Priority:** P0 (Critical)
 **Estimated Duration:** 4-5 days
 **Dependencies:** Feature 1.2 (Electron Application Shell), Feature 1.3 (Three-Panel Layout)
@@ -843,5 +843,5 @@ pnpm add @monaco-editor/react
 **Feature Owner:** Roy Love
 **Created Date:** 2026-01-19
 **Last Updated:** 2026-01-19
-**Status:** Planning
+**Status:** ✅ Complete
 **Next Review:** After Wave 1.5.3 completion

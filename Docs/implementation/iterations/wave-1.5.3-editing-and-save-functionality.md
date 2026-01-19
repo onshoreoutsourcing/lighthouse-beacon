@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-1.5.3
 - **Feature:** Feature 1.5 - Monaco Editor Integration
 - **Epic:** Epic 1 - Desktop Foundation with Basic UI
-- **Status:** Planning
+- **Status:** ✅ Complete
 - **Scope:** Implement manual editing, unsaved changes tracking, and file saving
 - **Wave Goal:** Enable complete edit-save workflow for code files
 
@@ -25,11 +25,11 @@
 **So that** I can modify code directly in the IDE
 
 **Acceptance Criteria:**
-- [ ] Full keyboard editing (typing, deleting, arrow keys)
-- [ ] Mouse editing (click to position cursor, drag to select)
-- [ ] Copy/paste support (Ctrl+C/V or Cmd+C/V)
-- [ ] Undo/redo support (Ctrl+Z/Y or Cmd+Z/Shift+Cmd+Z)
-- [ ] Find/replace available (Ctrl+F or Cmd+F)
+- [x] Full keyboard editing (typing, deleting, arrow keys)
+- [x] Mouse editing (click to position cursor, drag to select)
+- [x] Copy/paste support (Ctrl+C/V or Cmd+C/V)
+- [x] Undo/redo support (Ctrl+Z/Y or Cmd+Z/Shift+Cmd+Z)
+- [x] Find/replace available (Ctrl+F or Cmd+F)
 
 **Priority:** High
 **Estimated Hours:** 4
@@ -44,11 +44,11 @@
 **So that** I know what needs to be saved before closing
 
 **Acceptance Criteria:**
-- [ ] Editing file sets isDirty flag to true
-- [ ] Tab shows asterisk (*) indicator for unsaved files
-- [ ] Saving file clears isDirty flag
-- [ ] Visual distinction between saved and unsaved tabs
-- [ ] Content changes tracked in Zustand store
+- [x] Editing file sets isDirty flag to true
+- [x] Tab shows asterisk (*) indicator for unsaved files
+- [x] Saving file clears isDirty flag
+- [x] Visual distinction between saved and unsaved tabs
+- [x] Content changes tracked in Zustand store
 
 **Priority:** High
 **Estimated Hours:** 4
@@ -63,11 +63,11 @@
 **So that** my changes are persisted to disk
 
 **Acceptance Criteria:**
-- [ ] Ctrl+S / Cmd+S triggers save operation
-- [ ] Save writes content to disk via IPC
-- [ ] Unsaved indicator clears after successful save
-- [ ] Error message displayed if save fails
-- [ ] Save latency < 100ms for typical files
+- [x] Ctrl+S / Cmd+S triggers save operation
+- [x] Save writes content to disk via IPC
+- [x] Unsaved indicator clears after successful save
+- [x] Error message displayed if save fails
+- [x] Save latency < 100ms for typical files
 
 **Priority:** High
 **Estimated Hours:** 4
@@ -82,11 +82,11 @@
 **So that** I can return to exact location in each file
 
 **Acceptance Criteria:**
-- [ ] Cursor position saved when switching away from tab
-- [ ] Scroll position saved when switching away from tab
-- [ ] Position restored when returning to tab
-- [ ] View state stored per-file in editor store
-- [ ] Works correctly with multiple rapid tab switches
+- [x] Cursor position saved when switching away from tab
+- [x] Scroll position saved when switching away from tab
+- [x] Position restored when returning to tab
+- [x] View state stored per-file in editor store
+- [x] Works correctly with multiple rapid tab switches
 
 **Priority:** Medium
 **Estimated Hours:** 3
@@ -96,14 +96,14 @@
 
 ## Definition of Done
 
-- [ ] All user stories completed with acceptance criteria met
-- [ ] Full manual editing works (type, select, copy/paste, undo/redo)
-- [ ] Unsaved changes indicated with asterisk
-- [ ] Ctrl+S / Cmd+S saves file to disk
-- [ ] View state persists when switching tabs
-- [ ] Save latency < 100ms
-- [ ] No TypeScript or linter errors
-- [ ] Code reviewed and approved
+- [x] All user stories completed with acceptance criteria met
+- [x] Full manual editing works (type, select, copy/paste, undo/redo)
+- [x] Unsaved changes indicated with asterisk
+- [x] Ctrl+S / Cmd+S saves file to disk
+- [x] View state persists when switching tabs
+- [x] Save latency < 100ms
+- [x] No TypeScript or linter errors
+- [x] Code reviewed and approved
 
 ---
 
@@ -118,4 +118,4 @@
 
 **Total Stories:** 4
 **Total Hours:** 15
-**Wave Status:** Planning
+**Wave Status:** ✅ Complete

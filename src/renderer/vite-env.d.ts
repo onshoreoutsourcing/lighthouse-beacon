@@ -19,6 +19,8 @@ declare global {
      * Provides secure access to file system and other native operations
      */
     electronAPI: {
+      onMenuEvent: (channel: string, callback: () => void) => void;
+      removeMenuListener: (channel: string, callback: () => void) => void;
       fileSystem: {
         selectDirectory: () => Promise<Result<DirectorySelection>>;
         readDirectory: (dirPath: string) => Promise<Result<DirectoryContents>>;

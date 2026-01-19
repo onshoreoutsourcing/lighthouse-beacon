@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { WindowManager } from './services/WindowManager';
+import { MenuService } from './services/MenuService';
 import { registerFileSystemHandlers, unregisterFileSystemHandlers } from './ipc/fileSystemHandlers';
 
 // Global reference to WindowManager instance
@@ -32,6 +33,9 @@ const createMainWindow = (): void => {
  * Called when Electron has finished initialization
  */
 void app.whenReady().then(() => {
+  // Create application menu
+  MenuService.createMenu();
+
   // Register IPC handlers before creating windows
   registerFileSystemHandlers();
 

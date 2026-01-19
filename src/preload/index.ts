@@ -22,6 +22,33 @@ import { IPC_CHANNELS } from '@shared/types';
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
   /**
+   * Menu Event Listeners
+   */
+  onMenuEvent: (channel: string, callback: () => void) => {
+    // Only allow specific menu event channels
+    const validChannels = [
+      IPC_CHANNELS.MENU_OPEN_FOLDER,
+      IPC_CHANNELS.MENU_OPEN_FILE,
+      IPC_CHANNELS.MENU_NEW_FILE,
+      IPC_CHANNELS.MENU_NEW_FOLDER,
+      IPC_CHANNELS.MENU_SAVE,
+      IPC_CHANNELS.MENU_SAVE_AS,
+      IPC_CHANNELS.MENU_CLOSE_FOLDER,
+    ];
+
+    if (validChannels.includes(channel)) {
+      ipcRenderer.on(channel, callback);
+    }
+  },
+
+  /**
+   * Remove menu event listener
+   */
+  removeMenuListener: (channel: string, callback: () => void) => {
+    ipcRenderer.removeListener(channel, callback);
+  },
+
+  /**
    * File System Operations
    */
   fileSystem: {
@@ -71,6 +98,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 });
 
-// Log to confirm preload script is running
+// Log to confirm preload script loaded successfully
 // eslint-disable-next-line no-console
 console.log('Preload script loaded successfully');

@@ -27,6 +27,15 @@ export const IPC_CHANNELS = {
   FS_READ_DIR: 'fs:readDir',
   FS_READ_FILE: 'fs:readFile',
   FS_WRITE_FILE: 'fs:writeFile',
+
+  // Menu events (renderer receives these)
+  MENU_OPEN_FOLDER: 'menu:open-folder',
+  MENU_OPEN_FILE: 'menu:open-file',
+  MENU_NEW_FILE: 'menu:new-file',
+  MENU_NEW_FOLDER: 'menu:new-folder',
+  MENU_SAVE: 'menu:save',
+  MENU_SAVE_AS: 'menu:save-as',
+  MENU_CLOSE_FOLDER: 'menu:close-folder',
 } as const;
 
 /**

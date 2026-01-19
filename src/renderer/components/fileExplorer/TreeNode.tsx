@@ -152,7 +152,11 @@ const TreeNode: React.FC<TreeNodeProps> = ({
  * Only re-render if these specific props change
  */
 const arePropsEqual = (prevProps: TreeNodeProps, nextProps: TreeNodeProps): boolean => {
+  // Check if children array reference changed (important for lazy loading)
+  const childrenChanged = prevProps.node.children !== nextProps.node.children;
+
   return (
+    !childrenChanged &&
     prevProps.node.path === nextProps.node.path &&
     prevProps.node.isExpanded === nextProps.node.isExpanded &&
     prevProps.node.isLoading === nextProps.node.isLoading &&

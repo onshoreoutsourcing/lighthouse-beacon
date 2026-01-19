@@ -149,7 +149,9 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
 
     // Find the folder node in the tree
     const folder = findNodeInTree(files, path);
-    if (!folder || folder.type !== 'directory') return;
+    if (!folder || folder.type !== 'directory') {
+      return;
+    }
 
     // Toggle expanded state
     const isExpanding = !folder.isExpanded;
@@ -190,10 +192,15 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
         // Sort entries: folders first, then alphabetically
         const sortedEntries = sortFileEntries(result.data.entries);
 
+        // Get current node to preserve state
+        const currentNode = findNodeInTree(get().files, path);
+
         // Update node with children and clear loading state
+        // IMPORTANT: Explicitly preserve isExpanded state
         const updatedFiles = updateNodeInTree(get().files, path, {
           children: sortedEntries,
           isLoading: false,
+          isExpanded: currentNode?.isExpanded ?? true, // Preserve or default to true since we're loading
         });
 
         set({ files: updatedFiles });
@@ -204,9 +211,11 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
             ? result.error.message
             : 'Failed to read directory contents';
 
+        const currentNode = findNodeInTree(get().files, path);
         const updatedFiles = updateNodeInTree(get().files, path, {
           children: [], // Empty children array indicates load attempted but failed/empty
           isLoading: false,
+          isExpanded: currentNode?.isExpanded ?? true, // Preserve expanded state
         });
 
         set({ files: updatedFiles, error: errorMessage });
@@ -215,9 +224,11 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
       // Handle unexpected errors
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
 
+      const currentNode = findNodeInTree(get().files, path);
       const updatedFiles = updateNodeInTree(get().files, path, {
         children: [],
         isLoading: false,
+        isExpanded: currentNode?.isExpanded ?? true, // Preserve expanded state
       });
 
       set({ files: updatedFiles, error: errorMessage });
