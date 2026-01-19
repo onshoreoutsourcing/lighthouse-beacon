@@ -1,9 +1,69 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
+import type {
+  DirectoryContents,
+  DirectorySelection,
+  FileContents,
+  Result,
+  WriteFileOptions,
+} from '@shared/types';
+import { IPC_CHANNELS } from '@shared/types';
+
+/**
+ * Preload Script - Secure IPC Bridge
+ *
+ * Exposes a limited, safe API to the renderer process using contextBridge.
+ * This prevents the renderer from accessing the full Node.js API and ipcRenderer,
+ * following Electron security best practices.
+ *
+ * All IPC calls use invoke/handle pattern for proper async error handling.
+ */
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
-contextBridge.exposeInMainWorld('electron', {
-  // Placeholder API - will be expanded in future waves
+contextBridge.exposeInMainWorld('electronAPI', {
+  /**
+   * File System Operations
+   */
+  fileSystem: {
+    /**
+     * Select a directory using native file picker
+     * @returns Selected directory path or null if cancelled
+     */
+    selectDirectory: (): Promise<Result<DirectorySelection>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.DIR_SELECT);
+    },
+
+    /**
+     * Read directory contents
+     * @param dirPath - Directory path to read
+     * @returns Directory contents with file entries
+     */
+    readDirectory: (dirPath: string): Promise<Result<DirectoryContents>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.FS_READ_DIR, dirPath);
+    },
+
+    /**
+     * Read file contents
+     * @param filePath - File path to read
+     * @returns File contents as string
+     */
+    readFile: (filePath: string): Promise<Result<FileContents>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.FS_READ_FILE, filePath);
+    },
+
+    /**
+     * Write file contents
+     * @param options - Write options (path, content, encoding)
+     * @returns Path of written file
+     */
+    writeFile: (options: WriteFileOptions): Promise<Result<string>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.FS_WRITE_FILE, options);
+    },
+  },
+
+  /**
+   * Version information (legacy support)
+   */
   versions: {
     node: () => process.versions.node,
     chrome: () => process.versions.chrome,

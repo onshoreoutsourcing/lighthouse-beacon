@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { WindowManager } from './services/WindowManager';
+import { registerFileSystemHandlers, unregisterFileSystemHandlers } from './ipc/fileSystemHandlers';
 
 // Global reference to WindowManager instance
 let windowManager: WindowManager | null = null;
@@ -31,6 +32,9 @@ const createMainWindow = (): void => {
  * Called when Electron has finished initialization
  */
 void app.whenReady().then(() => {
+  // Register IPC handlers before creating windows
+  registerFileSystemHandlers();
+
   createMainWindow();
 
   /**
@@ -59,6 +63,9 @@ app.on('window-all-closed', () => {
  * Clean up resources before application terminates
  */
 app.on('before-quit', () => {
+  // Unregister IPC handlers
+  unregisterFileSystemHandlers();
+
   if (windowManager) {
     windowManager.destroy();
     windowManager = null;
