@@ -1,0 +1,38 @@
+{
+  "mcpServers": {
+    "exa": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@kael_shipman/mcp-exa"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upn/context7-mcp"
+      ]
+    },
+    "semgrep": {
+      "command": "uvx",
+      "args": [
+        "semgrep-mcp"
+      ]
+    },
+    "serena": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@serenaagent/mcp"
+      ]
+    },
+    "browsermcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ]
+    }
+  }
+}

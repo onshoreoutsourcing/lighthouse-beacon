@@ -1,0 +1,64 @@
+{
+  "version": "0.8.0",
+  "installedAt": "2026-01-18T22:39:03.315Z",
+  "source": "bundled",
+  "agents": [],
+  "commands": [
+    "begin-lighthouse.md",
+    "code-review.md",
+    "define-skill.md",
+    "design-epics.md",
+    "design-features.md",
+    "design-waves.md",
+    "docs-archive.md",
+    "find-bugs.md",
+    "gap-analysis.md",
+    "generate-docs.md",
+    "implement-waves.md",
+    "plan-enhancement.md",
+    "review-waves.md",
+    "setup-git-branch-strategy.md",
+    "setup-lighthouse.md",
+    "setup-mcp-servers.md",
+    "update-docs.md"
+  ],
+  "templates": [
+    "01-Product-Vision-Template.md",
+    "02-Product-Plan-Template.md",
+    "03-Business-Requirements-Template.md",
+    "04-Architecture-Template.md",
+    "05-User-Experience-Template.md",
+    "06-Design-Template.md",
+    "07-ADR-Template.md",
+    "20-Epic-Plan-Template.md",
+    "21-Feature-Plan-Template.md",
+    "22-Wave-Plan-Template.md",
+    "40-Test-Execution-Report-Template.md",
+    "41-Security-Audit-Report-Template.md",
+    "42-Implementation-Validation-Report-Template.md",
+    "43-Documentation-Organization-Report-Template.md",
+    "44-UI-Modification-Report-Template.md",
+    "HOW-TO-WRITE-ADR.md"
+  ],
+  "skills": [],
+  "mcpServers": [
+    "exa",
+    "context7",
+    "semgrep",
+    "serena",
+    "browsermcp"
+  ],
+  "documentation": {
+    "created": true,
+    "folders": [
+      "Docs/architecture",
+      "Docs/architecture/_main",
+      "Docs/architecture/decisions",
+      "Docs/dev_notes",
+      "Docs/implementation",
+      "Docs/planning",
+      "Docs/reports",
+      "Docs/architecture/decisions/HOW-TO-WRITE-ADR.md"
+    ]
+  }
+}
