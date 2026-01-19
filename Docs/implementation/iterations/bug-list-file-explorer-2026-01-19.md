@@ -261,13 +261,14 @@ useEffect(() => {
 **Status**: ❌ **NOT FIXED** - Stubbed implementations only
 
 ### Description
-The following menu items exist in the application menu but do nothing when clicked because their handlers are stubbed:
+The following menu items exist (or need to be added) in the application menu but do nothing when clicked because their handlers are stubbed or missing:
 
-1. **File → New File** (`handleNewFile`)
-2. **File → New Folder** (`handleNewFolder`)
-3. **File → Open File** (`handleOpenFile`)
-4. **File → Save** (`handleSave`)
-5. **File → Save As** (`handleSaveAs`)
+1. **File → New File** (`handleNewFile`) - stubbed
+2. **File → New Folder** (`handleNewFolder`) - stubbed
+3. **File → Open File** (`handleOpenFile`) - stubbed
+4. **File → Save** (`handleSave`) - stubbed
+5. **File → Save As** (`handleSaveAs`) - stubbed
+6. **File → Save All** (`handleSaveAll`) - **NOT IN MENU YET**
 
 ### Current Implementation
 **File**: `/Users/roylove/dev/lighthouse-beacon/src/renderer/components/panels/FileExplorerPanel.tsx:114-132`
@@ -320,6 +321,13 @@ const handleSaveAs = () => {
 - Save copy of current file with new name
 - Open new file in editor
 
+**File → Save All** (NEW - needs to be added):
+- Should save ALL open files with unsaved changes (isDirty flag)
+- Show progress indicator if saving multiple files
+- Display success message with count (e.g., "Saved 3 files")
+- Display error if any file fails to save
+- Keyboard shortcut: Ctrl+K S or Ctrl+Alt+S (industry standard)
+
 ### Impact
 - Users click menu items expecting functionality
 - Menu items appear functional but do nothing
@@ -327,7 +335,9 @@ const handleSaveAs = () => {
 - Keyboard shortcut Ctrl+S works but menu item doesn't
 
 ### Root Cause
-These handlers were stubbed during initial implementation and never completed. They were incorrectly removed from wave plan scope and dismissed as "not required by Epic 1" when in fact they ARE required for a functional IDE.
+These handlers (1-5) were stubbed during initial implementation and never completed. They were incorrectly removed from wave plan scope and dismissed as "not required by Epic 1" when in fact they ARE required for a functional IDE.
+
+"Save All" (#6) was never added to the menu or implemented at all, but is a standard IDE feature that should exist.
 
 ### Time Spent
 ~0 hours (not yet implemented)
@@ -376,7 +386,7 @@ These handlers were stubbed during initial implementation and never completed. T
 
 ## Follow-up Items
 
-- [ ] **CRITICAL**: Implement Bug #5 menu handlers (New File, New Folder, Open File, Save, Save As)
+- [ ] **CRITICAL**: Implement Bug #5 menu handlers (New File, New Folder, Open File, Save, Save As, Save All)
 - [ ] **Production**: Investigate proper sandbox mode configuration for security
 - [ ] **Testing**: Add automated tests for folder expansion at multiple depths
 - [ ] **Testing**: Add tests for menu action triggers

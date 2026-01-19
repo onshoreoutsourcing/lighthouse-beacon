@@ -35,6 +35,7 @@ export const IPC_CHANNELS = {
   MENU_NEW_FOLDER: 'menu:new-folder',
   MENU_SAVE: 'menu:save',
   MENU_SAVE_AS: 'menu:save-as',
+  MENU_SAVE_ALL: 'menu:save-all',
   MENU_CLOSE_FOLDER: 'menu:close-folder',
 } as const;
 
