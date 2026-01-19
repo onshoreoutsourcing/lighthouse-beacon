@@ -3,7 +3,7 @@
 **Date**: January 19, 2026
 **Features**: File Explorer, Application Menu
 **Session Duration**: ~3 hours
-**Status**: 4 bugs fixed ✅ | 1 bug remaining ❌ (unimplemented menu handlers)
+**Status**: All bugs resolved ✅ (5/5 complete)
 
 ---
 
@@ -258,7 +258,7 @@ useEffect(() => {
 
 **Severity**: High
 **Feature**: Application Menu, File Operations
-**Status**: ❌ **NOT FIXED** - Stubbed implementations only
+**Status**: ✅ **RESOLVED** - All 6 menu handlers fully implemented
 
 ### Description
 The following menu items exist (or need to be added) in the application menu but do nothing when clicked because their handlers are stubbed or missing:
@@ -339,19 +339,108 @@ These handlers (1-5) were stubbed during initial implementation and never comple
 
 "Save All" (#6) was never added to the menu or implemented at all, but is a standard IDE feature that should exist.
 
+### Solution Implemented
+
+**Commit**: `e483d5d feat: Implement all 6 menu handlers (Bug #5 complete)`
+
+**Files Modified**:
+1. `/src/shared/types/index.ts` - Added IPC channels and types
+2. `/src/main/services/MenuService.ts` - Added Save All menu item
+3. `/src/main/services/FileSystemService.ts` - Added createDirectory method
+4. `/src/main/ipc/fileSystemHandlers.ts` - Added FILE_SELECT, FILE_SAVE_DIALOG, DIR_CREATE handlers
+5. `/src/preload/index.ts` - Exposed new APIs (selectFile, showSaveDialog, createDirectory)
+6. `/src/renderer/vite-env.d.ts` - Added TypeScript declarations for new APIs
+7. `/src/renderer/components/panels/FileExplorerPanel.tsx` - Implemented all 6 handlers
+
+**Implementation Details**:
+
+**File → Save** (Ctrl+S):
+```typescript
+const handleSave = async () => {
+  const { activeFilePath, saveFile } = useEditorStore.getState();
+  if (!activeFilePath) return;
+
+  try {
+    await saveFile(activeFilePath);
+  } catch (error) {
+    console.error('Failed to save file:', error);
+  }
+};
+```
+
+**File → Save All** (Ctrl+Alt+S) - NEW:
+```typescript
+const handleSaveAll = async () => {
+  const { openFiles, saveFile } = useEditorStore.getState();
+  const dirtyFiles = openFiles.filter(f => f.isDirty);
+
+  if (dirtyFiles.length === 0) return;
+
+  let savedCount = 0;
+  let failedCount = 0;
+
+  for (const file of dirtyFiles) {
+    try {
+      await saveFile(file.path);
+      savedCount++;
+    } catch (error) {
+      console.error(`Failed to save ${file.path}:`, error);
+      failedCount++;
+    }
+  }
+
+  if (failedCount > 0) {
+    console.error(`Saved ${savedCount} file(s), ${failedCount} failed`);
+  }
+};
+```
+
+**File → Save As** (Ctrl+Shift+S):
+- Shows native save dialog with defaultPath set to current file
+- Saves content to new location
+- Opens new file in editor
+- Refreshes file explorer if saved within project
+
+**File → New File** (Ctrl+N):
+- Prompts for filename using `window.prompt()`
+- Creates empty file in project root
+- Refreshes file explorer
+- Opens new file in editor
+
+**File → New Folder** (Ctrl+Shift+N):
+- Prompts for folder name
+- Creates directory via IPC (DIR_CREATE)
+- Refreshes file explorer to show new folder
+
+**File → Open File** (Ctrl+Shift+O):
+- Shows native file picker dialog
+- Allows selecting file anywhere on filesystem
+- Opens file in editor
+
+**IPC Infrastructure Added**:
+- `IPC_CHANNELS.FILE_SELECT` - File picker dialog
+- `IPC_CHANNELS.FILE_SAVE_DIALOG` - Save dialog
+- `IPC_CHANNELS.DIR_CREATE` - Create directory
+- `IPC_CHANNELS.MENU_SAVE_ALL` - Save All menu event
+
+**Type Definitions Added**:
+- `FileSelection` - File picker result
+- `SaveDialogResult` - Save dialog result
+- `CreateFolderOptions` - Directory creation options
+
 ### Time Spent
-~0 hours (not yet implemented)
+~1.5 hours (implementation, IPC setup, type safety, ESLint fixes)
 
 ---
 
 ## Summary Statistics
 
-**Total Bugs Fixed**: 4
-**Total Bugs Remaining**: 1 (Bug #5 - unimplemented menu handlers)
-**Total Time Spent**: ~3 hours
-**Critical Bugs**: 1
-**High Severity Bugs**: 2 (1 fixed, 1 remaining)
-**Medium Severity Bugs**: 2
+**Total Bugs Fixed**: 5
+**Total Bugs Remaining**: 0
+**Total Time Spent**: ~4.5 hours
+**Critical Bugs**: 1 (fixed)
+**High Severity Bugs**: 2 (both fixed)
+**Medium Severity Bugs**: 2 (both fixed)
 
 **Features Affected**:
 - File Explorer (Bugs #1, #2, #3)
@@ -362,7 +451,13 @@ These handlers (1-5) were stubbed during initial implementation and never comple
 1. `/src/main/services/WindowManager.ts` (Bug #1)
 2. `/src/renderer/stores/fileExplorer.store.ts` (Bug #2)
 3. `/src/renderer/components/fileExplorer/TreeNode.tsx` (Bug #2)
-4. `/src/renderer/components/panels/FileExplorerPanel.tsx` (Bugs #3, #4)
+4. `/src/renderer/components/panels/FileExplorerPanel.tsx` (Bugs #3, #4, #5)
+5. `/src/shared/types/index.ts` (Bug #5)
+6. `/src/main/services/MenuService.ts` (Bug #5)
+7. `/src/main/services/FileSystemService.ts` (Bug #5)
+8. `/src/main/ipc/fileSystemHandlers.ts` (Bug #5)
+9. `/src/preload/index.ts` (Bug #5)
+10. `/src/renderer/vite-env.d.ts` (Bug #5)
 
 **Code Quality Improvements**:
 - Removed all debug logging after fixes
@@ -386,9 +481,10 @@ These handlers (1-5) were stubbed during initial implementation and never comple
 
 ## Follow-up Items
 
-- [ ] **CRITICAL**: Implement Bug #5 menu handlers (New File, New Folder, Open File, Save, Save As, Save All)
+- [x] **CRITICAL**: Implement Bug #5 menu handlers (New File, New Folder, Open File, Save, Save As, Save All) ✅ **COMPLETE**
 - [ ] **Production**: Investigate proper sandbox mode configuration for security
 - [ ] **Testing**: Add automated tests for folder expansion at multiple depths
 - [ ] **Testing**: Add tests for menu action triggers
-- [ ] **Testing**: Add tests for all menu handlers once implemented
+- [ ] **Testing**: Add tests for all menu handlers (Save, Save All, Save As, New File, New Folder, Open File)
+- [ ] **Testing**: Manual testing of all 6 menu handlers in running application
 - [ ] **Documentation**: Document the sandbox mode issue for future reference
