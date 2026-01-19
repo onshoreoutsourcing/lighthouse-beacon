@@ -3,7 +3,7 @@
 **Date**: January 19, 2026
 **Features**: File Explorer, Application Menu
 **Session Duration**: ~3 hours
-**Status**: All bugs resolved ✅
+**Status**: 4 bugs fixed ✅ | 1 bug remaining ❌ (unimplemented menu handlers)
 
 ---
 
@@ -254,17 +254,99 @@ useEffect(() => {
 
 ---
 
+## Bug #5: Menu Handlers Not Implemented (Stubbed)
+
+**Severity**: High
+**Feature**: Application Menu, File Operations
+**Status**: ❌ **NOT FIXED** - Stubbed implementations only
+
+### Description
+The following menu items exist in the application menu but do nothing when clicked because their handlers are stubbed:
+
+1. **File → New File** (`handleNewFile`)
+2. **File → New Folder** (`handleNewFolder`)
+3. **File → Open File** (`handleOpenFile`)
+4. **File → Save** (`handleSave`)
+5. **File → Save As** (`handleSaveAs`)
+
+### Current Implementation
+**File**: `/Users/roylove/dev/lighthouse-beacon/src/renderer/components/panels/FileExplorerPanel.tsx:114-132`
+
+```typescript
+const handleOpenFile = () => {
+  // Not yet implemented
+};
+
+const handleNewFile = () => {
+  // Not yet implemented
+};
+
+const handleNewFolder = () => {
+  // Not yet implemented
+};
+
+const handleSave = () => {
+  // Not yet implemented
+};
+
+const handleSaveAs = () => {
+  // Not yet implemented
+};
+```
+
+### Expected Behavior
+
+**File → New File**:
+- Should prompt for filename
+- Create new empty file in current directory
+- Open file in editor
+
+**File → New Folder**:
+- Should prompt for folder name
+- Create new folder in current directory
+- Refresh file explorer to show new folder
+
+**File → Open File**:
+- Should open file picker dialog
+- Allow user to select file outside project root
+- Open file in editor (read-only or prompt to copy to project)
+
+**File → Save** (Ctrl+S already works):
+- Should save currently active file in editor
+- Same behavior as Ctrl+S keyboard shortcut
+
+**File → Save As**:
+- Should prompt for new filename/location
+- Save copy of current file with new name
+- Open new file in editor
+
+### Impact
+- Users click menu items expecting functionality
+- Menu items appear functional but do nothing
+- Poor user experience - broken interface expectations
+- Keyboard shortcut Ctrl+S works but menu item doesn't
+
+### Root Cause
+These handlers were stubbed during initial implementation and never completed. They were incorrectly removed from wave plan scope and dismissed as "not required by Epic 1" when in fact they ARE required for a functional IDE.
+
+### Time Spent
+~0 hours (not yet implemented)
+
+---
+
 ## Summary Statistics
 
 **Total Bugs Fixed**: 4
+**Total Bugs Remaining**: 1 (Bug #5 - unimplemented menu handlers)
 **Total Time Spent**: ~3 hours
 **Critical Bugs**: 1
-**High Severity Bugs**: 1
+**High Severity Bugs**: 2 (1 fixed, 1 remaining)
 **Medium Severity Bugs**: 2
 
 **Features Affected**:
 - File Explorer (Bugs #1, #2, #3)
-- Application Menu (Bug #4)
+- Application Menu (Bugs #4, #5)
+- File Operations (Bug #5)
 
 **Files Modified**:
 1. `/src/main/services/WindowManager.ts` (Bug #1)
@@ -294,7 +376,9 @@ useEffect(() => {
 
 ## Follow-up Items
 
+- [ ] **CRITICAL**: Implement Bug #5 menu handlers (New File, New Folder, Open File, Save, Save As)
 - [ ] **Production**: Investigate proper sandbox mode configuration for security
 - [ ] **Testing**: Add automated tests for folder expansion at multiple depths
 - [ ] **Testing**: Add tests for menu action triggers
+- [ ] **Testing**: Add tests for all menu handlers once implemented
 - [ ] **Documentation**: Document the sandbox mode issue for future reference
