@@ -168,7 +168,8 @@ With the UI and AI integration complete, file operation tools enable the core fu
 ---
 
 ## Phase 4: Multi-Provider and Enhanced Features
-**Goal:** Add multi-provider AI support and improve conversation capabilities
+**Goal:** Add multi-provider AI support and impr
+ove conversation capabilities
 
 ### Deliverables
 - **Multi-Provider Support:**

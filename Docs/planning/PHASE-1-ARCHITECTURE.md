@@ -38,7 +38,7 @@ This is the **first planning iteration** for Phase 1. After review:
 
 ### Development Tools
 - **Package Manager:** pnpm (fast, efficient, workspace support for future)
-- **Linting:** ESLint + Prettier
+- **Linting:** ESLint
 - **Type Checking:** TypeScript strict mode
 - **Testing:** Vitest (Vite-native, fast) + React Testing Library (when needed)
 
