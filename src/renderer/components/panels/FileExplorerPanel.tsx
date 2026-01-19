@@ -1,44 +1,133 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
+import { Folder, File, Loader2, AlertCircle } from 'lucide-react';
+import { useFileExplorerStore } from '../../stores/fileExplorer.store';
+import type { FileEntry } from '@shared/types';
 
 /**
  * FileExplorerPanel Component
  *
- * Placeholder for the file explorer panel (left panel).
- * This will be implemented with actual file tree functionality in Wave 1.4.
+ * Displays the project directory structure in the left panel.
+ * Features:
+ * - Directory picker on first load
+ * - File tree display with folder/file icons
+ * - Loading states
+ * - Error handling
+ * - Scrollable list view
  */
 const FileExplorerPanel: React.FC = () => {
+  const { rootPath, files, isLoading, error, setRootPath, clearError } = useFileExplorerStore();
+
+  /**
+   * Handles directory selection via native dialog
+   */
+  const handleSelectDirectory = useCallback(async () => {
+    try {
+      const result = await window.electronAPI.fileSystem.selectDirectory();
+
+      if (result.success && result.data.path) {
+        await setRootPath(result.data.path);
+      }
+      // User canceled - do nothing
+    } catch (err) {
+      console.error('Failed to select directory:', err);
+    }
+  }, [setRootPath]);
+
+  /**
+   * Prompt for directory selection on mount if no root path is set
+   */
+  useEffect(() => {
+    if (!rootPath) {
+      void handleSelectDirectory();
+    }
+  }, [rootPath, handleSelectDirectory]);
+
+  /**
+   * Renders a single file or folder entry
+   */
+  const renderFileEntry = (entry: FileEntry) => {
+    const Icon = entry.type === 'directory' ? Folder : File;
+    const iconColor = entry.type === 'directory' ? 'text-vscode-warning' : 'text-vscode-text';
+
+    return (
+      <div
+        key={entry.path}
+        className="flex items-center gap-2 px-3 py-1.5 hover:bg-vscode-border/30 cursor-pointer transition-colors"
+        title={entry.path}
+      >
+        <Icon className={`w-4 h-4 flex-shrink-0 ${iconColor}`} />
+        <span className="text-sm text-vscode-text truncate">{entry.name}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Panel Header */}
-      <div className="px-4 py-3 border-b border-vscode-border">
+      <div className="px-4 py-3 border-b border-vscode-border flex-shrink-0">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-vscode-text-muted">
           Explorer
         </h2>
       </div>
 
       {/* Panel Content */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="mb-4">
-            <svg
-              className="w-16 h-16 mx-auto text-vscode-text-muted opacity-50"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-              />
-            </svg>
+      <div className="flex-1 overflow-y-auto">
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center p-8">
+            <Loader2 className="w-8 h-8 text-vscode-accent animate-spin mb-3" />
+            <p className="text-sm text-vscode-text-muted">Loading directory...</p>
           </div>
-          <p className="text-sm text-vscode-text-muted font-medium">File Explorer</p>
-          <p className="text-xs text-vscode-text-muted mt-2 opacity-75">Coming in Wave 1.4</p>
-        </div>
+        )}
+
+        {/* Error State */}
+        {!isLoading && error && (
+          <div className="p-4">
+            <div className="flex items-start gap-3 p-3 bg-vscode-error/10 border border-vscode-error/30 rounded">
+              <AlertCircle className="w-5 h-5 text-vscode-error flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-vscode-error mb-1">Error</p>
+                <p className="text-xs text-vscode-text-muted break-words">{error}</p>
+                <button
+                  onClick={clearError}
+                  className="mt-2 text-xs text-vscode-accent hover:underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && files.length === 0 && rootPath && (
+          <div className="flex flex-col items-center justify-center p-8">
+            <Folder className="w-12 h-12 text-vscode-text-muted opacity-50 mb-3" />
+            <p className="text-sm text-vscode-text-muted font-medium">No files</p>
+            <p className="text-xs text-vscode-text-muted mt-1 opacity-75">
+              This directory is empty
+            </p>
+          </div>
+        )}
+
+        {/* File Tree List */}
+        {!isLoading && !error && files.length > 0 && (
+          <div className="py-1">{files.map((entry) => renderFileEntry(entry))}</div>
+        )}
       </div>
+
+      {/* Footer with current path */}
+      {rootPath && !error && (
+        <div className="px-3 py-2 border-t border-vscode-border flex-shrink-0">
+          <button
+            onClick={() => void handleSelectDirectory()}
+            className="text-xs text-vscode-text-muted hover:text-vscode-accent transition-colors truncate w-full text-left"
+            title={rootPath}
+          >
+            {rootPath}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
