@@ -5,7 +5,9 @@ import path from 'node:path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
+// Note: electron-squirrel-startup requires CommonJS, disabling rule for this line
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+if (require('electron-squirrel-startup') as boolean) {
   app.quit();
 }
 
@@ -20,17 +22,17 @@ const createMainWindow = (): void => {
       preload: path.join(__dirname, '../preload/index.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true
+      sandbox: true,
     },
-    show: false
+    show: false,
   });
 
   // Load the index.html of the app.
   if (process.env['VITE_DEV_SERVER_URL'] !== undefined) {
-    mainWindow.loadURL(process.env['VITE_DEV_SERVER_URL']);
+    void mainWindow.loadURL(process.env['VITE_DEV_SERVER_URL']);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    void mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
   // Show window when ready to prevent flickering
@@ -44,7 +46,7 @@ const createMainWindow = (): void => {
 };
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
   createMainWindow();
 
   app.on('activate', () => {
