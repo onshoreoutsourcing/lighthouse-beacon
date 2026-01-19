@@ -21,12 +21,14 @@ interface FileExplorerState {
   isLoading: boolean;
   error: string | null;
   expandedFolders: Set<string>;
+  selectedFilePath: string | null;
 
   // Actions
   setRootPath: (path: string) => Promise<void>;
   loadDirectory: (path: string) => Promise<void>;
   toggleFolder: (path: string) => Promise<void>;
   loadFolderContents: (path: string) => Promise<void>;
+  selectFile: (path: string) => void;
   clearError: () => void;
   reset: () => void;
 }
@@ -99,6 +101,7 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
   isLoading: false,
   error: null,
   expandedFolders: new Set<string>(),
+  selectedFilePath: null,
 
   /**
    * Sets the root path and loads the directory contents
@@ -222,6 +225,14 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
   },
 
   /**
+   * Selects a file (only files, not folders)
+   * @param path - Absolute path to the file
+   */
+  selectFile: (path: string) => {
+    set({ selectedFilePath: path });
+  },
+
+  /**
    * Clears the current error state
    */
   clearError: () => {
@@ -238,6 +249,7 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
       isLoading: false,
       error: null,
       expandedFolders: new Set<string>(),
+      selectedFilePath: null,
     });
   },
 }));

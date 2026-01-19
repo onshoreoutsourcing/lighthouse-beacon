@@ -15,8 +15,17 @@ import TreeNode from '../fileExplorer/TreeNode';
  * - Scrollable list view
  */
 const FileExplorerPanel: React.FC = () => {
-  const { rootPath, files, isLoading, error, setRootPath, clearError, toggleFolder } =
-    useFileExplorerStore();
+  const {
+    rootPath,
+    files,
+    isLoading,
+    error,
+    selectedFilePath,
+    setRootPath,
+    clearError,
+    toggleFolder,
+    selectFile,
+  } = useFileExplorerStore();
 
   /**
    * Handles directory selection via native dialog
@@ -51,6 +60,16 @@ const FileExplorerPanel: React.FC = () => {
       void toggleFolder(path);
     },
     [toggleFolder]
+  );
+
+  /**
+   * Handles file selection via TreeNode
+   */
+  const handleSelectFile = useCallback(
+    (path: string) => {
+      selectFile(path);
+    },
+    [selectFile]
   );
 
   return (
@@ -106,7 +125,14 @@ const FileExplorerPanel: React.FC = () => {
         {!isLoading && !error && files.length > 0 && (
           <div className="py-1">
             {files.map((entry) => (
-              <TreeNode key={entry.path} node={entry} depth={0} onToggle={handleToggleFolder} />
+              <TreeNode
+                key={entry.path}
+                node={entry}
+                depth={0}
+                selectedPath={selectedFilePath}
+                onToggle={handleToggleFolder}
+                onSelectFile={handleSelectFile}
+              />
             ))}
           </div>
         )}

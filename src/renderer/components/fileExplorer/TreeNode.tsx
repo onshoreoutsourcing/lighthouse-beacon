@@ -1,6 +1,7 @@
-import React from 'react';
-import { ChevronRight, ChevronDown, Folder, File, Loader2 } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import type { FileEntry } from '@shared/types';
+import { getFileIcon } from '../../utils/fileIcons';
 
 /**
  * TreeNode Component Props
@@ -10,8 +11,12 @@ interface TreeNodeProps {
   node: FileEntry;
   /** Nesting depth for indentation (0 = root level) */
   depth: number;
+  /** Currently selected file path */
+  selectedPath: string | null;
   /** Callback when folder is toggled */
   onToggle: (path: string) => void;
+  /** Callback when file is selected */
+  onSelectFile: (path: string) => void;
 }
 
 /**
@@ -22,25 +27,38 @@ interface TreeNodeProps {
  *
  * Features:
  * - Chevron icons for folders (right = collapsed, down = expanded)
- * - Click anywhere on folder row to toggle expand/collapse
+ * - Click folder to toggle expand/collapse
+ * - Click file to select it with visual feedback
+ * - File type-specific icons with colors
  * - Recursive rendering of nested children
  * - Loading spinner while fetching folder contents
  * - Empty folder indication
  * - Indentation based on nesting depth (16px per level)
  */
-const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, onToggle }) => {
+const TreeNode: React.FC<TreeNodeProps> = ({
+  node,
+  depth,
+  selectedPath,
+  onToggle,
+  onSelectFile,
+}) => {
   const isFolder = node.type === 'directory';
   const isExpanded = node.isExpanded ?? false;
   const isLoading = node.isLoading ?? false;
+  const isSelected = !isFolder && node.path === selectedPath;
 
   /**
-   * Handles click on folder row
+   * Handles click on row
+   * - For folders: toggle expand/collapse
+   * - For files: select the file
    */
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     if (isFolder) {
       onToggle(node.path);
+    } else {
+      onSelectFile(node.path);
     }
-  };
+  }, [isFolder, node.path, onToggle, onSelectFile]);
 
   /**
    * Calculates indentation based on depth
@@ -55,20 +73,15 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, onToggle }) => {
   const ChevronIcon = isExpanded ? ChevronDown : ChevronRight;
 
   /**
-   * Determines which content icon to show
+   * Background color based on selection state
    */
-  const ContentIcon = isFolder ? Folder : File;
-
-  /**
-   * Icon color based on type
-   */
-  const iconColor = isFolder ? 'text-vscode-warning' : 'text-vscode-text';
+  const bgClass = isSelected ? 'bg-blue-600/30' : 'hover:bg-vscode-border/30';
 
   return (
     <>
       {/* Tree Node Row */}
       <div
-        className="flex items-center gap-1 px-2 py-1.5 hover:bg-vscode-border/30 cursor-pointer transition-colors select-none"
+        className={`flex items-center gap-1 px-2 py-1.5 ${bgClass} cursor-pointer transition-colors select-none`}
         style={indentationStyle}
         onClick={handleClick}
         title={node.path}
@@ -80,11 +93,11 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, onToggle }) => {
           <div className="w-4 h-4 flex-shrink-0" />
         )}
 
-        {/* Loading Spinner or Content Icon */}
+        {/* Loading Spinner or File Type Icon */}
         {isLoading ? (
           <Loader2 className="w-4 h-4 flex-shrink-0 text-vscode-accent animate-spin" />
         ) : (
-          <ContentIcon className={`w-4 h-4 flex-shrink-0 ${iconColor}`} />
+          getFileIcon(node.name, isFolder, isExpanded)
         )}
 
         {/* File/Folder Name */}
@@ -119,7 +132,14 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, onToggle }) => {
             node.children &&
             node.children.length > 0 &&
             node.children.map((child) => (
-              <TreeNode key={child.path} node={child} depth={depth + 1} onToggle={onToggle} />
+              <TreeNode
+                key={child.path}
+                node={child}
+                depth={depth + 1}
+                selectedPath={selectedPath}
+                onToggle={onToggle}
+                onSelectFile={onSelectFile}
+              />
             ))}
         </div>
       )}
@@ -127,4 +147,24 @@ const TreeNode: React.FC<TreeNodeProps> = ({ node, depth, onToggle }) => {
   );
 };
 
-export default TreeNode;
+/**
+ * Custom comparison function for React.memo
+ * Only re-render if these specific props change
+ */
+const arePropsEqual = (prevProps: TreeNodeProps, nextProps: TreeNodeProps): boolean => {
+  return (
+    prevProps.node.path === nextProps.node.path &&
+    prevProps.node.isExpanded === nextProps.node.isExpanded &&
+    prevProps.node.isLoading === nextProps.node.isLoading &&
+    prevProps.selectedPath === nextProps.selectedPath &&
+    prevProps.depth === nextProps.depth &&
+    prevProps.onToggle === nextProps.onToggle &&
+    prevProps.onSelectFile === nextProps.onSelectFile
+  );
+};
+
+/**
+ * Memoized TreeNode to prevent unnecessary re-renders
+ * This is critical for performance with large file trees
+ */
+export default React.memo(TreeNode, arePropsEqual);
