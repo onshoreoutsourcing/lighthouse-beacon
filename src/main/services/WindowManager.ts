@@ -135,7 +135,11 @@ export class WindowManager {
       return;
     }
 
-    const devServerUrl = process.env['VITE_DEV_SERVER_URL'];
+    // In development, electron-vite should set VITE_DEV_SERVER_URL
+    // Fallback to localhost:5173 if not set (development mode detection)
+    const devServerUrl =
+      process.env['VITE_DEV_SERVER_URL'] ??
+      (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : undefined);
 
     if (devServerUrl !== undefined) {
       // Development mode: load from Vite dev server

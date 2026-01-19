@@ -42,6 +42,9 @@ export default defineConfig({
       }
     },
     plugins: [react()],
+    css: {
+      postcss: './postcss.config.cjs'
+    },
     resolve: {
       alias: {
         '@renderer': resolve(__dirname, 'src/renderer'),

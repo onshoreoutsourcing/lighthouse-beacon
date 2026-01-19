@@ -1,99 +1,75 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+      'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply bg-vscode-bg text-vscode-text;
+  }
+
+  #root {
+    width: 100%;
+    height: 100vh;
+  }
 }
 
-body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
-    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #1e1e1e;
-  color: #d4d4d4;
-}
+@layer components {
+  .app-container {
+    @apply w-full h-full flex flex-col;
+  }
 
-#root {
-  width: 100%;
-  height: 100vh;
-}
+  .app-header {
+    @apply bg-vscode-panel px-[30px] py-5 border-b border-vscode-border;
+  }
 
-.app-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
+  .app-header h1 {
+    @apply text-2xl font-semibold text-white mb-2;
+  }
 
-.app-header {
-  background-color: #252526;
-  padding: 20px 30px;
-  border-bottom: 1px solid #3e3e42;
-}
+  .status-message {
+    @apply text-sm text-vscode-success font-medium;
+  }
 
-.app-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  color: #ffffff;
-  margin-bottom: 8px;
-}
+  .app-main {
+    @apply flex-1 p-10 overflow-y-auto;
+  }
 
-.status-message {
-  font-size: 14px;
-  color: #4ec9b0;
-  font-weight: 500;
-}
+  .info-section {
+    @apply max-w-[800px] mx-auto;
+  }
 
-.app-main {
-  flex: 1;
-  padding: 40px;
-  overflow-y: auto;
-}
+  .info-section h2 {
+    @apply text-xl font-semibold text-white mb-3;
+  }
 
-.info-section {
-  max-width: 800px;
-  margin: 0 auto;
-}
+  .info-section > p {
+    @apply text-base text-[#cccccc] mb-8;
+  }
 
-.info-section h2 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #ffffff;
-  margin-bottom: 12px;
-}
+  .status-indicators {
+    @apply grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-5 mt-6;
+  }
 
-.info-section > p {
-  font-size: 16px;
-  color: #cccccc;
-  margin-bottom: 32px;
-}
+  .status-item {
+    @apply bg-[#2d2d30] px-5 py-4 rounded-md border border-vscode-border flex justify-between items-center;
+  }
 
-.status-indicators {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-top: 24px;
-}
+  .status-label {
+    @apply text-sm text-[#cccccc] font-medium;
+  }
 
-.status-item {
-  background-color: #2d2d30;
-  padding: 16px 20px;
-  border-radius: 6px;
-  border: 1px solid #3e3e42;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-label {
-  font-size: 14px;
-  color: #cccccc;
-  font-weight: 500;
-}
-
-.status-value {
-  font-size: 14px;
-  color: #4ec9b0;
-  font-weight: 600;
+  .status-value {
+    @apply text-sm text-vscode-success font-semibold;
+  }
 }

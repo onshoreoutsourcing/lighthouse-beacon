@@ -1,31 +1,24 @@
 import React from 'react';
+import ThreePanelLayout from './components/layout/ThreePanelLayout';
+import FileExplorerPanel from './components/panels/FileExplorerPanel';
+import CodeEditorPanel from './components/panels/CodeEditorPanel';
+import AIChatPanel from './components/panels/AIChatPanel';
 
 const App: React.FC = () => {
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <h1>Lighthouse Beacon IDE</h1>
-        <p className="status-message">Development environment configured</p>
+    <div className="w-full h-full flex flex-col bg-vscode-bg">
+      {/* Application Header */}
+      <header className="bg-vscode-panel px-6 py-2 border-b border-vscode-border flex-shrink-0">
+        <h1 className="text-sm font-semibold text-white">Lighthouse Beacon IDE</h1>
       </header>
-      <main className="app-main">
-        <div className="info-section">
-          <h2>Welcome to Lighthouse Beacon</h2>
-          <p>AI-powered development environment with natural language interaction</p>
-          <div className="status-indicators">
-            <div className="status-item">
-              <span className="status-label">Electron:</span>
-              <span className="status-value">Running</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">React:</span>
-              <span className="status-value">Loaded</span>
-            </div>
-            <div className="status-item">
-              <span className="status-label">HMR:</span>
-              <span className="status-value">Active</span>
-            </div>
-          </div>
-        </div>
+
+      {/* Three Panel Layout */}
+      <main className="flex-1 overflow-hidden">
+        <ThreePanelLayout
+          leftPanel={<FileExplorerPanel />}
+          centerPanel={<CodeEditorPanel />}
+          rightPanel={<AIChatPanel />}
+        />
       </main>
     </div>
   );
