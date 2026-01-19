@@ -120,11 +120,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         return;
       }
 
+      const content = result.data.content;
+
+      // Binary file detection - check for null bytes
+      const isBinary = content.includes('\0');
+
+      if (isBinary) {
+        set({
+          isLoading: false,
+          error: `Cannot display binary file: ${getFileName(path)}. Binary files are not supported in the text editor.`,
+        });
+        return;
+      }
+
+      // Large file warning (> 1MB)
+      const fileSizeKB = content.length / 1024;
+      if (fileSizeKB > 1024) {
+        console.warn(
+          `Large file detected: ${getFileName(path)} (${fileSizeKB.toFixed(2)} KB). Performance may be affected.`
+        );
+      }
+
       // Create new OpenFile object
       const newFile: OpenFile = {
         path,
         name: getFileName(path),
-        content: result.data.content,
+        content,
         language: detectLanguage(path),
         isDirty: false,
         viewState: undefined,

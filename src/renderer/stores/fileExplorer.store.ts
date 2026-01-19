@@ -28,7 +28,7 @@ interface FileExplorerState {
   loadDirectory: (path: string) => Promise<void>;
   toggleFolder: (path: string) => Promise<void>;
   loadFolderContents: (path: string) => Promise<void>;
-  selectFile: (path: string) => void;
+  selectFile: (path: string | null) => void;
   clearError: () => void;
   reset: () => void;
 }
@@ -226,9 +226,10 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
 
   /**
    * Selects a file (only files, not folders)
-   * @param path - Absolute path to the file
+   * Accepts null to clear selection (e.g., when all editor tabs are closed)
+   * @param path - Absolute path to the file, or null to clear selection
    */
-  selectFile: (path: string) => {
+  selectFile: (path: string | null) => {
     set({ selectedFilePath: path });
   },
 

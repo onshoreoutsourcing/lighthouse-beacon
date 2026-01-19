@@ -1,6 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
 import { Folder, Loader2, AlertCircle } from 'lucide-react';
 import { useFileExplorerStore } from '../../stores/fileExplorer.store';
+import { useEditorStore } from '../../stores/editor.store';
 import TreeNode from '../fileExplorer/TreeNode';
 
 /**
@@ -10,6 +11,7 @@ import TreeNode from '../fileExplorer/TreeNode';
  * Features:
  * - Directory picker on first load
  * - File tree display with folder/file icons
+ * - Bidirectional sync with editor (editor active file syncs to explorer selection)
  * - Loading states
  * - Error handling
  * - Scrollable list view
@@ -26,6 +28,9 @@ const FileExplorerPanel: React.FC = () => {
     toggleFolder,
     selectFile,
   } = useFileExplorerStore();
+
+  // Subscribe to editor's active file for bidirectional sync
+  const activeFilePath = useEditorStore((state) => state.activeFilePath);
 
   /**
    * Handles directory selection via native dialog
@@ -51,6 +56,22 @@ const FileExplorerPanel: React.FC = () => {
       void handleSelectDirectory();
     }
   }, [rootPath, handleSelectDirectory]);
+
+  /**
+   * Bidirectional sync: When editor's active file changes, update explorer selection
+   * This ensures that when users switch tabs or close tabs in the editor,
+   * the file explorer selection stays in sync.
+   */
+  useEffect(() => {
+    // When editor's active file changes and differs from explorer selection, sync it
+    if (activeFilePath !== null && activeFilePath !== selectedFilePath) {
+      selectFile(activeFilePath);
+    }
+    // When no file is active in editor (all tabs closed), clear explorer selection
+    if (activeFilePath === null && selectedFilePath !== null) {
+      selectFile(null);
+    }
+  }, [activeFilePath, selectedFilePath, selectFile]);
 
   /**
    * Handles folder toggle via TreeNode
