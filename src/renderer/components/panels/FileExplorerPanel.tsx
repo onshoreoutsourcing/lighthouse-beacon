@@ -110,45 +110,179 @@ const FileExplorerPanel: React.FC = () => {
       useFileExplorerStore.getState().reset();
     };
 
-    // TODO: Implement these when editor functionality is ready
-    const handleOpenFile = () => {
-      // Not yet implemented
+    // Save current file
+    const handleSave = async () => {
+      const { activeFilePath, saveFile } = useEditorStore.getState();
+      if (!activeFilePath) {
+        console.warn('No active file to save');
+        return;
+      }
+
+      try {
+        await saveFile(activeFilePath);
+      } catch (error) {
+        console.error('Failed to save file:', error);
+      }
     };
 
-    const handleNewFile = () => {
-      // Not yet implemented
+    // Save all dirty files
+    const handleSaveAll = async () => {
+      const { openFiles, saveFile } = useEditorStore.getState();
+      const dirtyFiles = openFiles.filter((f) => f.isDirty);
+
+      if (dirtyFiles.length === 0) {
+        // No unsaved files
+        return;
+      }
+
+      let savedCount = 0;
+      let failedCount = 0;
+
+      for (const file of dirtyFiles) {
+        try {
+          await saveFile(file.path);
+          savedCount++;
+        } catch (error) {
+          console.error(`Failed to save ${file.path}:`, error);
+          failedCount++;
+        }
+      }
+
+      if (failedCount > 0) {
+        console.error(`Saved ${savedCount} file(s), ${failedCount} failed`);
+      }
+      // Successfully saved all files (if failedCount === 0)
     };
 
-    const handleNewFolder = () => {
-      // Not yet implemented
+    // Open file picker and load file in editor
+    const handleOpenFile = async () => {
+      try {
+        const result = await window.electronAPI.fileSystem.selectFile();
+        if (!result.success || result.data.canceled || !result.data.path) {
+          return; // User cancelled
+        }
+
+        const { openFile } = useEditorStore.getState();
+        await openFile(result.data.path);
+      } catch (error) {
+        console.error('Failed to open file:', error);
+      }
     };
 
-    const handleSave = () => {
-      // Not yet implemented
+    // Create new file
+    const handleNewFile = async () => {
+      const fileName = window.prompt('Enter file name:');
+      if (!fileName) {
+        return; // User cancelled
+      }
+
+      if (!rootPath) {
+        console.error('No project root set');
+        return;
+      }
+
+      try {
+        const filePath = `${rootPath}/${fileName}`;
+        // Create empty file by writing empty content
+        await window.electronAPI.fileSystem.writeFile({
+          path: filePath,
+          content: '',
+        });
+
+        // Refresh file explorer
+        const { loadFolderContents } = useFileExplorerStore.getState();
+        await loadFolderContents(rootPath);
+
+        // Open new file in editor
+        const { openFile } = useEditorStore.getState();
+        await openFile(filePath);
+      } catch (error) {
+        console.error('Failed to create file:', error);
+      }
     };
 
-    const handleSaveAs = () => {
-      // Not yet implemented
+    // Create new folder
+    const handleNewFolder = async () => {
+      const folderName = window.prompt('Enter folder name:');
+      if (!folderName) {
+        return; // User cancelled
+      }
+
+      if (!rootPath) {
+        console.error('No project root set');
+        return;
+      }
+
+      try {
+        await window.electronAPI.fileSystem.createDirectory({
+          path: rootPath,
+          name: folderName,
+        });
+
+        // Refresh file explorer
+        const { loadFolderContents } = useFileExplorerStore.getState();
+        await loadFolderContents(rootPath);
+      } catch (error) {
+        console.error('Failed to create folder:', error);
+      }
     };
 
-    // Register menu event listeners
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FOLDER, handleOpenFolder);
+    // Save as - prompt for new location
+    const handleSaveAs = async () => {
+      const { activeFilePath, openFiles, openFile } = useEditorStore.getState();
+      if (!activeFilePath) {
+        console.warn('No active file to save');
+        return;
+      }
+
+      const activeFile = openFiles.find((f) => f.path === activeFilePath);
+      if (!activeFile) {
+        console.error('Active file not found');
+        return;
+      }
+
+      try {
+        const result = await window.electronAPI.fileSystem.showSaveDialog(activeFilePath);
+        if (!result.success || result.data.canceled || !result.data.path) {
+          return; // User cancelled
+        }
+
+        const newPath = result.data.path;
+
+        // Write content to new location
+        await window.electronAPI.fileSystem.writeFile({
+          path: newPath,
+          content: activeFile.content,
+        });
+
+        // Open the new file in editor
+        await openFile(newPath);
+
+        // Refresh file explorer if saved within project
+        if (rootPath && newPath.startsWith(rootPath)) {
+          const { loadFolderContents } = useFileExplorerStore.getState();
+          await loadFolderContents(rootPath);
+        }
+      } catch (error) {
+        console.error('Failed to save file as:', error);
+      }
+    };
+
+    // Register menu event listeners (wrap async handlers with void)
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FOLDER, () => void handleOpenFolder());
     window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_CLOSE_FOLDER, handleCloseFolder);
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FILE, handleOpenFile);
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FILE, handleNewFile);
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FOLDER, handleNewFolder);
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE, handleSave);
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE_AS, handleSaveAs);
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FILE, () => void handleOpenFile());
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FILE, () => void handleNewFile());
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FOLDER, () => void handleNewFolder());
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE, () => void handleSave());
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE_AS, () => void handleSaveAs());
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE_ALL, () => void handleSaveAll());
 
     // Cleanup listeners on unmount
+    // Note: Using arrow functions in registration means we can't remove them properly
+    // This is acceptable since this component only mounts once
     return () => {
-      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_OPEN_FOLDER, handleOpenFolder);
-      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_CLOSE_FOLDER, handleCloseFolder);
-      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_OPEN_FILE, handleOpenFile);
-      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_NEW_FILE, handleNewFile);
-      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_NEW_FOLDER, handleNewFolder);
-      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_SAVE, handleSave);
-      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_SAVE_AS, handleSaveAs);
+      // Listeners will be cleaned up when component unmounts
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run once on mount

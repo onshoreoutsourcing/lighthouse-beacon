@@ -100,6 +100,16 @@ export class MenuService {
               }
             },
           },
+          {
+            label: 'Save All',
+            accelerator: 'CmdOrCtrl+Alt+S',
+            click: () => {
+              const focusedWindow = BrowserWindow.getFocusedWindow();
+              if (focusedWindow) {
+                focusedWindow.webContents.send('menu:save-all');
+              }
+            },
+          },
           { type: 'separator' as const },
           {
             label: 'Close Folder',

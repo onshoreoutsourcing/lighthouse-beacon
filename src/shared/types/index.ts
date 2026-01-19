@@ -22,6 +22,11 @@ export const IPC_CHANNELS = {
 
   // Directory operations
   DIR_SELECT: 'dir:select',
+  DIR_CREATE: 'dir:create',
+
+  // File operations
+  FILE_SELECT: 'file:select',
+  FILE_SAVE_DIALOG: 'file:saveDialog',
 
   // File system operations
   FS_READ_DIR: 'fs:readDir',
@@ -100,4 +105,28 @@ export interface WriteFileOptions {
 export interface DirectorySelection {
   path: string | null;
   canceled: boolean;
+}
+
+/**
+ * File selection result
+ */
+export interface FileSelection {
+  path: string | null;
+  canceled: boolean;
+}
+
+/**
+ * Save dialog result
+ */
+export interface SaveDialogResult {
+  path: string | null;
+  canceled: boolean;
+}
+
+/**
+ * Create folder options
+ */
+export interface CreateFolderOptions {
+  path: string;
+  name: string;
 }

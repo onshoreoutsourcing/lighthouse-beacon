@@ -4,6 +4,9 @@ import type {
   DirectoryContents,
   DirectorySelection,
   FileContents,
+  FileSelection,
+  SaveDialogResult,
+  CreateFolderOptions,
   Result,
   WriteFileOptions,
 } from '@shared/types';
@@ -26,6 +29,9 @@ declare global {
         readDirectory: (dirPath: string) => Promise<Result<DirectoryContents>>;
         readFile: (filePath: string) => Promise<Result<FileContents>>;
         writeFile: (options: WriteFileOptions) => Promise<Result<string>>;
+        selectFile: () => Promise<Result<FileSelection>>;
+        showSaveDialog: (defaultPath?: string) => Promise<Result<SaveDialogResult>>;
+        createDirectory: (options: CreateFolderOptions) => Promise<Result<string>>;
       };
       versions: {
         node: () => string;

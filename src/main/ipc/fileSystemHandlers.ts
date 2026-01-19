@@ -3,6 +3,9 @@ import type {
   DirectoryContents,
   DirectorySelection,
   FileContents,
+  FileSelection,
+  SaveDialogResult,
+  CreateFolderOptions,
   Result,
   WriteFileOptions,
 } from '@shared/types';
@@ -158,6 +161,107 @@ export function registerFileSystemHandlers(): void {
     }
   );
 
+  /**
+   * FILE_SELECT: Show native file picker dialog
+   * Returns selected file path or null if cancelled
+   */
+  ipcMain.handle(IPC_CHANNELS.FILE_SELECT, async (): Promise<Result<FileSelection>> => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        title: 'Open File',
+        buttonLabel: 'Open',
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return {
+          success: true,
+          data: {
+            path: null,
+            canceled: true,
+          },
+        };
+      }
+
+      const selectedPath = result.filePaths[0];
+      return {
+        success: true,
+        data: {
+          path: selectedPath || null,
+          canceled: false,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error('Unknown error occurred'),
+      };
+    }
+  });
+
+  /**
+   * FILE_SAVE_DIALOG: Show native save file dialog
+   * Returns selected save path or null if cancelled
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.FILE_SAVE_DIALOG,
+    async (_event, defaultPath?: string): Promise<Result<SaveDialogResult>> => {
+      try {
+        const result = await dialog.showSaveDialog({
+          title: 'Save File As',
+          buttonLabel: 'Save',
+          defaultPath,
+        });
+
+        if (result.canceled || !result.filePath) {
+          return {
+            success: true,
+            data: {
+              path: null,
+              canceled: true,
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            path: result.filePath,
+            canceled: false,
+          },
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Unknown error occurred'),
+        };
+      }
+    }
+  );
+
+  /**
+   * DIR_CREATE: Create a new directory
+   * Returns path of created directory
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.DIR_CREATE,
+    async (_event, options: CreateFolderOptions): Promise<Result<string>> => {
+      try {
+        const fullPath = `${options.path}/${options.name}`;
+        const createdPath = await fs.createDirectory(fullPath);
+        return {
+          success: true,
+          data: createdPath,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to create directory'),
+        };
+      }
+    }
+  );
+
   // eslint-disable-next-line no-console
   console.log('File system IPC handlers registered');
 }
@@ -168,6 +272,9 @@ export function registerFileSystemHandlers(): void {
  */
 export function unregisterFileSystemHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.DIR_SELECT);
+  ipcMain.removeHandler(IPC_CHANNELS.DIR_CREATE);
+  ipcMain.removeHandler(IPC_CHANNELS.FILE_SELECT);
+  ipcMain.removeHandler(IPC_CHANNELS.FILE_SAVE_DIALOG);
   ipcMain.removeHandler(IPC_CHANNELS.FS_READ_DIR);
   ipcMain.removeHandler(IPC_CHANNELS.FS_READ_FILE);
   ipcMain.removeHandler(IPC_CHANNELS.FS_WRITE_FILE);

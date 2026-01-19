@@ -200,4 +200,25 @@ export class FileSystemService {
       return false;
     }
   }
+
+  /**
+   * Create a new directory.
+   *
+   * @param dirPath - Directory path to create
+   * @returns Path of created directory
+   * @throws Error if directory creation fails
+   */
+  async createDirectory(dirPath: string): Promise<string> {
+    const validatedPath = this.validatePath(dirPath);
+
+    try {
+      await fs.mkdir(validatedPath, { recursive: true });
+      return validatedPath;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to create directory: ${error.message}`);
+      }
+      throw new Error('Failed to create directory: Unknown error');
+    }
+  }
 }

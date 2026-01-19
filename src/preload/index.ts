@@ -3,6 +3,9 @@ import type {
   DirectoryContents,
   DirectorySelection,
   FileContents,
+  FileSelection,
+  SaveDialogResult,
+  CreateFolderOptions,
   Result,
   WriteFileOptions,
 } from '@shared/types';
@@ -33,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       IPC_CHANNELS.MENU_NEW_FOLDER,
       IPC_CHANNELS.MENU_SAVE,
       IPC_CHANNELS.MENU_SAVE_AS,
+      IPC_CHANNELS.MENU_SAVE_ALL,
       IPC_CHANNELS.MENU_CLOSE_FOLDER,
     ];
 
@@ -85,6 +89,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     writeFile: (options: WriteFileOptions): Promise<Result<string>> => {
       return ipcRenderer.invoke(IPC_CHANNELS.FS_WRITE_FILE, options);
+    },
+
+    /**
+     * Select a file using native file picker
+     * @returns Selected file path or null if cancelled
+     */
+    selectFile: (): Promise<Result<FileSelection>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.FILE_SELECT);
+    },
+
+    /**
+     * Show save file dialog
+     * @param defaultPath - Optional default file path
+     * @returns Selected save path or null if cancelled
+     */
+    showSaveDialog: (defaultPath?: string): Promise<Result<SaveDialogResult>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.FILE_SAVE_DIALOG, defaultPath);
+    },
+
+    /**
+     * Create a new directory
+     * @param options - Directory creation options (path, name)
+     * @returns Path of created directory
+     */
+    createDirectory: (options: CreateFolderOptions): Promise<Result<string>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.DIR_CREATE, options);
     },
   },
 
