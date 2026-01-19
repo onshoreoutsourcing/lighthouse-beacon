@@ -53,6 +53,9 @@ export interface FileEntry {
   type: FileEntryType;
   size: number;
   modified: Date;
+  children?: FileEntry[];
+  isExpanded?: boolean;
+  isLoading?: boolean;
 }
 
 /**

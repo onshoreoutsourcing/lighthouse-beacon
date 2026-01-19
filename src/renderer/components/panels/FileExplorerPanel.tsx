@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback } from 'react';
-import { Folder, File, Loader2, AlertCircle } from 'lucide-react';
+import { Folder, Loader2, AlertCircle } from 'lucide-react';
 import { useFileExplorerStore } from '../../stores/fileExplorer.store';
-import type { FileEntry } from '@shared/types';
+import TreeNode from '../fileExplorer/TreeNode';
 
 /**
  * FileExplorerPanel Component
@@ -15,7 +15,8 @@ import type { FileEntry } from '@shared/types';
  * - Scrollable list view
  */
 const FileExplorerPanel: React.FC = () => {
-  const { rootPath, files, isLoading, error, setRootPath, clearError } = useFileExplorerStore();
+  const { rootPath, files, isLoading, error, setRootPath, clearError, toggleFolder } =
+    useFileExplorerStore();
 
   /**
    * Handles directory selection via native dialog
@@ -43,23 +44,14 @@ const FileExplorerPanel: React.FC = () => {
   }, [rootPath, handleSelectDirectory]);
 
   /**
-   * Renders a single file or folder entry
+   * Handles folder toggle via TreeNode
    */
-  const renderFileEntry = (entry: FileEntry) => {
-    const Icon = entry.type === 'directory' ? Folder : File;
-    const iconColor = entry.type === 'directory' ? 'text-vscode-warning' : 'text-vscode-text';
-
-    return (
-      <div
-        key={entry.path}
-        className="flex items-center gap-2 px-3 py-1.5 hover:bg-vscode-border/30 cursor-pointer transition-colors"
-        title={entry.path}
-      >
-        <Icon className={`w-4 h-4 flex-shrink-0 ${iconColor}`} />
-        <span className="text-sm text-vscode-text truncate">{entry.name}</span>
-      </div>
-    );
-  };
+  const handleToggleFolder = useCallback(
+    (path: string) => {
+      void toggleFolder(path);
+    },
+    [toggleFolder]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -112,7 +104,11 @@ const FileExplorerPanel: React.FC = () => {
 
         {/* File Tree List */}
         {!isLoading && !error && files.length > 0 && (
-          <div className="py-1">{files.map((entry) => renderFileEntry(entry))}</div>
+          <div className="py-1">
+            {files.map((entry) => (
+              <TreeNode key={entry.path} node={entry} depth={0} onToggle={handleToggleFolder} />
+            ))}
+          </div>
         )}
       </div>
 

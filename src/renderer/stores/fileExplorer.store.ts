@@ -20,10 +20,13 @@ interface FileExplorerState {
   files: FileEntry[];
   isLoading: boolean;
   error: string | null;
+  expandedFolders: Set<string>;
 
   // Actions
   setRootPath: (path: string) => Promise<void>;
   loadDirectory: (path: string) => Promise<void>;
+  toggleFolder: (path: string) => Promise<void>;
+  loadFolderContents: (path: string) => Promise<void>;
   clearError: () => void;
   reset: () => void;
 }
@@ -44,12 +47,58 @@ const sortFileEntries = (entries: FileEntry[]): FileEntry[] => {
   });
 };
 
+/**
+ * Recursively finds a node in the file tree by path
+ * @param entries - Array of file entries to search
+ * @param targetPath - Path to find
+ * @returns Found FileEntry or null
+ */
+const findNodeInTree = (entries: FileEntry[], targetPath: string): FileEntry | null => {
+  for (const entry of entries) {
+    if (entry.path === targetPath) {
+      return entry;
+    }
+    if (entry.children) {
+      const found = findNodeInTree(entry.children, targetPath);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
+/**
+ * Updates a specific node in the file tree
+ * @param entries - Array of file entries
+ * @param targetPath - Path of node to update
+ * @param updates - Partial updates to apply
+ * @returns New array with updated node
+ */
+const updateNodeInTree = (
+  entries: FileEntry[],
+  targetPath: string,
+  updates: Partial<FileEntry>
+): FileEntry[] => {
+  return entries.map((entry) => {
+    if (entry.path === targetPath) {
+      return { ...entry, ...updates };
+    }
+    if (entry.children) {
+      return {
+        ...entry,
+        children: updateNodeInTree(entry.children, targetPath, updates),
+      };
+    }
+    return entry;
+  });
+};
+
 export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
   // Initial state
   rootPath: null,
   files: [],
   isLoading: false,
   error: null,
+  expandedFolders: new Set<string>(),
 
   /**
    * Sets the root path and loads the directory contents
@@ -89,6 +138,90 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
   },
 
   /**
+   * Toggles a folder's expand/collapse state and lazy loads contents
+   * @param path - Absolute path to the folder
+   */
+  toggleFolder: async (path: string) => {
+    const { files, expandedFolders } = get();
+
+    // Find the folder node in the tree
+    const folder = findNodeInTree(files, path);
+    if (!folder || folder.type !== 'directory') return;
+
+    // Toggle expanded state
+    const isExpanding = !folder.isExpanded;
+
+    // Update expanded state in tree
+    const updatedFiles = updateNodeInTree(files, path, { isExpanded: isExpanding });
+
+    // Update expandedFolders set
+    const newExpandedFolders = new Set(expandedFolders);
+    if (isExpanding) {
+      newExpandedFolders.add(path);
+    } else {
+      newExpandedFolders.delete(path);
+    }
+
+    set({ files: updatedFiles, expandedFolders: newExpandedFolders });
+
+    // Lazy load contents if expanding and not already loaded
+    if (isExpanding && folder.children === undefined) {
+      await get().loadFolderContents(path);
+    }
+  },
+
+  /**
+   * Loads folder contents via IPC and updates the tree
+   * @param path - Absolute path to the folder
+   */
+  loadFolderContents: async (path: string) => {
+    // Set loading state
+    const updatedFilesLoading = updateNodeInTree(get().files, path, { isLoading: true });
+    set({ files: updatedFilesLoading });
+
+    try {
+      // Call IPC handler to read directory
+      const result = await window.electronAPI.fileSystem.readDirectory(path);
+
+      if (result.success) {
+        // Sort entries: folders first, then alphabetically
+        const sortedEntries = sortFileEntries(result.data.entries);
+
+        // Update node with children and clear loading state
+        const updatedFiles = updateNodeInTree(get().files, path, {
+          children: sortedEntries,
+          isLoading: false,
+        });
+
+        set({ files: updatedFiles });
+      } else {
+        // Handle error - clear loading state but keep expanded
+        const errorMessage =
+          result.error instanceof Error
+            ? result.error.message
+            : 'Failed to read directory contents';
+
+        const updatedFiles = updateNodeInTree(get().files, path, {
+          children: [], // Empty children array indicates load attempted but failed/empty
+          isLoading: false,
+        });
+
+        set({ files: updatedFiles, error: errorMessage });
+      }
+    } catch (err) {
+      // Handle unexpected errors
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+
+      const updatedFiles = updateNodeInTree(get().files, path, {
+        children: [],
+        isLoading: false,
+      });
+
+      set({ files: updatedFiles, error: errorMessage });
+    }
+  },
+
+  /**
    * Clears the current error state
    */
   clearError: () => {
@@ -104,6 +237,7 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => ({
       files: [],
       isLoading: false,
       error: null,
+      expandedFolders: new Set<string>(),
     });
   },
 }));
