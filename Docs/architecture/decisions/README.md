@@ -13,13 +13,17 @@ information on how to write ADRs, see
 
 ## ADR Index
 
-| ADR # | Title               | Status | Date | Related |
-| ----- | ------------------- | ------ | ---- | ------- |
-| -     | No ADRs created yet | -      | -    | -       |
+| ADR # | Title                                          | Status   | Date       | Related                     |
+| ----- | ---------------------------------------------- | -------- | ---------- | --------------------------- |
+| 001   | Electron as Desktop Framework                  | Accepted | 2026-01-19 | Epic-1, Architecture Decision |
+| 002   | React + TypeScript for UI                      | Accepted | 2026-01-19 | Epic-1, ADR-001             |
+| 003   | Zustand for State Management                   | Accepted | 2026-01-19 | Epic-1, ADR-002             |
+| 004   | Monaco Editor Integration                      | Accepted | 2026-01-19 | Epic-1, ADR-001, ADR-002    |
+| 005   | Vite as Build Tool                             | Accepted | 2026-01-19 | Epic-1, ADR-001, ADR-002    |
 
 ## Next ADR Number
 
-**Next Available: ADR-001**
+**Next Available: ADR-006**
 
 ## Creating a New ADR
 
