@@ -8,7 +8,7 @@
  * - Prevents directory traversal attacks (../ patterns)
  * - Normalizes paths to absolute form
  * - Validates paths are within project boundaries
- * - Protects against symbolic link exploits
+ * - Resolves symbolic links to prevent escape attacks
  *
  * Usage:
  * const validator = new PathValidator('/project/root');
@@ -17,6 +17,7 @@
  */
 
 import * as path from 'node:path';
+import { realpathSync } from 'node:fs';
 
 export interface PathValidationResult {
   /** Whether path is valid (within project root) */
@@ -66,9 +67,19 @@ export class PathValidator {
   validate(filePath: string): PathValidationResult {
     try {
       // Resolve to absolute path and normalize
-      const absolutePath = path.isAbsolute(filePath)
+      let absolutePath = path.isAbsolute(filePath)
         ? path.normalize(filePath)
         : path.normalize(path.join(this.projectRoot, filePath));
+
+      // Resolve symbolic links if path exists
+      // This prevents symlink attacks where a link points outside project root
+      try {
+        const realPath = realpathSync(absolutePath);
+        absolutePath = realPath;
+      } catch {
+        // Path doesn't exist yet (e.g., creating new file) - use normalized path
+        // This is OK because we'll validate it doesn't escape via relative path check
+      }
 
       // Check if path is within project root
       const relativePath = path.relative(this.projectRoot, absolutePath);

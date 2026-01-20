@@ -87,6 +87,16 @@ export class BashTool implements ToolExecutor {
   /**
    * Comprehensive command blocklist
    * Based on ADR-012 security specification
+   *
+   * Categories:
+   * - Destructive (5 patterns): rm -rf, mkfs, dd, format, disk writes
+   * - Privilege escalation (4 patterns): sudo, su, doas, pkexec
+   * - Remote execution (10 patterns): curl|bash, wget|sh, eval, backticks, nc, base64 decode
+   * - Resource exhaustion (3 patterns): fork bombs, infinite loops
+   * - System modification (9 patterns): systemctl, packages, chmod, chown, crontab, at, nohup
+   * - Command injection (5 patterns): hex/octal encoding, python -c, node -e, perl -e, ruby -e
+   *
+   * Total: 36 patterns
    */
   private static readonly BLOCKLIST: BlocklistPattern[] = [
     // Destructive commands
@@ -159,6 +169,31 @@ export class BashTool implements ToolExecutor {
       reason: 'Command injection via eval is blocked',
       category: 'remote_execution',
     },
+    {
+      pattern: /`.*curl/i,
+      reason: 'Backtick command substitution with curl is blocked',
+      category: 'remote_execution',
+    },
+    {
+      pattern: /`.*wget/i,
+      reason: 'Backtick command substitution with wget is blocked',
+      category: 'remote_execution',
+    },
+    {
+      pattern: /base64\s+(-d|--decode).*\|\s*(bash|sh|zsh|fish)/i,
+      reason: 'Base64 decode to shell is blocked',
+      category: 'remote_execution',
+    },
+    {
+      pattern: /\bnc\s+-[a-z]*l/i,
+      reason: 'Network listener (nc -l) is blocked',
+      category: 'remote_execution',
+    },
+    {
+      pattern: /\bnetcat\s+-[a-z]*l/i,
+      reason: 'Network listener (netcat -l) is blocked',
+      category: 'remote_execution',
+    },
 
     // Resource exhaustion / Fork bombs
     {
@@ -208,6 +243,21 @@ export class BashTool implements ToolExecutor {
       reason: 'Ownership change on root or current directory is blocked',
       category: 'system_modification',
     },
+    {
+      pattern: /\bcrontab\s+-[a-z]*e/i,
+      reason: 'Crontab editing is blocked',
+      category: 'system_modification',
+    },
+    {
+      pattern: /\bat\s+\d/i,
+      reason: 'Scheduled command execution (at) is blocked',
+      category: 'system_modification',
+    },
+    {
+      pattern: /\bnohup\b/i,
+      reason: 'Background processes that survive shell exit (nohup) are blocked',
+      category: 'system_modification',
+    },
 
     // Dangerous shell features
     {
@@ -219,6 +269,38 @@ export class BashTool implements ToolExecutor {
       pattern: /\$\(.*wget/i,
       reason: 'Command substitution with wget is blocked',
       category: 'remote_execution',
+    },
+
+    // Command injection / Obfuscation
+    {
+      pattern: /\$'\\x/i,
+      reason: 'Hex-encoded shell commands are blocked',
+      category: 'command_injection',
+    },
+    {
+      pattern: /\$'\\0[0-7]/i,
+      reason: 'Octal-encoded shell commands are blocked',
+      category: 'command_injection',
+    },
+    {
+      pattern: /\bpython[23]?\s+-c\s+/i,
+      reason: 'Arbitrary Python code execution (python -c) is blocked',
+      category: 'command_injection',
+    },
+    {
+      pattern: /\bnode\s+-e\s+/i,
+      reason: 'Arbitrary Node.js code execution (node -e) is blocked',
+      category: 'command_injection',
+    },
+    {
+      pattern: /\bperl\s+-e\s+/i,
+      reason: 'Arbitrary Perl code execution (perl -e) is blocked',
+      category: 'command_injection',
+    },
+    {
+      pattern: /\bruby\s+-e\s+/i,
+      reason: 'Arbitrary Ruby code execution (ruby -e) is blocked',
+      category: 'command_injection',
     },
   ];
 

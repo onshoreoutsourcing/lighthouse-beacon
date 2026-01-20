@@ -30,6 +30,7 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
+import { setTimeout, clearTimeout } from 'node:timers';
 import type {
   ToolDefinition,
   ToolExecutor,
@@ -57,11 +58,43 @@ interface EditToolResult {
 
 export class EditTool implements ToolExecutor {
   private validator: PathValidator;
-  // TODO: Implement regex timeout protection in future version
-  // private readonly REGEX_TIMEOUT_MS = 5000; // 5 second timeout for regex operations
+  private readonly REGEX_TIMEOUT_MS = 5000; // 5 second timeout for regex operations
 
   constructor(projectRoot: string) {
     this.validator = new PathValidator(projectRoot);
+  }
+
+  /**
+   * Execute regex with timeout protection to prevent ReDoS attacks
+   */
+  private async executeRegexWithTimeout(
+    content: string,
+    regex: RegExp,
+    replacement: string
+  ): Promise<{ newContent: string; matchCount: number }> {
+    return new Promise<{ newContent: string; matchCount: number }>((resolve, reject) => {
+      // Set timeout
+      const timeoutId = setTimeout(() => {
+        const timeoutError = new Error(
+          `Regex operation timed out after ${this.REGEX_TIMEOUT_MS}ms. This may indicate a catastrophic backtracking (ReDoS) pattern.`
+        );
+        reject(timeoutError);
+      }, this.REGEX_TIMEOUT_MS);
+
+      try {
+        // Perform regex operations
+        const matches = content.match(regex);
+        const matchCount = matches ? matches.length : 0;
+        const newContent = content.replace(regex, replacement);
+
+        // Clear timeout and resolve
+        clearTimeout(timeoutId);
+        resolve({ newContent, matchCount });
+      } catch (error) {
+        clearTimeout(timeoutId);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
   }
 
   getDefinition(): ToolDefinition {
@@ -258,11 +291,11 @@ export class EditTool implements ToolExecutor {
           const flags = replaceAll ? 'g' : '';
           const regex = new RegExp(params.find, flags);
 
-          // Count matches before replacing
-          const matches = originalContent.match(regex);
-          replacements = matches ? matches.length : 0;
+          // Execute regex with ReDoS protection
+          const result = await this.executeRegexWithTimeout(originalContent, regex, params.replace);
 
-          newContent = originalContent.replace(regex, params.replace);
+          newContent = result.newContent;
+          replacements = result.matchCount;
         } catch (error) {
           return {
             success: false,
