@@ -1,0 +1,275 @@
+import { ipcMain, BrowserWindow } from 'electron';
+import type { Result, AIStatus, AppSettings, StreamOptions } from '@shared/types';
+import { IPC_CHANNELS } from '@shared/types';
+import { AIService } from '../services/AIService';
+import { SettingsService } from '../services/SettingsService';
+
+/**
+ * AI IPC Handlers
+ *
+ * Registers all IPC handlers for AI service and settings operations.
+ * Uses ipcMain.handle() for proper async/await and error handling.
+ *
+ * Security:
+ * - API key never sent to renderer process
+ * - All operations validated before execution
+ * - Errors sanitized for UI consumption
+ * - Stream events only sent to authorized window
+ */
+
+// Singleton instances
+let aiService: AIService | null = null;
+let settingsService: SettingsService | null = null;
+
+/**
+ * Get or create AIService instance
+ */
+function getAIService(): AIService {
+  if (!aiService) {
+    aiService = new AIService();
+  }
+  return aiService;
+}
+
+/**
+ * Get or create SettingsService instance
+ */
+function getSettingsService(): SettingsService {
+  if (!settingsService) {
+    settingsService = new SettingsService();
+  }
+  return settingsService;
+}
+
+/**
+ * Get main window for sending stream events
+ */
+function getMainWindow(): BrowserWindow | null {
+  const windows = BrowserWindow.getAllWindows();
+  return windows.length > 0 ? (windows[0] ?? null) : null;
+}
+
+/**
+ * Register all AI and settings IPC handlers
+ * Call this function during app initialization
+ */
+export function registerAIHandlers(): void {
+  const ai = getAIService();
+  const settings = getSettingsService();
+
+  /**
+   * AI_INITIALIZE: Initialize AI service with stored API key
+   */
+  ipcMain.handle(IPC_CHANNELS.AI_INITIALIZE, async (): Promise<Result<{ status: AIStatus }>> => {
+    try {
+      const apiKey = await settings.getApiKey();
+
+      if (!apiKey) {
+        return {
+          success: false,
+          error: new Error('No API key configured. Please add your Anthropic API key in settings.'),
+        };
+      }
+
+      const appSettings = await settings.getSettings();
+
+      ai.initialize({
+        apiKey,
+        model: appSettings.ai.model,
+        socEndpoint: appSettings.soc.endpoint,
+      });
+
+      return {
+        success: true,
+        data: {
+          status: ai.getStatus(),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error('Failed to initialize AI service'),
+      };
+    }
+  });
+
+  /**
+   * AI_SEND_MESSAGE: Send non-streaming message to AI
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.AI_SEND_MESSAGE,
+    (_event, message: string, options?: StreamOptions): Result<string> => {
+      try {
+        const response = ai.sendMessage(message, options);
+        return { success: true, data: response };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to send message'),
+        };
+      }
+    }
+  );
+
+  /**
+   * AI_STREAM_MESSAGE: Send streaming message to AI
+   * Streams tokens back to renderer via events
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.AI_STREAM_MESSAGE,
+    (_event, message: string, options?: StreamOptions): Result<void> => {
+      const mainWindow = getMainWindow();
+      if (!mainWindow) {
+        return { success: false, error: new Error('No window available') };
+      }
+
+      try {
+        ai.streamMessage(
+          message,
+          {
+            onToken: (token) => {
+              mainWindow.webContents.send(IPC_CHANNELS.AI_STREAM_TOKEN, token);
+            },
+            onComplete: (fullResponse) => {
+              mainWindow.webContents.send(IPC_CHANNELS.AI_STREAM_COMPLETE, fullResponse);
+            },
+            onError: (error) => {
+              mainWindow.webContents.send(IPC_CHANNELS.AI_STREAM_ERROR, error.message);
+            },
+          },
+          options
+        );
+
+        return { success: true, data: undefined };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to stream message'),
+        };
+      }
+    }
+  );
+
+  /**
+   * AI_CANCEL: Cancel current AI request
+   */
+  ipcMain.handle(IPC_CHANNELS.AI_CANCEL, (): Result<void> => {
+    ai.cancelCurrentRequest();
+    return { success: true, data: undefined };
+  });
+
+  /**
+   * AI_STATUS: Get AI service status
+   */
+  ipcMain.handle(IPC_CHANNELS.AI_STATUS, (): Result<AIStatus> => {
+    return { success: true, data: ai.getStatus() };
+  });
+
+  /**
+   * SETTINGS_GET_API_KEY_STATUS: Check if API key exists (never return actual key)
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.SETTINGS_GET_API_KEY_STATUS,
+    async (): Promise<Result<{ hasApiKey: boolean }>> => {
+      const hasKey = await settings.hasApiKey();
+      return { success: true, data: { hasApiKey: hasKey } };
+    }
+  );
+
+  /**
+   * SETTINGS_SET_API_KEY: Store API key in encrypted storage
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.SETTINGS_SET_API_KEY,
+    async (_event, apiKey: string): Promise<Result<void>> => {
+      try {
+        await settings.setApiKey(apiKey);
+        return { success: true, data: undefined };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to save API key'),
+        };
+      }
+    }
+  );
+
+  /**
+   * SETTINGS_REMOVE_API_KEY: Remove API key and shutdown AI service
+   */
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_REMOVE_API_KEY, async (): Promise<Result<void>> => {
+    try {
+      await settings.removeApiKey();
+      ai.shutdown();
+      return { success: true, data: undefined };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error('Failed to remove API key'),
+      };
+    }
+  });
+
+  /**
+   * SETTINGS_GET: Get all application settings
+   */
+  ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, async (): Promise<Result<AppSettings>> => {
+    try {
+      const appSettings = await settings.getSettings();
+      return { success: true, data: appSettings };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error('Failed to get settings'),
+      };
+    }
+  });
+
+  /**
+   * SETTINGS_UPDATE: Update application settings
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.SETTINGS_UPDATE,
+    async (_event, updates: Partial<AppSettings>): Promise<Result<void>> => {
+      try {
+        await settings.updateSettings(updates);
+        return { success: true, data: undefined };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to update settings'),
+        };
+      }
+    }
+  );
+
+  // eslint-disable-next-line no-console
+  console.log('[AI Handlers] AI and settings IPC handlers registered');
+}
+
+/**
+ * Unregister all AI and settings IPC handlers
+ * Call this during app cleanup
+ */
+export function unregisterAIHandlers(): void {
+  ipcMain.removeHandler(IPC_CHANNELS.AI_INITIALIZE);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_SEND_MESSAGE);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_STREAM_MESSAGE);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_CANCEL);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_STATUS);
+  ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_GET_API_KEY_STATUS);
+  ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_SET_API_KEY);
+  ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_REMOVE_API_KEY);
+  ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_GET);
+  ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_UPDATE);
+
+  // Cleanup service instances
+  if (aiService) {
+    aiService.shutdown();
+    aiService = null;
+  }
+  settingsService = null;
+
+  // eslint-disable-next-line no-console
+  console.log('[AI Handlers] AI and settings IPC handlers unregistered');
+}

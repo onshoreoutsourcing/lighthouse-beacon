@@ -42,6 +42,23 @@ export const IPC_CHANNELS = {
   MENU_SAVE_AS: 'menu:save-as',
   MENU_SAVE_ALL: 'menu:save-all',
   MENU_CLOSE_FOLDER: 'menu:close-folder',
+
+  // AI Service (Feature 2.1)
+  AI_INITIALIZE: 'ai:initialize',
+  AI_SEND_MESSAGE: 'ai:send-message',
+  AI_STREAM_MESSAGE: 'ai:stream-message',
+  AI_STREAM_TOKEN: 'ai:stream-token',
+  AI_STREAM_COMPLETE: 'ai:stream-complete',
+  AI_STREAM_ERROR: 'ai:stream-error',
+  AI_CANCEL: 'ai:cancel',
+  AI_STATUS: 'ai:status',
+
+  // Settings (Feature 2.1)
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_UPDATE: 'settings:update',
+  SETTINGS_GET_API_KEY_STATUS: 'settings:get-api-key-status',
+  SETTINGS_SET_API_KEY: 'settings:set-api-key',
+  SETTINGS_REMOVE_API_KEY: 'settings:remove-api-key',
 } as const;
 
 /**
@@ -130,3 +147,15 @@ export interface CreateFolderOptions {
   path: string;
   name: string;
 }
+
+/**
+ * Export AI-related types
+ */
+export type {
+  AIStatus,
+  AIConfig,
+  SOCConfig,
+  AppSettings,
+  StreamOptions,
+  AIServiceResponse,
+} from './ai.types';
