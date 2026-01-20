@@ -24,6 +24,8 @@ import { IPC_CHANNELS } from '@shared/types';
 import { ToolRegistry } from '../services/ToolRegistry';
 import { PermissionService } from '../services/PermissionService';
 import { ToolExecutionService } from '../services/ToolExecutionService';
+import { FileSystemService } from '../services/FileSystemService';
+import { ReadTool, WriteTool, EditTool, DeleteTool } from '../tools';
 
 // Singleton instances
 let toolRegistry: ToolRegistry | null = null;
@@ -31,13 +33,31 @@ let permissionService: PermissionService | null = null;
 let executionService: ToolExecutionService | null = null;
 
 /**
- * Get or create ToolRegistry instance
+ * Get or create ToolRegistry instance and register file operation tools
  */
 function getToolRegistry(): ToolRegistry {
   if (!toolRegistry) {
     toolRegistry = new ToolRegistry();
-    // TODO: Register actual tools here (Wave 2.3.1 provides infrastructure only)
-    // Tools will be registered in Epic 3
+
+    // Register core file operation tools (Feature 3.1)
+    // Get project root from FileSystemService
+    const fsService = new FileSystemService();
+    const projectRoot = fsService.getProjectRoot();
+
+    if (projectRoot) {
+      // Register all four core file tools
+      toolRegistry.register(new ReadTool(projectRoot));
+      toolRegistry.register(new WriteTool(projectRoot));
+      toolRegistry.register(new EditTool(projectRoot));
+      toolRegistry.register(new DeleteTool(projectRoot));
+
+      // eslint-disable-next-line no-console
+      console.log('[ToolRegistry] Registered 4 core file operation tools');
+    } else {
+      console.warn(
+        '[ToolRegistry] Project root not set - tools not registered. Select a project directory to enable tools.'
+      );
+    }
   }
   return toolRegistry;
 }
