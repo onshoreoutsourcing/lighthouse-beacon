@@ -59,6 +59,12 @@ export const IPC_CHANNELS = {
   SETTINGS_GET_API_KEY_STATUS: 'settings:get-api-key-status',
   SETTINGS_SET_API_KEY: 'settings:set-api-key',
   SETTINGS_REMOVE_API_KEY: 'settings:remove-api-key',
+
+  // Tool Framework (Feature 2.3)
+  TOOL_EXECUTE: 'tool:execute',
+  TOOL_GET_SCHEMAS: 'tool:get-schemas',
+  TOOL_PERMISSION_REQUEST: 'tool:permission-request',
+  TOOL_PERMISSION_RESPONSE: 'tool:permission-response',
 } as const;
 
 /**
@@ -172,3 +178,20 @@ export const CONVERSATION_CHANNELS = {
   CONVERSATION_LIST: 'conversation:list',
   CONVERSATION_DELETE: 'conversation:delete',
 } as const;
+
+/**
+ * Export Tool Framework types (Feature 2.3)
+ */
+export type {
+  ToolDefinition,
+  ToolParameterSchema,
+  ToolExecutor,
+  ToolExecutionContext,
+  ToolExecutionResult,
+  ToolValidationError,
+  PermissionRequest,
+  PermissionResponse,
+  SessionTrustState,
+} from './tool.types';
+
+export { PermissionLevel, PermissionDecision, type ToolRiskLevel } from './tool.types';

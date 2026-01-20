@@ -13,6 +13,10 @@ import type {
   AIStatus,
   AppSettings,
   StreamOptions,
+  ToolDefinition,
+  ToolExecutionResult,
+  PermissionRequest,
+  PermissionResponse,
 } from '@shared/types';
 import { IPC_CHANNELS, CONVERSATION_CHANNELS } from '@shared/types';
 
@@ -249,6 +253,54 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     removeApiKey: (): Promise<Result<void>> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_REMOVE_API_KEY);
+    },
+  },
+
+  /**
+   * Tool Framework Operations (Feature 2.3)
+   */
+  tools: {
+    /**
+     * Execute a tool by name with parameters
+     * @param toolName - Name of tool to execute
+     * @param parameters - Tool parameters
+     * @param conversationId - Optional conversation ID
+     * @returns Tool execution result
+     */
+    execute: (
+      toolName: string,
+      parameters: Record<string, unknown>,
+      conversationId?: string
+    ): Promise<Result<ToolExecutionResult>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.TOOL_EXECUTE, toolName, parameters, conversationId);
+    },
+
+    /**
+     * Get all tool schemas for AI
+     * @returns Array of tool definitions
+     */
+    getSchemas: (): Promise<Result<ToolDefinition[]>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.TOOL_GET_SCHEMAS);
+    },
+
+    /**
+     * Send permission response to main process
+     * @param response - Permission response from user
+     * @returns Response result
+     */
+    respondToPermission: (response: PermissionResponse): Promise<Result<void>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.TOOL_PERMISSION_RESPONSE, response);
+    },
+
+    /**
+     * Subscribe to permission request events
+     * @param callback - Callback to receive permission requests
+     * @returns Cleanup function to remove listener
+     */
+    onPermissionRequest: (callback: (request: PermissionRequest) => void): (() => void) => {
+      const listener = (_event: unknown, request: PermissionRequest) => callback(request);
+      ipcRenderer.on(IPC_CHANNELS.TOOL_PERMISSION_REQUEST, listener);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.TOOL_PERMISSION_REQUEST, listener);
     },
   },
 
