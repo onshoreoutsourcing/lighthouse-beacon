@@ -433,25 +433,156 @@ const handleSaveAll = async () => {
 
 ---
 
+## Bug #6: Event Listener Accumulation (Multiple Dialogs)
+
+**Severity**: Critical
+**Feature**: Application Menu, Event Listeners
+**Status**: ✅ **RESOLVED** - Dialog guard + stable function references
+
+### Description
+After implementing Bug #5 menu handlers, clicking "File → Open Folder" resulted in an exponentially increasing number of dialogs:
+- First click: 2 dialogs
+- Second click: 3 dialogs
+- Third click: 8 dialogs
+- Would continue growing with each click
+
+Additionally, the root folder name in the footer wasn't updating when selecting a different folder.
+
+### Root Cause
+
+**Primary Issue**: Cascading useCallback dependencies causing listener accumulation
+
+1. **useCallback dependency chain**:
+   ```typescript
+   // setRootPath from store changed → triggered handleSelectDirectory recreation
+   const handleSelectDirectory = useCallback(async () => {
+     await setRootPath(result.data.path);
+   }, [setRootPath]);  // ← Recreated when setRootPath changed
+
+   // handleSelectDirectory recreation → triggered handleOpenFolder recreation
+   const handleOpenFolder = useCallback(() => {
+     void handleSelectDirectory();
+   }, [handleSelectDirectory]);  // ← Recreated when handleSelectDirectory changed
+
+   // New function references → triggered useEffect re-run
+   useEffect(() => {
+     window.electronAPI.onMenuEvent(MENU_OPEN_FOLDER, handleOpenFolder);
+     return () => {
+       window.electronAPI.removeMenuListener(MENU_OPEN_FOLDER, handleOpenFolder);
+       // ↑ Can't remove old listeners - different function references!
+     };
+   }, [handleOpenFolder, ...]);  // ← Re-ran when handleOpenFolder changed
+   ```
+
+2. **React.StrictMode double-invoke**: Intentionally runs effects twice in development
+3. **Cleanup failure**: Each useEffect run created new function instances, cleanup couldn't remove old ones (different references)
+4. **Result**: Exponential accumulation (2 → 3 → 8 → ...)
+
+**Secondary Issue**: Dialog guard missing - multiple clicks could open multiple dialogs simultaneously
+
+### Investigation Steps
+
+1. Observed 8 dialogs appearing from single menu click
+2. Checked dev server logs - saw `MaxListenersExceededWarning: 11 menu:open-folder listeners`
+3. Identified useCallback dependency chain as root cause
+4. Tested with React.StrictMode - confirmed double-invoke amplified the problem
+5. Realized cleanup was failing due to unstable function references
+
+### Solution Implemented
+
+**Commit**: `77a023e fix: Prevent dialog accumulation with guard + stable refs`
+
+**1. Dialog Guard** (Prevents simultaneous dialogs):
+```typescript
+const dialogOpenRef = React.useRef(false);
+
+const handleSelectDirectory = useCallback(async () => {
+  // Prevent multiple dialogs
+  if (dialogOpenRef.current) {
+    return;
+  }
+
+  try {
+    dialogOpenRef.current = true;
+    const result = await window.electronAPI.fileSystem.selectDirectory();
+    if (result.success && result.data.path) {
+      await setRootPath(result.data.path);
+    }
+  } finally {
+    dialogOpenRef.current = false;  // Always clear guard
+  }
+}, [setRootPath]);
+```
+
+**2. Stable Function References** (Prevents listener accumulation):
+```typescript
+useEffect(() => {
+  // All handlers defined INSIDE useEffect - created once, never recreated
+  const onOpenFolder = () => void handleSelectDirectory();
+  const onSave = async () => {
+    const { activeFilePath, saveFile } = useEditorStore.getState();
+    // Uses getState() - no external dependencies
+    await saveFile(activeFilePath);
+  };
+  // ... all other handlers
+
+  // Register with stable references
+  window.electronAPI.onMenuEvent(MENU_OPEN_FOLDER, onOpenFolder);
+  window.electronAPI.onMenuEvent(MENU_SAVE, onSave);
+  // ...
+
+  // Cleanup removes SAME function references ✅
+  return () => {
+    window.electronAPI.removeMenuListener(MENU_OPEN_FOLDER, onOpenFolder);
+    window.electronAPI.removeMenuListener(MENU_SAVE, onSave);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []); // Empty deps - register ONCE, never re-register
+```
+
+**Key Changes**:
+- Removed all useCallback dependencies for menu handlers
+- All handlers now use `store.getState()` instead of props/state (no dependencies)
+- Functions created inside useEffect with empty dependency array
+- Each HMR/StrictMode cycle creates NEW functions but cleanup removes old ones properly
+
+**How React.StrictMode works with this fix**:
+1. Mount → Creates functions, registers listeners
+2. StrictMode cleanup → Removes exact same functions ✅
+3. StrictMode re-mount → Creates NEW functions, registers NEW listeners
+4. **Only one set of listeners active at any time**
+
+### Files Modified
+- `/src/renderer/components/panels/FileExplorerPanel.tsx` (dialog guard + stable refs)
+
+### Status
+✅ **RESOLVED** - Only one dialog appears now, even with rapid clicks
+
+### Time Spent
+~2 hours (debugging, multiple fix attempts, understanding React.StrictMode interaction)
+
+---
+
 ## Summary Statistics
 
-**Total Bugs Fixed**: 5
+**Total Bugs Fixed**: 6
 **Total Bugs Remaining**: 0
-**Total Time Spent**: ~4.5 hours
-**Critical Bugs**: 1 (fixed)
+**Total Time Spent**: ~6.5 hours
+**Critical Bugs**: 2 (both fixed - Bug #1, Bug #6)
 **High Severity Bugs**: 2 (both fixed)
 **Medium Severity Bugs**: 2 (both fixed)
 
 **Features Affected**:
 - File Explorer (Bugs #1, #2, #3)
-- Application Menu (Bugs #4, #5)
+- Application Menu (Bugs #4, #5, #6)
 - File Operations (Bug #5)
+- Event Listeners (Bug #6)
 
 **Files Modified**:
 1. `/src/main/services/WindowManager.ts` (Bug #1)
 2. `/src/renderer/stores/fileExplorer.store.ts` (Bug #2)
 3. `/src/renderer/components/fileExplorer/TreeNode.tsx` (Bug #2)
-4. `/src/renderer/components/panels/FileExplorerPanel.tsx` (Bugs #3, #4, #5)
+4. `/src/renderer/components/panels/FileExplorerPanel.tsx` (Bugs #3, #4, #5, #6)
 5. `/src/shared/types/index.ts` (Bug #5)
 6. `/src/main/services/MenuService.ts` (Bug #5)
 7. `/src/main/services/FileSystemService.ts` (Bug #5)
@@ -476,6 +607,15 @@ const handleSaveAll = async () => {
 3. **useEffect Dependencies**: Be careful with event listener registration. Use empty deps `[]` when listeners should only be set up once on mount.
 
 4. **State Preservation**: When updating nested objects in state, explicitly preserve properties that should remain unchanged.
+
+5. **Event Listener Management in React**:
+   - Avoid useCallback dependency chains - they can cause exponential listener accumulation
+   - Define event handlers INSIDE useEffect with empty deps for stable references
+   - Use store.getState() instead of props/state to avoid dependencies
+   - Always implement proper cleanup that removes the SAME function references
+   - Test with React.StrictMode to catch listener accumulation issues early
+
+6. **Dialog Guards**: Always implement guards to prevent multiple dialogs from opening simultaneously, using useRef for persistence across renders.
 
 ---
 
