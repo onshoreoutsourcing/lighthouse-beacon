@@ -16,12 +16,17 @@
  * - Permission request queueing
  * - Timeout handling (5 minutes)
  * - SOC logging of all decisions
+ * - Permission persistence to disk
  *
  * Usage:
  * const service = new PermissionService();
+ * await service.initialize(); // Load persisted permissions
  * const granted = await service.checkPermission('write_file', params);
  */
 
+import { app } from 'electron';
+import * as path from 'node:path';
+import * as fs from 'node:fs/promises';
 import type {
   PermissionLevel,
   PermissionRequest,
@@ -56,12 +61,26 @@ const DEFAULT_PERMISSIONS: Record<string, PermissionLevel> = {
 const PERMISSION_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**
+ * Permission persistence file name
+ */
+const PERMISSIONS_FILE = 'permissions.json';
+
+/**
  * Pending permission request
  */
 interface PendingPermissionRequest {
   request: PermissionRequest;
   resolve: (decision: PermissionDecision) => void;
   timeout: NodeJS.Timeout;
+}
+
+/**
+ * Persisted permission configuration
+ */
+interface PersistedPermissions {
+  version: number;
+  permissions: Record<string, PermissionLevel>;
+  updatedAt: string;
 }
 
 /**
@@ -81,12 +100,111 @@ export class PermissionService {
   }
 
   /**
+   * Initialize service and load persisted permissions
+   * Call this after construction before using the service
+   */
+  async initialize(): Promise<void> {
+    try {
+      await this.loadPermissions();
+      // eslint-disable-next-line no-console
+      console.log('[PermissionService] Initialized with persisted permissions');
+    } catch {
+      // eslint-disable-next-line no-console
+      console.log('[PermissionService] Initialized with default permissions (no persisted file)');
+    }
+  }
+
+  /**
    * Set callback for sending permission requests to UI
    *
    * @param callback - Callback to invoke when permission request is needed
    */
   setRequestCallback(callback: (request: PermissionRequest) => void): void {
     this.requestCallback = callback;
+  }
+
+  /**
+   * Get path to permissions file
+   *
+   * @returns Absolute path to permissions.json
+   */
+  private getPermissionsFilePath(): string {
+    const userDataPath = app.getPath('userData');
+    return path.join(userDataPath, PERMISSIONS_FILE);
+  }
+
+  /**
+   * Load permissions from disk
+   * Falls back to defaults if file is missing or corrupt
+   */
+  private async loadPermissions(): Promise<void> {
+    const filePath = this.getPermissionsFilePath();
+
+    try {
+      const fileContent = await fs.readFile(filePath, 'utf-8');
+      const persisted = JSON.parse(fileContent) as PersistedPermissions;
+
+      // Validate schema version
+      if (persisted.version !== 1) {
+        console.warn('[PermissionService] Unknown permissions file version, using defaults');
+        return;
+      }
+
+      // Validate permission values
+      for (const [toolName, level] of Object.entries(persisted.permissions)) {
+        if (level === PL.ALWAYS_ALLOW || level === PL.PROMPT || level === PL.ALWAYS_DENY) {
+          this.permissions.set(toolName, level);
+        } else {
+          console.warn(
+            `[PermissionService] Invalid permission level for ${toolName}: ${String(level)}, using default`
+          );
+        }
+      }
+
+      // eslint-disable-next-line no-console
+      console.log(`[PermissionService] Loaded ${this.permissions.size} permissions from disk`);
+    } catch (error) {
+      // File doesn't exist or is corrupt - use defaults
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        console.warn('[PermissionService] Failed to load permissions file:', error);
+      }
+      // Defaults already set in constructor
+    }
+  }
+
+  /**
+   * Save current permissions to disk
+   */
+  private async savePermissions(): Promise<void> {
+    const filePath = this.getPermissionsFilePath();
+
+    try {
+      // Convert Map to Record for JSON serialization
+      const permissionsRecord: Record<string, PermissionLevel> = {};
+      for (const [toolName, level] of this.permissions.entries()) {
+        permissionsRecord[toolName] = level;
+      }
+
+      const persisted: PersistedPermissions = {
+        version: 1,
+        permissions: permissionsRecord,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Ensure directory exists
+      const dir = path.dirname(filePath);
+      await fs.mkdir(dir, { recursive: true });
+
+      // Write atomically by writing to temp file then renaming
+      const tempFile = `${filePath}.tmp`;
+      await fs.writeFile(tempFile, JSON.stringify(persisted, null, 2), 'utf-8');
+      await fs.rename(tempFile, filePath);
+
+      // eslint-disable-next-line no-console
+      console.log('[PermissionService] Saved permissions to disk');
+    } catch (error) {
+      console.error('[PermissionService] Failed to save permissions:', error);
+    }
   }
 
   /**
@@ -269,10 +387,13 @@ export class PermissionService {
    * @param toolName - Tool name
    * @param level - Permission level
    */
-  setPermissionLevel(toolName: string, level: PermissionLevel): void {
+  async setPermissionLevel(toolName: string, level: PermissionLevel): Promise<void> {
     this.permissions.set(toolName, level);
     // eslint-disable-next-line no-console
     console.log(`[PermissionService] Set permission for ${toolName}: ${level}`);
+
+    // Persist to disk
+    await this.savePermissions();
   }
 
   /**
@@ -283,6 +404,19 @@ export class PermissionService {
    */
   getPermissionLevel(toolName: string): PermissionLevel {
     return this.permissions.get(toolName) ?? PL.PROMPT;
+  }
+
+  /**
+   * Get all permission settings
+   *
+   * @returns Record of all tool permissions
+   */
+  getAllPermissions(): Record<string, PermissionLevel> {
+    const result: Record<string, PermissionLevel> = {};
+    for (const [toolName, level] of this.permissions.entries()) {
+      result[toolName] = level;
+    }
+    return result;
   }
 
   /**
