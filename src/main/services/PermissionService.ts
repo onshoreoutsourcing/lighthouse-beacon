@@ -27,6 +27,7 @@
 import { app } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
+import { setTimeout, clearTimeout } from 'node:timers';
 import type {
   PermissionLevel,
   PermissionRequest,
@@ -91,6 +92,8 @@ export class PermissionService {
   private sessionTrust: Map<string, SessionTrustState> = new Map();
   private pendingRequests: Map<string, PendingPermissionRequest> = new Map();
   private requestCallback?: (request: PermissionRequest) => void;
+  private saveTimeout?: NodeJS.Timeout;
+  private readonly SAVE_DEBOUNCE_MS = 1000; // 1 second debounce
 
   constructor() {
     // Initialize default permissions
@@ -283,7 +286,7 @@ export class PermissionService {
     // Create promise for user response
     return new Promise<PermissionDecision>((resolve) => {
       // Set up timeout
-      // eslint-disable-next-line no-undef
+
       const timeout = setTimeout(() => {
         // eslint-disable-next-line no-console
         console.log(`[PermissionService] Permission request timeout for ${toolName}`);
@@ -319,7 +322,7 @@ export class PermissionService {
     }
 
     // Clear timeout
-    // eslint-disable-next-line no-undef
+
     clearTimeout(pending.timeout);
 
     // Remove from pending
@@ -387,13 +390,27 @@ export class PermissionService {
    * @param toolName - Tool name
    * @param level - Permission level
    */
-  async setPermissionLevel(toolName: string, level: PermissionLevel): Promise<void> {
+  setPermissionLevel(toolName: string, level: PermissionLevel): void {
     this.permissions.set(toolName, level);
     // eslint-disable-next-line no-console
     console.log(`[PermissionService] Set permission for ${toolName}: ${level}`);
 
-    // Persist to disk
-    await this.savePermissions();
+    // Persist to disk with debouncing to avoid excessive writes
+    this.debouncedSavePermissions();
+  }
+
+  /**
+   * Debounced save to avoid excessive disk writes during rapid permission changes
+   */
+  private debouncedSavePermissions(): void {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+
+    this.saveTimeout = setTimeout(() => {
+      void this.savePermissions();
+      this.saveTimeout = undefined;
+    }, this.SAVE_DEBOUNCE_MS);
   }
 
   /**
@@ -434,7 +451,6 @@ export class PermissionService {
   shutdown(): void {
     // Cancel all pending requests
     for (const pending of this.pendingRequests.values()) {
-      // eslint-disable-next-line no-undef
       clearTimeout(pending.timeout);
       pending.resolve(PD.DENIED);
     }

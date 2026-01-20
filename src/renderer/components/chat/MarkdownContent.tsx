@@ -42,15 +42,11 @@ const FilePath: React.FC<{ path: string }> = ({ path }) => {
   // Remove quotes if present
   const cleanPath = path.replace(/^"|"$/g, '').trim();
 
-  // Security: Detect obvious path traversal attempts
-  const isSuspiciousPath = cleanPath.includes('../..') || cleanPath.startsWith('/etc');
+  // Security: Path validation is handled by backend PathValidator
+  // Client-side detection removed to avoid false positives
+  // Backend will return proper error messages for invalid paths
 
   const handleClick = async () => {
-    if (isSuspiciousPath) {
-      setError('Suspicious path detected');
-      return;
-    }
-
     setError(null);
 
     try {

@@ -133,7 +133,7 @@ export class BashTool implements ToolExecutor {
       category: 'privilege_escalation',
     },
     {
-      pattern: /\bsu\b/i,
+      pattern: /(?:^|[|;&])\s*su(?:\s|$)/i,
       reason: 'Privilege escalation via su is blocked',
       category: 'privilege_escalation',
     },

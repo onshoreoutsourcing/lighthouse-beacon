@@ -79,6 +79,11 @@ export class PathValidator {
       } catch {
         // Path doesn't exist yet (e.g., creating new file) - use normalized path
         // This is OK because we'll validate it doesn't escape via relative path check
+        //
+        // FUTURE ENHANCEMENT: For non-existent paths, validate parent directory
+        // symlinks by resolving parent paths incrementally until an existing
+        // directory is found. This would prevent symlink creation that points
+        // outside the project root.
       }
 
       // Check if path is within project root

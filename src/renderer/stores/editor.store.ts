@@ -106,15 +106,27 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
               if (result.success) {
                 const currentOpenFiles = get().openFiles;
-                const updatedFiles = currentOpenFiles.map((file) =>
-                  file.path === path
-                    ? {
-                        ...file,
-                        content: result.data.content,
-                        isDirty: false, // Clear dirty flag since content now matches disk
-                      }
-                    : file
-                );
+                const updatedFiles = currentOpenFiles.map((file) => {
+                  if (file.path !== path) {
+                    return file;
+                  }
+
+                  // If the file has unsaved changes, preserve the in-memory content
+                  // and dirty state instead of overwriting with external changes
+                  if (file.isDirty) {
+                    console.warn(
+                      `[EditorStore] Skipping external reload for ${path} - file has unsaved changes`
+                    );
+                    return file;
+                  }
+
+                  // File is clean, safe to refresh from disk
+                  return {
+                    ...file,
+                    content: result.data.content,
+                    isDirty: false,
+                  };
+                });
 
                 set({ openFiles: updatedFiles });
               }

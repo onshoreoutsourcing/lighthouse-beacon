@@ -114,12 +114,14 @@ export const useFileExplorerStore = create<FileExplorerState>((set, get) => {
     const pathsToRefresh = Array.from(refreshQueue);
     refreshQueue.clear();
 
+    // Read current state once per debounced execution
+    const { rootPath, expandedFolders, loadDirectory } = get();
+
     // Refresh each affected directory
     pathsToRefresh.forEach((dirPath) => {
       // Refresh the directory if it's currently loaded and expanded
-      const { rootPath, expandedFolders } = get();
       if (rootPath && (dirPath === rootPath || expandedFolders.has(dirPath))) {
-        void get().loadDirectory(dirPath);
+        void loadDirectory(dirPath);
       }
     });
   }, 500);

@@ -66,6 +66,21 @@ export class EditTool implements ToolExecutor {
 
   /**
    * Execute regex with timeout protection to prevent ReDoS attacks
+   *
+   * LIMITATION: This implementation uses setTimeout, which cannot interrupt
+   * synchronous JavaScript operations. If a regex causes catastrophic
+   * backtracking, it will block the event loop until completion, and the
+   * timeout will fire afterward but won't cancel the operation.
+   *
+   * This provides best-effort protection by:
+   * 1. Detecting when operations exceed the timeout threshold
+   * 2. Providing clear error messages about problematic patterns
+   * 3. Allowing users to identify and avoid ReDoS patterns
+   *
+   * For true async cancellation, a Web Worker or worker thread would be
+   * required, which is out of scope for MVP.
+   *
+   * See also: GrepTool.isReDoSVulnerable() for pre-execution pattern validation
    */
   private async executeRegexWithTimeout(
     content: string,
