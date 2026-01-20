@@ -24,7 +24,7 @@ import { IPC_CHANNELS } from '@shared/types';
 import { ToolRegistry } from '../services/ToolRegistry';
 import { PermissionService } from '../services/PermissionService';
 import { ToolExecutionService } from '../services/ToolExecutionService';
-import { ReadTool, WriteTool, EditTool, DeleteTool, GlobTool, GrepTool } from '../tools';
+import { ReadTool, WriteTool, EditTool, DeleteTool, GlobTool, GrepTool, BashTool } from '../tools';
 
 // Singleton instances
 let toolRegistry: ToolRegistry | null = null;
@@ -158,19 +158,20 @@ export function initializeToolsWithProjectRoot(projectRoot: string): void {
   toolRegistry = new ToolRegistry();
 
   try {
-    // Register all file operation tools (Features 3.1 & 3.2)
+    // Register all file operation tools (Features 3.1, 3.2 & 3.3)
     toolRegistry.register(new ReadTool(projectRoot));
     toolRegistry.register(new WriteTool(projectRoot));
     toolRegistry.register(new EditTool(projectRoot));
     toolRegistry.register(new DeleteTool(projectRoot));
     toolRegistry.register(new GlobTool(projectRoot));
     toolRegistry.register(new GrepTool(projectRoot));
+    toolRegistry.register(new BashTool(projectRoot));
 
     // Recreate execution service with new registry
     executionService = new ToolExecutionService(toolRegistry, getPermissionService());
 
     // eslint-disable-next-line no-console
-    console.log('[ToolRegistry] Registered 6 file operation tools with project root:', projectRoot);
+    console.log('[ToolRegistry] Registered 7 file operation tools with project root:', projectRoot);
   } catch (error) {
     console.error('[ToolRegistry] Failed to initialize tools:', error);
   }

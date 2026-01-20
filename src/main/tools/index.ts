@@ -17,3 +17,6 @@ export type { GlobParams, GlobResult } from './GlobTool';
 
 export { GrepTool } from './GrepTool';
 export type { GrepParams, GrepResult, GrepMatch, GrepMode } from './GrepTool';
+
+export { BashTool } from './BashTool';
+export type { BashParams, BashResult } from './BashTool';
