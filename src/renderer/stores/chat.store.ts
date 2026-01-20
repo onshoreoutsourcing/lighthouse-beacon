@@ -89,14 +89,14 @@ interface ChatState {
  * Generate unique message ID
  */
 const generateMessageId = (): string => {
-  return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
 /**
  * Generate unique conversation ID
  */
 const generateConversationId = (): string => {
-  return `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `conv-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 };
 
 /**

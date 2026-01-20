@@ -291,7 +291,7 @@ export class PermissionService {
    * @returns Unique request ID
    */
   private generateRequestId(): string {
-    return `perm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `perm-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 
   /**

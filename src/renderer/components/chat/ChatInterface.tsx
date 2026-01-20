@@ -114,7 +114,7 @@ const ChatInterface: React.FC = () => {
           </div>
         ) : (
           /* Message List */
-          <div>
+          <div role="log" aria-live="polite" aria-label="Chat conversation">
             {messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
