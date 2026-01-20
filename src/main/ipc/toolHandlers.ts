@@ -24,8 +24,7 @@ import { IPC_CHANNELS } from '@shared/types';
 import { ToolRegistry } from '../services/ToolRegistry';
 import { PermissionService } from '../services/PermissionService';
 import { ToolExecutionService } from '../services/ToolExecutionService';
-import { FileSystemService } from '../services/FileSystemService';
-import { ReadTool, WriteTool, EditTool, DeleteTool } from '../tools';
+import { ReadTool, WriteTool, EditTool, DeleteTool, GlobTool, GrepTool } from '../tools';
 
 // Singleton instances
 let toolRegistry: ToolRegistry | null = null;
@@ -33,31 +32,13 @@ let permissionService: PermissionService | null = null;
 let executionService: ToolExecutionService | null = null;
 
 /**
- * Get or create ToolRegistry instance and register file operation tools
+ * Get or create ToolRegistry instance
  */
 function getToolRegistry(): ToolRegistry {
   if (!toolRegistry) {
     toolRegistry = new ToolRegistry();
-
-    // Register core file operation tools (Feature 3.1)
-    // Get project root from FileSystemService
-    const fsService = new FileSystemService();
-    const projectRoot = fsService.getProjectRoot();
-
-    if (projectRoot) {
-      // Register all four core file tools
-      toolRegistry.register(new ReadTool(projectRoot));
-      toolRegistry.register(new WriteTool(projectRoot));
-      toolRegistry.register(new EditTool(projectRoot));
-      toolRegistry.register(new DeleteTool(projectRoot));
-
-      // eslint-disable-next-line no-console
-      console.log('[ToolRegistry] Registered 4 core file operation tools');
-    } else {
-      console.warn(
-        '[ToolRegistry] Project root not set - tools not registered. Select a project directory to enable tools.'
-      );
-    }
+    // Tools will be registered via initializeToolsWithProjectRoot()
+    // when project directory is selected
   }
   return toolRegistry;
 }
@@ -164,6 +145,35 @@ export function registerToolHandlers(): void {
 
   // eslint-disable-next-line no-console
   console.log('[Tool Handlers] Tool framework IPC handlers registered');
+}
+
+/**
+ * Initialize tools with project root
+ * Called when project directory is selected
+ *
+ * @param projectRoot - Absolute path to project root
+ */
+export function initializeToolsWithProjectRoot(projectRoot: string): void {
+  // Clear existing registry and create new one
+  toolRegistry = new ToolRegistry();
+
+  try {
+    // Register all file operation tools (Features 3.1 & 3.2)
+    toolRegistry.register(new ReadTool(projectRoot));
+    toolRegistry.register(new WriteTool(projectRoot));
+    toolRegistry.register(new EditTool(projectRoot));
+    toolRegistry.register(new DeleteTool(projectRoot));
+    toolRegistry.register(new GlobTool(projectRoot));
+    toolRegistry.register(new GrepTool(projectRoot));
+
+    // Recreate execution service with new registry
+    executionService = new ToolExecutionService(toolRegistry, getPermissionService());
+
+    // eslint-disable-next-line no-console
+    console.log('[ToolRegistry] Registered 6 file operation tools with project root:', projectRoot);
+  } catch (error) {
+    console.error('[ToolRegistry] Failed to initialize tools:', error);
+  }
 }
 
 /**

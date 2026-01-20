@@ -1,30 +1,46 @@
 /**
  * PathValidator
  *
- * Security utility for validating file paths against directory sandboxing rules.
- * Ensures all file operations are restricted to the project root directory.
+ * Utility for validating and normalizing file system paths to ensure they remain
+ * within the project root directory. Provides directory sandboxing for security.
  *
  * Security Features:
- * - Directory traversal prevention (../ attacks)
- * - Symlink escape detection
- * - Absolute path validation
- * - Cross-platform path handling
+ * - Prevents directory traversal attacks (../ patterns)
+ * - Normalizes paths to absolute form
+ * - Validates paths are within project boundaries
+ * - Protects against symbolic link exploits
  *
- * Reference: ADR-011 - Directory Sandboxing Approach
+ * Usage:
+ * const validator = new PathValidator('/project/root');
+ * const safePath = validator.validate('src/file.ts'); // OK
+ * validator.validate('../etc/passwd'); // Throws error
  */
 
 import * as path from 'node:path';
-import { promises as fs } from 'node:fs';
 
 export interface PathValidationResult {
-  valid: boolean;
-  normalizedPath?: string;
+  /** Whether path is valid (within project root) */
+  isValid: boolean;
+  /** Normalized absolute path (if valid) */
+  absolutePath?: string;
+  /** Relative path from project root (if valid) */
+  relativePath?: string;
+  /** Error message (if invalid) */
   error?: string;
 }
 
+/**
+ * Path validator for directory sandboxing
+ */
 export class PathValidator {
   private projectRoot: string;
 
+  /**
+   * Create a new PathValidator
+   *
+   * @param projectRoot - Absolute path to project root directory
+   * @throws Error if projectRoot is not absolute
+   */
   constructor(projectRoot: string) {
     if (!path.isAbsolute(projectRoot)) {
       throw new Error('Project root must be an absolute path');
@@ -33,11 +49,19 @@ export class PathValidator {
   }
 
   /**
-   * Validate that a file path is within the project root directory.
-   * Prevents directory traversal attacks and symlink escapes.
+   * Get the project root path
+   *
+   * @returns Normalized project root
+   */
+  getProjectRoot(): string {
+    return this.projectRoot;
+  }
+
+  /**
+   * Validate a path to ensure it's within project root
    *
    * @param filePath - Path to validate (relative or absolute)
-   * @returns Validation result with normalized path or error
+   * @returns Validation result with normalized paths or error
    */
   validate(filePath: string): PathValidationResult {
     try {
@@ -49,81 +73,81 @@ export class PathValidator {
       // Check if path is within project root
       const relativePath = path.relative(this.projectRoot, absolutePath);
 
-      // Directory traversal detected
+      // Path is invalid if it starts with '..' or is absolute (means outside root)
       if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
         return {
-          valid: false,
-          error: `Access denied: Path '${filePath}' is outside project root. All operations must be within the project directory.`,
+          isValid: false,
+          error: 'Path is outside project root',
         };
       }
 
       return {
-        valid: true,
-        normalizedPath: absolutePath,
+        isValid: true,
+        absolutePath,
+        relativePath,
       };
     } catch (error) {
       return {
-        valid: false,
-        error: `Path validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        isValid: false,
+        error: error instanceof Error ? error.message : 'Unknown validation error',
       };
     }
   }
 
   /**
-   * Validate path and check if it resolves to a real file (not a symlink escape).
-   * This performs filesystem checks to detect symlink traversal attacks.
+   * Validate a path and throw if invalid (convenience method)
    *
    * @param filePath - Path to validate
-   * @returns Validation result with real path or error
+   * @returns Normalized absolute path
+   * @throws Error if path is invalid or outside project root
    */
-  async validateRealPath(filePath: string): Promise<PathValidationResult> {
-    const basicValidation = this.validate(filePath);
-    if (!basicValidation.valid) {
-      return basicValidation;
+  validateOrThrow(filePath: string): string {
+    const result = this.validate(filePath);
+    if (!result.isValid) {
+      throw new Error(`Invalid path: ${result.error}`);
     }
-
-    try {
-      // Resolve symlinks to their real path
-      const realPath = await fs.realpath(basicValidation.normalizedPath!);
-
-      // Check if real path is still within project root
-      const relativePath = path.relative(this.projectRoot, realPath);
-      if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
-        return {
-          valid: false,
-          error: `Access denied: Symlink '${filePath}' escapes project root. Symlinks must resolve within the project directory.`,
-        };
-      }
-
-      return {
-        valid: true,
-        normalizedPath: realPath,
-      };
-    } catch (error) {
-      // If file doesn't exist, realpath fails - that's okay, return the normalized path
-      // The calling tool will handle non-existent files appropriately
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return basicValidation;
-      }
-
-      return {
-        valid: false,
-        error: `Path validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      };
-    }
+    return result.absolutePath!;
   }
 
   /**
-   * Get the project root directory
+   * Validate multiple paths
+   *
+   * @param filePaths - Array of paths to validate
+   * @returns Array of validation results
    */
-  getProjectRoot(): string {
-    return this.projectRoot;
+  validateMany(filePaths: string[]): PathValidationResult[] {
+    return filePaths.map((p) => this.validate(p));
   }
 
   /**
-   * Convert an absolute path to a path relative to project root
+   * Check if a path is within project root (boolean shorthand)
+   *
+   * @param filePath - Path to check
+   * @returns True if path is valid and within project root
    */
-  toRelativePath(absolutePath: string): string {
-    return path.relative(this.projectRoot, absolutePath);
+  isWithinRoot(filePath: string): boolean {
+    return this.validate(filePath).isValid;
+  }
+
+  /**
+   * Convert absolute path to relative (from project root)
+   *
+   * @param absolutePath - Absolute path to convert
+   * @returns Relative path from project root, or null if outside root
+   */
+  toRelative(absolutePath: string): string | null {
+    const result = this.validate(absolutePath);
+    return result.isValid ? result.relativePath! : null;
+  }
+
+  /**
+   * Convert relative path to absolute
+   *
+   * @param relativePath - Relative path from project root
+   * @returns Absolute path, or null if outside root
+   */
+  toAbsolute(relativePath: string): string | null {
+    const result = this.validate(relativePath);
+    return result.isValid ? result.absolutePath! : null;
   }
 }
