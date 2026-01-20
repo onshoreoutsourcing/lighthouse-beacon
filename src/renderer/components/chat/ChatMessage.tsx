@@ -2,6 +2,7 @@ import React from 'react';
 import type { ChatMessage as ChatMessageType } from '@renderer/stores/chat.store';
 import { User, Bot } from 'lucide-react';
 import { useBufferedStream } from '@renderer/hooks/useBufferedStream';
+import MarkdownContent from './MarkdownContent';
 
 /**
  * ChatMessage Component Props
@@ -23,6 +24,9 @@ interface ChatMessageProps {
  * - Error message display
  * - Buffered streaming with 50ms intervals for 60 FPS performance
  * - Visual streaming cursor
+ * - Markdown rendering for AI messages (Wave 2.2.3)
+ * - Syntax highlighting for code blocks
+ * - Clickable file paths
  */
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
@@ -72,10 +76,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
         </div>
 
         {/* Content */}
-        <div className="text-sm text-vscode-text whitespace-pre-wrap break-words">
-          {displayContent || (isStreaming ? 'Thinking...' : '')}
-          {isStreaming && displayContent && (
-            <span className="inline-block w-2 h-4 ml-1 bg-vscode-accent animate-pulse" />
+        <div className="text-sm text-vscode-text">
+          {isUser ? (
+            /* User messages: plain text with line breaks */
+            <div className="whitespace-pre-wrap break-words">{displayContent}</div>
+          ) : (
+            /* AI messages: markdown rendering with syntax highlighting */
+            <>
+              {displayContent ? (
+                <MarkdownContent content={displayContent} />
+              ) : (
+                isStreaming && <div className="text-vscode-text-muted italic">Thinking...</div>
+              )}
+              {isStreaming && displayContent && (
+                <span className="inline-block w-2 h-4 ml-1 bg-vscode-accent animate-pulse" />
+              )}
+            </>
           )}
         </div>
 
