@@ -84,16 +84,15 @@ const OperationIndicator: React.FC<OperationIndicatorProps> = ({
           color: 'text-yellow-500',
           defaultLabel: 'Executed',
         };
-      default:
-        // TypeScript ensures type safety at compile-time, but this provides
-        // a defensive runtime fallback for potential type inconsistencies
-        // (e.g., from external data sources or future operation types)
-        return {
-          icon: <Eye className={iconSize} />,
-          color: 'text-gray-400',
-          defaultLabel: 'Operation',
-        };
     }
+
+    // Runtime fallback for unexpected operation values
+    // (TypeScript exhaustiveness checking will catch missing cases at compile time)
+    return {
+      icon: <Eye className={iconSize} />,
+      color: 'text-gray-400',
+      defaultLabel: 'Operation',
+    };
   };
 
   const config = getOperationConfig();
