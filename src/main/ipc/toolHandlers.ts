@@ -50,6 +50,11 @@ function getPermissionService(): PermissionService {
   if (!permissionService) {
     permissionService = new PermissionService();
 
+    // Initialize (load persisted permissions) - fire and forget
+    permissionService.initialize().catch((error) => {
+      console.error('[ToolHandlers] Failed to initialize PermissionService:', error);
+    });
+
     // Set up callback to send permission requests to renderer
     permissionService.setRequestCallback((request: PermissionRequest) => {
       const mainWindow = getMainWindow();
