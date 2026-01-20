@@ -9,6 +9,9 @@ import type {
   CreateFolderOptions,
   Result,
   WriteFileOptions,
+  AIStatus,
+  AppSettings,
+  StreamOptions,
 } from '@shared/types';
 
 /**
@@ -32,6 +35,23 @@ declare global {
         selectFile: () => Promise<Result<FileSelection>>;
         showSaveDialog: (defaultPath?: string) => Promise<Result<SaveDialogResult>>;
         createDirectory: (options: CreateFolderOptions) => Promise<Result<string>>;
+      };
+      ai: {
+        initialize: () => Promise<Result<{ status: AIStatus }>>;
+        sendMessage: (message: string, options?: StreamOptions) => Promise<Result<string>>;
+        streamMessage: (message: string, options?: StreamOptions) => Promise<Result<void>>;
+        cancel: () => Promise<Result<void>>;
+        getStatus: () => Promise<Result<AIStatus>>;
+        onStreamToken: (callback: (token: string) => void) => () => void;
+        onStreamComplete: (callback: (fullResponse: string) => void) => () => void;
+        onStreamError: (callback: (error: string) => void) => () => void;
+      };
+      settings: {
+        get: () => Promise<Result<AppSettings>>;
+        update: (updates: Partial<AppSettings>) => Promise<Result<void>>;
+        hasApiKey: () => Promise<Result<{ hasApiKey: boolean }>>;
+        setApiKey: (apiKey: string) => Promise<Result<void>>;
+        removeApiKey: () => Promise<Result<void>>;
       };
       versions: {
         node: () => string;
