@@ -42,6 +42,91 @@ Create Planning Doc → Review → Refine → More Planning → Review → Repea
 - ✅ "Create a pull request"
 - ✅ "Merge this branch"
 
+### Git Branching Strategy
+
+**Branch Hierarchy:**
+```
+main (protected, production-ready)
+  └── development (integration branch)
+       ├── epic-N-name (long-lived epic branches)
+       │    ├── feature-N.M-name (feature branches)
+       │    └── wave-N.M.P-name (standalone wave branches)
+       ├── feature-N.M-name (standalone features)
+       └── wave-N.M.P-name (standalone waves)
+```
+
+**Branching Rules:**
+
+1. **main branch:**
+   - Protected - production-ready code only
+   - Updated ONLY via Pull Request from `development`
+   - Never commit directly to `main`
+   - Never create feature branches from `main`
+
+2. **development branch:**
+   - Integration branch for all development work
+   - **All new feature/epic/wave branches MUST branch from `development`**
+   - Receives PRs from epic/feature/wave branches
+   - Merges to `main` via PR when ready for release
+
+3. **Epic branches** (e.g., `epic-2-ai-integration`)
+   - Created from `development`
+   - For epics with multiple features
+   - Feature branches created from epic branch
+   - Merge back to `development` when epic complete
+
+4. **Feature branches** (e.g., `feature-2.1-aichatsdk-integration`)
+   - Created from `development` (standalone) or `epic-N` (part of epic)
+   - For features with multiple waves
+   - Waves committed directly to feature branch (no wave branches)
+   - Merge to `development` or parent epic when complete
+
+5. **Wave branches** (e.g., `wave-3.1.1-path-validation`)
+   - Created from `development` for standalone single waves
+   - NOT used for waves within features (commit directly to feature branch)
+   - Merge to `development` when complete
+
+**Workflow Examples:**
+
+**Multi-feature Epic:**
+```bash
+# Create epic branch from development
+git checkout development
+git checkout -b epic-2-ai-integration
+git push -u origin epic-2-ai-integration
+
+# Create feature branch from epic
+git checkout -b feature-2.1-aichatsdk-integration epic-2-ai-integration
+# Commit waves directly to feature branch
+# PR: feature → epic when complete
+# PR: epic → development when all features complete
+```
+
+**Standalone Feature:**
+```bash
+# Create feature branch from development
+git checkout development
+git checkout -b feature-X.Y-name
+# Commit waves directly to feature branch
+# PR: feature → development when complete
+```
+
+**Standalone Wave:**
+```bash
+# Create wave branch from development
+git checkout development
+git checkout -b wave-X.Y.Z-name
+# Implement wave
+# PR: wave → development when complete
+```
+
+**CRITICAL:**
+- ✅ **ALWAYS branch from `development`** (not `main`)
+- ✅ **ALWAYS merge back to `development`** via Pull Request
+- ✅ **ONLY merge `development` → `main`** via Pull Request for releases
+- ❌ **NEVER commit directly to `main`**
+- ❌ **NEVER create branches from `main`**
+
 ---
 
 ## Project Context
@@ -222,8 +307,10 @@ When you need clarification:
 
 ## Current Status
 
-**Project Phase:** Initial Planning
-**Current Activity:** Creating foundational planning documents
+**Project Phase:** Phase 2 - AI Integration (Epic 2 & 3)
+**Current Activity:** Implementing Epic 2 (AI Integration) and Epic 3 (File Operation Tools - MVP)
+**Completed:** Epic 1 - Desktop Foundation with Basic UI (14 waves, all complete)
+**Current Branch:** `development` (all new work branches from here)
 **Next Steps:** Will be explicitly communicated
 
 ---
@@ -242,4 +329,4 @@ This project values **thorough planning over rapid implementation**. Take time t
 
 ---
 
-*Last Updated: January 18, 2026*
+*Last Updated: January 20, 2026*

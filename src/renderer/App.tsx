@@ -3,6 +3,7 @@ import ThreePanelLayout from './components/layout/ThreePanelLayout';
 import FileExplorerPanel from './components/panels/FileExplorerPanel';
 import CodeEditorPanel from './components/panels/CodeEditorPanel';
 import AIChatPanel from './components/panels/AIChatPanel';
+import { PermissionModal } from './components/modals/PermissionModal';
 
 const App: React.FC = () => {
   return (
@@ -20,6 +21,9 @@ const App: React.FC = () => {
           rightPanel={<AIChatPanel />}
         />
       </main>
+
+      {/* Permission Modal (Feature 2.3) */}
+      <PermissionModal />
     </div>
   );
 };

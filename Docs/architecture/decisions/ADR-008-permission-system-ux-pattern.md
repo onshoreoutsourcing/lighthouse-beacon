@@ -1,9 +1,11 @@
 # ADR-008: Permission System UX Pattern
 
-**Status**: Accepted
+**Status**: Implemented
 **Date**: 2026-01-19
+**Implementation Date**: 2026-01-20
 **Deciders**: Lighthouse Development Team
 **Related**: Epic-2, Feature-2.3, Product Vision (Human in Control), Business Requirements (FR-6)
+**Implemented In**: Wave 2.3.2 (PermissionModal.tsx, PermissionStore.ts)
 
 ---
 

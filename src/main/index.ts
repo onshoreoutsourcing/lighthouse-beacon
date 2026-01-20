@@ -2,6 +2,12 @@ import { app, BrowserWindow } from 'electron';
 import { WindowManager } from './services/WindowManager';
 import { MenuService } from './services/MenuService';
 import { registerFileSystemHandlers, unregisterFileSystemHandlers } from './ipc/fileSystemHandlers';
+import {
+  registerConversationHandlers,
+  unregisterConversationHandlers,
+} from './ipc/conversationHandlers';
+import { registerAIHandlers, unregisterAIHandlers } from './ipc/aiHandlers';
+import { registerToolHandlers, unregisterToolHandlers } from './ipc/toolHandlers';
 
 // Global reference to WindowManager instance
 let windowManager: WindowManager | null = null;
@@ -38,6 +44,9 @@ void app.whenReady().then(() => {
 
   // Register IPC handlers before creating windows
   registerFileSystemHandlers();
+  registerConversationHandlers();
+  registerAIHandlers();
+  registerToolHandlers();
 
   createMainWindow();
 
@@ -69,6 +78,9 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   // Unregister IPC handlers
   unregisterFileSystemHandlers();
+  unregisterConversationHandlers();
+  unregisterAIHandlers();
+  unregisterToolHandlers();
 
   if (windowManager) {
     windowManager.destroy();

@@ -1,9 +1,11 @@
 # ADR-007: Conversation Storage Strategy
 
-**Status**: Accepted
+**Status**: Implemented
 **Date**: 2026-01-19
+**Implementation Date**: 2026-01-20
 **Deciders**: Lighthouse Development Team
 **Related**: Epic-2, Feature-2.2, Business Requirements (FR-4)
+**Implemented In**: Wave 2.2.4 (ConversationStorage.ts)
 
 ---
 

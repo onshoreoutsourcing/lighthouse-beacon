@@ -1,9 +1,11 @@
 # ADR-006: AIChatSDK Integration Approach
 
-**Status**: Accepted
+**Status**: Partially Implemented
 **Date**: 2026-01-19
+**Implementation Date**: 2026-01-20
 **Deciders**: Lighthouse Development Team
 **Related**: Epic-2, Feature-2.1, Product Vision (AI Ethics), Business Requirements (FR-5)
+**Implemented In**: Wave 2.1.1 (AIService.ts - infrastructure complete, using mocks pending SDK)
 
 ---
 

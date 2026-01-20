@@ -1,9 +1,11 @@
 # ADR-009: Streaming Response Implementation
 
-**Status**: Accepted
+**Status**: Implemented
 **Date**: 2026-01-19
+**Implementation Date**: 2026-01-20
 **Deciders**: Lighthouse Development Team
 **Related**: Epic-2, Feature-2.2, Business Requirements (NFR-1 Usability)
+**Implemented In**: Wave 2.2.2 (useBufferedStream.ts, useSmartScroll.ts)
 
 ---
 
