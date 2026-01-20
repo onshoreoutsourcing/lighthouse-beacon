@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { useChatStore } from '@renderer/stores/chat.store';
 import ChatMessage from './ChatMessage';
 import MessageInput from './MessageInput';
-import { MessageSquare, Trash2 } from 'lucide-react';
+import { MessageSquare, Trash2, ArrowDown } from 'lucide-react';
+import { useSmartScroll } from '@renderer/hooks/useSmartScroll';
 
 /**
  * ChatInterface Component
@@ -12,17 +13,21 @@ import { MessageSquare, Trash2 } from 'lucide-react';
  *
  * Features:
  * - Scrollable message list
- * - Auto-scroll to bottom on new messages
+ * - Intelligent auto-scroll during streaming (Wave 2.2.2)
+ * - Scroll-to-bottom button when user scrolls up
  * - Empty state when no messages
  * - Clear conversation button
  * - Integration with ChatStore
  * - AI initialization on mount
+ * - 60 FPS scrolling performance
  */
 const ChatInterface: React.FC = () => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const { messages, initializeAI, clearMessages, isInitializing, isInitialized } = useChatStore();
+
+  // Smart scroll behavior (Wave 2.2.2)
+  const { showScrollButton, scrollToBottom } = useSmartScroll(messagesContainerRef, [messages]);
 
   /**
    * Initialize AI service on component mount
@@ -30,15 +35,6 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     void initializeAI();
   }, [initializeAI]);
-
-  /**
-   * Auto-scroll to bottom when new messages arrive
-   */
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
 
   /**
    * Handle clear conversation
@@ -77,7 +73,7 @@ const ChatInterface: React.FC = () => {
       </div>
 
       {/* Messages Container */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto relative">
         {messages.length === 0 ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center h-full p-6">
@@ -96,8 +92,18 @@ const ChatInterface: React.FC = () => {
             {messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
-            <div ref={messagesEndRef} />
           </div>
+        )}
+
+        {/* Scroll to Bottom Button (Wave 2.2.2) */}
+        {showScrollButton && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-4 right-4 p-2 bg-vscode-accent hover:bg-vscode-accent/80 text-vscode-bg rounded-full shadow-lg transition-all"
+            title="Scroll to bottom"
+          >
+            <ArrowDown className="w-5 h-5" />
+          </button>
         )}
       </div>
 

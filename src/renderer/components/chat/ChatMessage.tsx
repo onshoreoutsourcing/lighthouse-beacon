@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ChatMessage as ChatMessageType } from '@renderer/stores/chat.store';
 import { User, Bot } from 'lucide-react';
+import { useBufferedStream } from '@renderer/hooks/useBufferedStream';
 
 /**
  * ChatMessage Component Props
@@ -20,11 +21,16 @@ interface ChatMessageProps {
  * - Timestamp display
  * - Status indicators (sending, streaming, complete, error)
  * - Error message display
+ * - Buffered streaming with 50ms intervals for 60 FPS performance
+ * - Visual streaming cursor
  */
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === 'user';
   const isError = message.status === 'error';
   const isStreaming = message.status === 'streaming';
+
+  // Use buffered streaming for performance (50ms intervals, 60 FPS)
+  const displayContent = useBufferedStream(message.content, isStreaming);
 
   // Format timestamp
   const formatTime = (date: Date): string => {
@@ -67,8 +73,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
 
         {/* Content */}
         <div className="text-sm text-vscode-text whitespace-pre-wrap break-words">
-          {message.content || (isStreaming ? 'Thinking...' : '')}
-          {isStreaming && message.content && (
+          {displayContent || (isStreaming ? 'Thinking...' : '')}
+          {isStreaming && displayContent && (
             <span className="inline-block w-2 h-4 ml-1 bg-vscode-accent animate-pulse" />
           )}
         </div>
