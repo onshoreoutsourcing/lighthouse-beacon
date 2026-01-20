@@ -17,8 +17,9 @@ import type {
   ToolExecutionResult,
   PermissionRequest,
   PermissionResponse,
+  FileOperationEvent,
 } from '@shared/types';
-import { IPC_CHANNELS, CONVERSATION_CHANNELS } from '@shared/types';
+import { IPC_CHANNELS, CONVERSATION_CHANNELS, FILE_OPERATION_CHANNELS } from '@shared/types';
 
 /**
  * Preload Script - Secure IPC Bridge
@@ -340,6 +341,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     delete: (conversationId: string): Promise<Result<void>> => {
       return ipcRenderer.invoke(CONVERSATION_CHANNELS.CONVERSATION_DELETE, conversationId);
+    },
+  },
+
+  /**
+   * File Operation Events (Feature 3.4 - Wave 3.4.1)
+   */
+  fileOperations: {
+    /**
+     * Subscribe to file operation events
+     * @param callback - Callback to receive file operation events
+     * @returns Cleanup function to remove listener
+     */
+    onFileOperation: (callback: (event: FileOperationEvent) => void): (() => void) => {
+      const listener = (_event: unknown, operationEvent: FileOperationEvent) =>
+        callback(operationEvent);
+      ipcRenderer.on(FILE_OPERATION_CHANNELS.FILE_OPERATION_EVENT, listener);
+      return () =>
+        ipcRenderer.removeListener(FILE_OPERATION_CHANNELS.FILE_OPERATION_EVENT, listener);
     },
   },
 

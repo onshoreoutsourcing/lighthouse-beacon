@@ -14,6 +14,7 @@
 
 import { create } from 'zustand';
 import { detectLanguage } from '@renderer/utils/languageDetection';
+import type { FileOperationEvent } from '@shared/types';
 
 /**
  * Represents an open file in the editor
@@ -78,252 +79,313 @@ const getFileName = (path: string): string => {
 /**
  * Editor store for managing open files and active tab
  */
-export const useEditorStore = create<EditorState>((set, get) => ({
-  // Initial state
-  openFiles: [],
-  activeFilePath: null,
-  isLoading: false,
-  error: null,
+export const useEditorStore = create<EditorState>((set, get) => {
+  // Set up file operation event listener (Feature 3.4 - Wave 3.4.1)
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    window.electronAPI.fileOperations.onFileOperation((event: FileOperationEvent) => {
+      // Only process successful operations
+      if (!event.success) return;
 
-  /**
-   * Opens a file in the editor
-   * If file is already open, just switches to it.
-   * If not open, loads content via IPC and adds to openFiles.
-   *
-   * @param path - Absolute path to the file
-   */
-  openFile: async (path: string) => {
-    const { openFiles } = get();
+      const { openFiles } = get();
 
-    // Check if file is already open
-    const existingFile = openFiles.find((f) => f.path === path);
+      for (const path of event.paths) {
+        const openFile = openFiles.find((f) => f.path === path);
+        if (!openFile) continue;
 
-    if (existingFile) {
-      // File already open, just activate it
-      set({ activeFilePath: path, error: null });
-      return;
-    }
+        if (event.operation === 'delete') {
+          // File was deleted - close the tab
+          get().closeFile(path);
 
-    // Set loading state
-    set({ isLoading: true, error: null });
+          // TODO: Show toast notification that file was deleted (Wave 3.4.1 - User Story 3)
+          // Silent close for now - notification will be added in future wave
+        } else if (event.operation === 'edit' || event.operation === 'write') {
+          // File was modified externally - reload content
+          void (async () => {
+            try {
+              const result = await window.electronAPI.fileSystem.readFile(path);
 
-    try {
-      // Load file content via IPC
-      const result = await window.electronAPI.fileSystem.readFile(path);
+              if (result.success) {
+                const currentOpenFiles = get().openFiles;
+                const updatedFiles = currentOpenFiles.map((file) => {
+                  if (file.path !== path) {
+                    return file;
+                  }
 
-      if (!result.success) {
+                  // If the file has unsaved changes, preserve the in-memory content
+                  // and dirty state instead of overwriting with external changes
+                  if (file.isDirty) {
+                    console.warn(
+                      `[EditorStore] Skipping external reload for ${path} - file has unsaved changes`
+                    );
+                    return file;
+                  }
+
+                  // File is clean, safe to refresh from disk
+                  return {
+                    ...file,
+                    content: result.data.content,
+                    isDirty: false,
+                  };
+                });
+
+                set({ openFiles: updatedFiles });
+              }
+            } catch (error) {
+              console.error(`[EditorStore] Failed to refresh file content: ${path}`, error);
+            }
+          })();
+        }
+      }
+    });
+  }
+
+  return {
+    // Initial state
+    openFiles: [],
+    activeFilePath: null,
+    isLoading: false,
+    error: null,
+
+    /**
+     * Opens a file in the editor
+     * If file is already open, just switches to it.
+     * If not open, loads content via IPC and adds to openFiles.
+     *
+     * @param path - Absolute path to the file
+     */
+    openFile: async (path: string) => {
+      const { openFiles } = get();
+
+      // Check if file is already open
+      const existingFile = openFiles.find((f) => f.path === path);
+
+      if (existingFile) {
+        // File already open, just activate it
+        set({ activeFilePath: path, error: null });
+        return;
+      }
+
+      // Set loading state
+      set({ isLoading: true, error: null });
+
+      try {
+        // Load file content via IPC
+        const result = await window.electronAPI.fileSystem.readFile(path);
+
+        if (!result.success) {
+          // Set error state
+          set({
+            isLoading: false,
+            error: `Failed to load file ${getFileName(path)}: ${result.error?.message || 'Unknown error'}`,
+          });
+          return;
+        }
+
+        const content = result.data.content;
+
+        // Binary file detection - check for null bytes
+        const isBinary = content.includes('\0');
+
+        if (isBinary) {
+          set({
+            isLoading: false,
+            error: `Cannot display binary file: ${getFileName(path)}. Binary files are not supported in the text editor.`,
+          });
+          return;
+        }
+
+        // Large file warning (> 1MB)
+        const fileSizeKB = content.length / 1024;
+        if (fileSizeKB > 1024) {
+          console.warn(
+            `Large file detected: ${getFileName(path)} (${fileSizeKB.toFixed(2)} KB). Performance may be affected.`
+          );
+        }
+
+        // Create new OpenFile object
+        const newFile: OpenFile = {
+          path,
+          name: getFileName(path),
+          content,
+          language: detectLanguage(path),
+          isDirty: false,
+          viewState: undefined,
+        };
+
+        // Add file to openFiles and set as active, clear loading state
+        set({
+          openFiles: [...openFiles, newFile],
+          activeFilePath: path,
+          isLoading: false,
+          error: null,
+        });
+      } catch (err) {
         // Set error state
         set({
           isLoading: false,
-          error: `Failed to load file ${getFileName(path)}: ${result.error?.message || 'Unknown error'}`,
+          error: `Error opening file ${getFileName(path)}: ${err instanceof Error ? err.message : 'Unknown error'}`,
         });
-        return;
+      }
+    },
+
+    /**
+     * Closes a file
+     * If closing the active file, switches to an adjacent file.
+     *
+     * @param path - Absolute path to the file to close
+     */
+    closeFile: (path: string) => {
+      const { openFiles, activeFilePath } = get();
+
+      // Find index of file to close
+      const fileIndex = openFiles.findIndex((f) => f.path === path);
+      if (fileIndex === -1) return;
+
+      // Remove file from array (immutable)
+      const newOpenFiles = openFiles.filter((f) => f.path !== path);
+
+      // Determine new active file if we're closing the active one
+      let newActiveFilePath = activeFilePath;
+
+      if (activeFilePath === path) {
+        if (newOpenFiles.length === 0) {
+          // No files left, set to null
+          newActiveFilePath = null;
+        } else if (fileIndex < newOpenFiles.length) {
+          // Set to file that takes the closed file's position
+          const fileAtIndex = newOpenFiles[fileIndex];
+          newActiveFilePath = fileAtIndex ? fileAtIndex.path : null;
+        } else {
+          // Closed last file, activate the new last file
+          const lastFile = newOpenFiles[newOpenFiles.length - 1];
+          newActiveFilePath = lastFile ? lastFile.path : null;
+        }
       }
 
-      const content = result.data.content;
-
-      // Binary file detection - check for null bytes
-      const isBinary = content.includes('\0');
-
-      if (isBinary) {
-        set({
-          isLoading: false,
-          error: `Cannot display binary file: ${getFileName(path)}. Binary files are not supported in the text editor.`,
-        });
-        return;
-      }
-
-      // Large file warning (> 1MB)
-      const fileSizeKB = content.length / 1024;
-      if (fileSizeKB > 1024) {
-        console.warn(
-          `Large file detected: ${getFileName(path)} (${fileSizeKB.toFixed(2)} KB). Performance may be affected.`
-        );
-      }
-
-      // Create new OpenFile object
-      const newFile: OpenFile = {
-        path,
-        name: getFileName(path),
-        content,
-        language: detectLanguage(path),
-        isDirty: false,
-        viewState: undefined,
-      };
-
-      // Add file to openFiles and set as active, clear loading state
       set({
-        openFiles: [...openFiles, newFile],
-        activeFilePath: path,
+        openFiles: newOpenFiles,
+        activeFilePath: newActiveFilePath,
+      });
+    },
+
+    /**
+     * Sets the active file (switches tabs)
+     *
+     * @param path - Absolute path to the file to activate
+     */
+    setActiveFile: (path: string) => {
+      const { openFiles } = get();
+
+      // Verify file exists in openFiles
+      const fileExists = openFiles.some((f) => f.path === path);
+
+      if (fileExists) {
+        set({ activeFilePath: path });
+      } else {
+        console.warn(`Cannot set active file: ${path} is not open`);
+      }
+    },
+
+    /**
+     * Updates file content and marks as dirty
+     *
+     * @param path - Absolute path to the file
+     * @param content - New content
+     */
+    updateFileContent: (path: string, content: string) => {
+      const { openFiles } = get();
+
+      const updatedFiles = openFiles.map((file) =>
+        file.path === path
+          ? {
+              ...file,
+              content,
+              isDirty: true,
+            }
+          : file
+      );
+
+      set({ openFiles: updatedFiles });
+    },
+
+    /**
+     * Saves file to disk
+     * Writes content via IPC and clears dirty flag on success.
+     *
+     * @param path - Absolute path to the file
+     * @throws Error if file not found or save fails
+     */
+    saveFile: async (path: string) => {
+      const { openFiles } = get();
+
+      // Find file in openFiles
+      const file = openFiles.find((f) => f.path === path);
+
+      if (!file) {
+        throw new Error(`File not found in open files: ${path}`);
+      }
+
+      // Write to disk via IPC
+      const result = await window.electronAPI.fileSystem.writeFile({
+        path,
+        content: file.content,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to save file');
+      }
+
+      // Clear dirty flag on successful save
+      const updatedFiles = openFiles.map((f) =>
+        f.path === path
+          ? {
+              ...f,
+              isDirty: false,
+            }
+          : f
+      );
+
+      set({ openFiles: updatedFiles });
+    },
+
+    /**
+     * Updates view state for a file (cursor position, scroll position)
+     *
+     * @param path - Absolute path to the file
+     * @param viewState - Monaco editor view state
+     */
+    updateViewState: (path: string, viewState: unknown) => {
+      const { openFiles } = get();
+
+      const updatedFiles = openFiles.map((file) =>
+        file.path === path
+          ? {
+              ...file,
+              viewState,
+            }
+          : file
+      );
+
+      set({ openFiles: updatedFiles });
+    },
+
+    /**
+     * Clears the error state
+     */
+    clearError: () => {
+      set({ error: null });
+    },
+
+    /**
+     * Resets the store to initial state
+     */
+    reset: () => {
+      set({
+        openFiles: [],
+        activeFilePath: null,
         isLoading: false,
         error: null,
       });
-    } catch (err) {
-      // Set error state
-      set({
-        isLoading: false,
-        error: `Error opening file ${getFileName(path)}: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      });
-    }
-  },
-
-  /**
-   * Closes a file
-   * If closing the active file, switches to an adjacent file.
-   *
-   * @param path - Absolute path to the file to close
-   */
-  closeFile: (path: string) => {
-    const { openFiles, activeFilePath } = get();
-
-    // Find index of file to close
-    const fileIndex = openFiles.findIndex((f) => f.path === path);
-    if (fileIndex === -1) return;
-
-    // Remove file from array (immutable)
-    const newOpenFiles = openFiles.filter((f) => f.path !== path);
-
-    // Determine new active file if we're closing the active one
-    let newActiveFilePath = activeFilePath;
-
-    if (activeFilePath === path) {
-      if (newOpenFiles.length === 0) {
-        // No files left, set to null
-        newActiveFilePath = null;
-      } else if (fileIndex < newOpenFiles.length) {
-        // Set to file that takes the closed file's position
-        const fileAtIndex = newOpenFiles[fileIndex];
-        newActiveFilePath = fileAtIndex ? fileAtIndex.path : null;
-      } else {
-        // Closed last file, activate the new last file
-        const lastFile = newOpenFiles[newOpenFiles.length - 1];
-        newActiveFilePath = lastFile ? lastFile.path : null;
-      }
-    }
-
-    set({
-      openFiles: newOpenFiles,
-      activeFilePath: newActiveFilePath,
-    });
-  },
-
-  /**
-   * Sets the active file (switches tabs)
-   *
-   * @param path - Absolute path to the file to activate
-   */
-  setActiveFile: (path: string) => {
-    const { openFiles } = get();
-
-    // Verify file exists in openFiles
-    const fileExists = openFiles.some((f) => f.path === path);
-
-    if (fileExists) {
-      set({ activeFilePath: path });
-    } else {
-      console.warn(`Cannot set active file: ${path} is not open`);
-    }
-  },
-
-  /**
-   * Updates file content and marks as dirty
-   *
-   * @param path - Absolute path to the file
-   * @param content - New content
-   */
-  updateFileContent: (path: string, content: string) => {
-    const { openFiles } = get();
-
-    const updatedFiles = openFiles.map((file) =>
-      file.path === path
-        ? {
-            ...file,
-            content,
-            isDirty: true,
-          }
-        : file
-    );
-
-    set({ openFiles: updatedFiles });
-  },
-
-  /**
-   * Saves file to disk
-   * Writes content via IPC and clears dirty flag on success.
-   *
-   * @param path - Absolute path to the file
-   * @throws Error if file not found or save fails
-   */
-  saveFile: async (path: string) => {
-    const { openFiles } = get();
-
-    // Find file in openFiles
-    const file = openFiles.find((f) => f.path === path);
-
-    if (!file) {
-      throw new Error(`File not found in open files: ${path}`);
-    }
-
-    // Write to disk via IPC
-    const result = await window.electronAPI.fileSystem.writeFile({
-      path,
-      content: file.content,
-    });
-
-    if (!result.success) {
-      throw new Error(result.error?.message || 'Failed to save file');
-    }
-
-    // Clear dirty flag on successful save
-    const updatedFiles = openFiles.map((f) =>
-      f.path === path
-        ? {
-            ...f,
-            isDirty: false,
-          }
-        : f
-    );
-
-    set({ openFiles: updatedFiles });
-  },
-
-  /**
-   * Updates view state for a file (cursor position, scroll position)
-   *
-   * @param path - Absolute path to the file
-   * @param viewState - Monaco editor view state
-   */
-  updateViewState: (path: string, viewState: unknown) => {
-    const { openFiles } = get();
-
-    const updatedFiles = openFiles.map((file) =>
-      file.path === path
-        ? {
-            ...file,
-            viewState,
-          }
-        : file
-    );
-
-    set({ openFiles: updatedFiles });
-  },
-
-  /**
-   * Clears the error state
-   */
-  clearError: () => {
-    set({ error: null });
-  },
-
-  /**
-   * Resets the store to initial state
-   */
-  reset: () => {
-    set({
-      openFiles: [],
-      activeFilePath: null,
-      isLoading: false,
-      error: null,
-    });
-  },
-}));
+    },
+  };
+});

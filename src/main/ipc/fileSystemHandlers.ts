@@ -11,6 +11,7 @@ import type {
 } from '@shared/types';
 import { IPC_CHANNELS } from '@shared/types';
 import { FileSystemService } from '../services/FileSystemService';
+import { initializeToolsWithProjectRoot } from './toolHandlers';
 
 /**
  * File System IPC Handlers
@@ -79,6 +80,9 @@ export function registerFileSystemHandlers(): void {
 
       // Set as project root in FileSystemService
       await fs.setProjectRoot(selectedPath);
+
+      // Initialize tools with the new project root
+      initializeToolsWithProjectRoot(selectedPath);
 
       return {
         success: true,

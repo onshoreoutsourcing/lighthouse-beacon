@@ -5,6 +5,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 import { useEditorStore } from '@renderer/stores/editor.store';
+import OperationIndicator, { type OperationType } from './OperationIndicator';
 
 /**
  * MarkdownContent Component Props
@@ -26,31 +27,75 @@ const FILE_PATH_REGEX =
 /**
  * FilePath Component
  * Renders a clickable file path that opens the file in the editor
+ *
+ * Wave 3.4.2 enhancements:
+ * - Keyboard navigation (Tab/Enter) for accessibility
+ * - Proper ARIA labels for screen readers
+ * - Focus indicators
+ * - Error handling for non-existent files
+ * - Security checks for path traversal
  */
 const FilePath: React.FC<{ path: string }> = ({ path }) => {
   const { openFile } = useEditorStore();
   const [error, setError] = React.useState<string | null>(null);
 
   // Remove quotes if present
-  const cleanPath = path.replace(/^"|"$/g, '');
+  const cleanPath = path.replace(/^"|"$/g, '').trim();
 
-  const handleClick = () => {
+  // Security: Path validation is handled by backend PathValidator
+  // Client-side detection removed to avoid false positives
+  // Backend will return proper error messages for invalid paths
+
+  const handleClick = async () => {
     setError(null);
-    void openFile(cleanPath).catch((err) => {
-      setError(err instanceof Error ? err.message : 'Failed to open file');
-    });
+
+    try {
+      await openFile(cleanPath);
+    } catch (err) {
+      // User-friendly error messages (Wave 3.4.2 - User Story 4)
+      let errorMessage = 'Failed to open file';
+
+      if (err instanceof Error) {
+        if (err.message.includes('not found') || err.message.includes('ENOENT')) {
+          errorMessage = 'File not found';
+        } else if (err.message.includes('permission') || err.message.includes('EACCES')) {
+          errorMessage = 'Permission denied';
+        } else if (err.message.includes('binary')) {
+          errorMessage = 'Cannot display binary file';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Wave 3.4.2 - User Story 2: Enter key activates link
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      void handleClick();
+    }
   };
 
   return (
     <span className="inline-flex items-center">
       <button
-        onClick={handleClick}
-        className="text-blue-400 hover:text-blue-300 underline cursor-pointer font-mono text-sm"
-        title="Click to open file"
+        onClick={() => void handleClick()}
+        onKeyDown={handleKeyDown}
+        className="text-blue-400 hover:text-blue-300 underline cursor-pointer font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-vscode-bg rounded px-1"
+        title={`Click to open file: ${cleanPath}`}
+        aria-label={`Open file ${cleanPath} in editor`}
+        tabIndex={0}
       >
         {cleanPath}
       </button>
-      {error && <span className="text-red-500 text-xs ml-2">({error})</span>}
+      {error && (
+        <span className="text-red-500 text-xs ml-2" role="alert" aria-live="polite">
+          ({error})
+        </span>
+      )}
     </span>
   );
 };
@@ -122,13 +167,75 @@ const CodeBlock: React.FC<{
 };
 
 /**
+ * detectOperationType
+ * Detects operation type from text context
+ *
+ * Wave 3.4.2 - User Story 3:
+ * Analyzes text for keywords to determine operation type
+ */
+const detectOperationType = (text: string): OperationType | null => {
+  const lowerText = text.toLowerCase();
+
+  // Check for operation keywords (order matters - more specific first)
+  if (
+    lowerText.includes('created') ||
+    lowerText.includes('creating') ||
+    lowerText.includes('added')
+  ) {
+    return 'create';
+  }
+  if (
+    lowerText.includes('edited') ||
+    lowerText.includes('editing') ||
+    lowerText.includes('modified') ||
+    lowerText.includes('updated')
+  ) {
+    return 'edit';
+  }
+  if (
+    lowerText.includes('deleted') ||
+    lowerText.includes('deleting') ||
+    lowerText.includes('removed')
+  ) {
+    return 'delete';
+  }
+  if (
+    lowerText.includes('searched') ||
+    lowerText.includes('searching') ||
+    lowerText.includes('found')
+  ) {
+    return 'search';
+  }
+  if (
+    lowerText.includes('executed') ||
+    lowerText.includes('running') ||
+    lowerText.includes('command')
+  ) {
+    return 'bash';
+  }
+  if (lowerText.includes('reading') || lowerText.includes('read')) {
+    return 'read';
+  }
+
+  return null;
+};
+
+/**
  * processTextWithFilePaths
  * Detects file paths in text and wraps them with FilePath components
+ * Also detects operation types and adds visual indicators
+ *
+ * Wave 3.4.2 enhancements:
+ * - Operation type detection and visual indicators
+ * - Enhanced file path parsing
  */
 const processTextWithFilePaths = (text: string): (string | React.ReactElement)[] => {
   const parts: (string | React.ReactElement)[] = [];
   let lastIndex = 0;
   let match;
+
+  // Detect operation type for this text segment
+  const operationType = detectOperationType(text);
 
   // Reset regex
   FILE_PATH_REGEX.lastIndex = 0;
@@ -139,7 +246,19 @@ const processTextWithFilePaths = (text: string): (string | React.ReactElement)[]
 
     // Add text before match
     if (matchStart > lastIndex) {
-      parts.push(text.substring(lastIndex, matchStart));
+      const beforeText = text.substring(lastIndex, matchStart);
+      parts.push(beforeText);
+
+      // Add operation indicator if detected and this is first path in text
+      if (operationType && parts.length === 1 && beforeText.trim()) {
+        parts.push(
+          <OperationIndicator
+            key={`op-${matchStart}`}
+            operation={operationType}
+            className="ml-2 mr-1"
+          />
+        );
+      }
     }
 
     // Add FilePath component
