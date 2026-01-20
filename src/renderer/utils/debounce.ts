@@ -16,7 +16,7 @@ export function debounce<T extends (...args: never[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
+  let timeoutId: number | null = null;
 
   return function debounced(...args: Parameters<T>) {
     if (timeoutId !== null) {
