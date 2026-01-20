@@ -1,9 +1,11 @@
 # ADR-014: Permission System Enhancement (Per-Tool Controls)
 
-**Status**: Accepted
+**Status**: Implemented
 **Date**: 2026-01-19
+**Implementation Date**: 2026-01-20
 **Deciders**: Lighthouse Development Team
 **Related**: Epic-3, Feature-3.3, Epic-2 (Foundation), Business Requirements (FR-6)
+**Implemented In**: Wave 2.3.1 (PermissionService.ts, ToolExecutionService.ts)
 
 ---
 
