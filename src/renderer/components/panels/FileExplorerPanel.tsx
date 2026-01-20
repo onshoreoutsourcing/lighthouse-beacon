@@ -268,21 +268,35 @@ const FileExplorerPanel: React.FC = () => {
       }
     };
 
-    // Register menu event listeners (wrap async handlers with void)
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FOLDER, () => void handleOpenFolder());
+    // Wrap async handlers for proper cleanup
+    const wrappedHandleOpenFolder = () => void handleOpenFolder();
+    const wrappedHandleOpenFile = () => void handleOpenFile();
+    const wrappedHandleNewFile = () => void handleNewFile();
+    const wrappedHandleNewFolder = () => void handleNewFolder();
+    const wrappedHandleSave = () => void handleSave();
+    const wrappedHandleSaveAs = () => void handleSaveAs();
+    const wrappedHandleSaveAll = () => void handleSaveAll();
+
+    // Register menu event listeners
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FOLDER, wrappedHandleOpenFolder);
     window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_CLOSE_FOLDER, handleCloseFolder);
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FILE, () => void handleOpenFile());
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FILE, () => void handleNewFile());
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FOLDER, () => void handleNewFolder());
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE, () => void handleSave());
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE_AS, () => void handleSaveAs());
-    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE_ALL, () => void handleSaveAll());
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_OPEN_FILE, wrappedHandleOpenFile);
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FILE, wrappedHandleNewFile);
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_NEW_FOLDER, wrappedHandleNewFolder);
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE, wrappedHandleSave);
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE_AS, wrappedHandleSaveAs);
+    window.electronAPI.onMenuEvent(IPC_CHANNELS.MENU_SAVE_ALL, wrappedHandleSaveAll);
 
     // Cleanup listeners on unmount
-    // Note: Using arrow functions in registration means we can't remove them properly
-    // This is acceptable since this component only mounts once
     return () => {
-      // Listeners will be cleaned up when component unmounts
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_OPEN_FOLDER, wrappedHandleOpenFolder);
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_CLOSE_FOLDER, handleCloseFolder);
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_OPEN_FILE, wrappedHandleOpenFile);
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_NEW_FILE, wrappedHandleNewFile);
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_NEW_FOLDER, wrappedHandleNewFolder);
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_SAVE, wrappedHandleSave);
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_SAVE_AS, wrappedHandleSaveAs);
+      window.electronAPI.removeMenuListener(IPC_CHANNELS.MENU_SAVE_ALL, wrappedHandleSaveAll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run once on mount
