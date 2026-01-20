@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-1.6.1
 - **Feature:** Feature 1.6 - File Operations Bridge
 - **Epic:** Epic 1 - Desktop Foundation with Basic UI
-- **Status:** Planning
+- **Status:** ✅ Complete
 - **Scope:** Connect file explorer selection to editor file opening
 - **Wave Goal:** Clicking a file in the explorer opens it in the editor
 
@@ -25,11 +25,11 @@
 **So that** I can start reading or editing the file
 
 **Acceptance Criteria:**
-- [ ] Clicking file in explorer triggers editor.openFile()
-- [ ] File content displays in Monaco Editor with correct syntax highlighting
-- [ ] Tab appears in tab bar with file name
-- [ ] Opening already-open file switches to existing tab (no duplicate)
-- [ ] File opens in < 200ms (including IPC and rendering)
+- [x] Clicking file in explorer triggers editor.openFile()
+- [x] File content displays in Monaco Editor with correct syntax highlighting
+- [x] Tab appears in tab bar with file name
+- [x] Opening already-open file switches to existing tab (no duplicate)
+- [x] File opens in < 200ms (including IPC and rendering)
 
 **Priority:** High
 **Estimated Hours:** 5
@@ -44,11 +44,11 @@
 **So that** I know the application is working on my request
 
 **Acceptance Criteria:**
-- [ ] Loading spinner appears when file read starts
-- [ ] Loading state managed in editor store (isLoading flag)
-- [ ] Spinner disappears when file content loads
-- [ ] Loading indicator centered in editor area
-- [ ] No flicker for fast-loading files (< 100ms threshold)
+- [x] Loading spinner appears when file read starts
+- [x] Loading state managed in editor store (isLoading flag)
+- [x] Spinner disappears when file content loads
+- [x] Loading indicator centered in editor area
+- [x] No flicker for fast-loading files (< 100ms threshold)
 
 **Priority:** Medium
 **Estimated Hours:** 3
@@ -63,11 +63,11 @@
 **So that** I understand what went wrong and can take action
 
 **Acceptance Criteria:**
-- [ ] Failed file read shows error message in editor area
-- [ ] Error message includes file path that failed
-- [ ] Error state managed in editor store (error field)
-- [ ] Error clears when new file successfully opens
-- [ ] No crash or undefined behavior on errors
+- [x] Failed file read shows error message in editor area
+- [x] Error message includes file path that failed
+- [x] Error state managed in editor store (error field)
+- [x] Error clears when new file successfully opens
+- [x] No crash or undefined behavior on errors
 
 **Priority:** High
 **Estimated Hours:** 4
@@ -77,14 +77,14 @@
 
 ## Definition of Done
 
-- [ ] All user stories completed with acceptance criteria met
-- [ ] Clicking file in explorer opens it in editor reliably
-- [ ] Loading state displays during file read
-- [ ] Errors handled gracefully with user-facing messages
-- [ ] No duplicate tabs created for same file
-- [ ] File opens in < 200ms
-- [ ] No TypeScript or linter errors
-- [ ] Code reviewed and approved
+- [x] All user stories completed with acceptance criteria met
+- [x] Clicking file in explorer opens it in editor reliably
+- [x] Loading state displays during file read
+- [x] Errors handled gracefully with user-facing messages
+- [x] No duplicate tabs created for same file
+- [x] File opens in < 200ms
+- [x] No TypeScript or linter errors
+- [x] Code reviewed and approved
 
 ---
 
@@ -99,4 +99,4 @@
 
 **Total Stories:** 3
 **Total Hours:** 12
-**Wave Status:** Planning
+**Wave Status:** ✅ Complete

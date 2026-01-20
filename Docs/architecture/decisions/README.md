@@ -20,10 +20,19 @@ information on how to write ADRs, see
 | 003   | Zustand for State Management                   | Accepted | 2026-01-19 | Epic-1, ADR-002             |
 | 004   | Monaco Editor Integration                      | Accepted | 2026-01-19 | Epic-1, ADR-001, ADR-002    |
 | 005   | Vite as Build Tool                             | Accepted | 2026-01-19 | Epic-1, ADR-001, ADR-002    |
+| 006   | AIChatSDK Integration Approach                 | Accepted | 2026-01-19 | Epic-2, Feature-2.1, Product Vision |
+| 007   | Conversation Storage Strategy                  | Accepted | 2026-01-19 | Epic-2, Feature-2.2, FR-4   |
+| 008   | Permission System UX Pattern                   | Accepted | 2026-01-19 | Epic-2, Feature-2.3, FR-6   |
+| 009   | Streaming Response Implementation              | Accepted | 2026-01-19 | Epic-2, Feature-2.2, NFR-1  |
+| 010   | File Operation Tool Architecture               | Accepted | 2026-01-19 | Epic-3, Feature-3.1, FR-1, FR-9 |
+| 011   | Directory Sandboxing Approach                  | Accepted | 2026-01-19 | Epic-3, All Tools, NFR-3    |
+| 012   | Bash Command Safety Strategy                   | Accepted | 2026-01-19 | Epic-3, Feature-3.3, NFR-3  |
+| 013   | Visual Integration Pattern                     | Accepted | 2026-01-19 | Epic-3, Feature-3.4, FR-7   |
+| 014   | Permission System Enhancement                  | Accepted | 2026-01-19 | Epic-3, Feature-3.3, FR-6   |
 
 ## Next ADR Number
 
-**Next Available: ADR-006**
+**Next Available: ADR-015**
 
 ## Creating a New ADR
 

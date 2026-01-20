@@ -1,0 +1,6 @@
+dist-electron
+node_modules
+*.config.js
+*.config.ts
+pnpm-lock.yaml
+.git
