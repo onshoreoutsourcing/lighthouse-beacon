@@ -10,6 +10,9 @@ import type {
   WriteFileOptions,
   Conversation,
   ConversationListItem,
+  AIStatus,
+  AppSettings,
+  StreamOptions,
 } from '@shared/types';
 import { IPC_CHANNELS, CONVERSATION_CHANNELS } from '@shared/types';
 
@@ -40,9 +43,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       IPC_CHANNELS.MENU_SAVE_AS,
       IPC_CHANNELS.MENU_SAVE_ALL,
       IPC_CHANNELS.MENU_CLOSE_FOLDER,
-    ];
+    ] as const;
 
-    if (validChannels.includes(channel)) {
+    if ((validChannels as readonly string[]).includes(channel)) {
       ipcRenderer.on(channel, callback);
     }
   },
@@ -121,7 +124,136 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
-   * Conversation Operations (Wave 2.2.4)
+   * AI Service Operations (Feature 2.1)
+   */
+  ai: {
+    /**
+     * Initialize AI service with stored API key
+     * @returns Initialization result with status
+     */
+    initialize: (): Promise<Result<{ status: AIStatus }>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_INITIALIZE);
+    },
+
+    /**
+     * Send non-streaming message to AI
+     * @param message - Message to send
+     * @param options - Optional conversation ID and system prompt
+     * @returns AI response as string
+     */
+    sendMessage: (message: string, options?: StreamOptions): Promise<Result<string>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_SEND_MESSAGE, message, options);
+    },
+
+    /**
+     * Send streaming message to AI
+     * @param message - Message to send
+     * @param options - Optional conversation ID and system prompt
+     * @returns Promise that resolves when streaming starts
+     */
+    streamMessage: (message: string, options?: StreamOptions): Promise<Result<void>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_STREAM_MESSAGE, message, options);
+    },
+
+    /**
+     * Cancel current AI request
+     * @returns Cancellation result
+     */
+    cancel: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_CANCEL);
+    },
+
+    /**
+     * Get AI service status
+     * @returns Current AI service status
+     */
+    getStatus: (): Promise<Result<AIStatus>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_STATUS);
+    },
+
+    /**
+     * Subscribe to streaming token events
+     * @param callback - Callback to receive tokens
+     * @returns Cleanup function to remove listener
+     */
+    onStreamToken: (callback: (token: string) => void): (() => void) => {
+      const listener = (_event: unknown, token: string) => callback(token);
+      ipcRenderer.on(IPC_CHANNELS.AI_STREAM_TOKEN, listener);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.AI_STREAM_TOKEN, listener);
+    },
+
+    /**
+     * Subscribe to stream complete events
+     * @param callback - Callback to receive full response
+     * @returns Cleanup function to remove listener
+     */
+    onStreamComplete: (callback: (fullResponse: string) => void): (() => void) => {
+      const listener = (_event: unknown, fullResponse: string) => callback(fullResponse);
+      ipcRenderer.on(IPC_CHANNELS.AI_STREAM_COMPLETE, listener);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.AI_STREAM_COMPLETE, listener);
+    },
+
+    /**
+     * Subscribe to stream error events
+     * @param callback - Callback to receive error message
+     * @returns Cleanup function to remove listener
+     */
+    onStreamError: (callback: (error: string) => void): (() => void) => {
+      const listener = (_event: unknown, error: string) => callback(error);
+      ipcRenderer.on(IPC_CHANNELS.AI_STREAM_ERROR, listener);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.AI_STREAM_ERROR, listener);
+    },
+  },
+
+  /**
+   * Settings Operations (Feature 2.1)
+   */
+  settings: {
+    /**
+     * Get all application settings
+     * @returns Application settings
+     */
+    get: (): Promise<Result<AppSettings>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET);
+    },
+
+    /**
+     * Update application settings
+     * @param updates - Partial settings to update
+     * @returns Update result
+     */
+    update: (updates: Partial<AppSettings>): Promise<Result<void>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_UPDATE, updates);
+    },
+
+    /**
+     * Check if API key exists (never returns actual key)
+     * @returns Boolean indicating if API key is configured
+     */
+    hasApiKey: (): Promise<Result<{ hasApiKey: boolean }>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_API_KEY_STATUS);
+    },
+
+    /**
+     * Set API key in encrypted storage
+     * @param apiKey - Anthropic API key to store
+     * @returns Set result
+     */
+    setApiKey: (apiKey: string): Promise<Result<void>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET_API_KEY, apiKey);
+    },
+
+    /**
+     * Remove API key from storage
+     * @returns Remove result
+     */
+    removeApiKey: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_REMOVE_API_KEY);
+    },
+  },
+
+  /**
+   * Conversation Operations (Feature 2.2 - Wave 2.2.4)
    */
   conversation: {
     /**

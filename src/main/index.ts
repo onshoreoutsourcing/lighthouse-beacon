@@ -6,6 +6,7 @@ import {
   registerConversationHandlers,
   unregisterConversationHandlers,
 } from './ipc/conversationHandlers';
+import { registerAIHandlers, unregisterAIHandlers } from './ipc/aiHandlers';
 
 // Global reference to WindowManager instance
 let windowManager: WindowManager | null = null;
@@ -43,6 +44,7 @@ void app.whenReady().then(() => {
   // Register IPC handlers before creating windows
   registerFileSystemHandlers();
   registerConversationHandlers();
+  registerAIHandlers();
 
   createMainWindow();
 
@@ -75,6 +77,7 @@ app.on('before-quit', () => {
   // Unregister IPC handlers
   unregisterFileSystemHandlers();
   unregisterConversationHandlers();
+  unregisterAIHandlers();
 
   if (windowManager) {
     windowManager.destroy();
