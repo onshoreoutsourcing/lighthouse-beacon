@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useChatStore } from '@renderer/stores/chat.store';
 import ChatMessage from './ChatMessage';
 import MessageInput from './MessageInput';
-import { MessageSquare, Trash2, ArrowDown } from 'lucide-react';
+import { MessageSquare, Trash2, ArrowDown, Plus } from 'lucide-react';
 import { useSmartScroll } from '@renderer/hooks/useSmartScroll';
 
 /**
@@ -24,7 +24,8 @@ import { useSmartScroll } from '@renderer/hooks/useSmartScroll';
 const ChatInterface: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  const { messages, initializeAI, clearMessages, isInitializing, isInitialized } = useChatStore();
+  const { messages, initializeAI, clearMessages, newConversation, isInitializing, isInitialized } =
+    useChatStore();
 
   // Smart scroll behavior (Wave 2.2.2)
   const { showScrollButton, scrollToBottom } = useSmartScroll(messagesContainerRef, [messages]);
@@ -35,6 +36,19 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     void initializeAI();
   }, [initializeAI]);
+
+  /**
+   * Handle new conversation (Wave 2.2.4)
+   */
+  const handleNewConversation = () => {
+    if (messages.length > 0) {
+      if (window.confirm('Start a new conversation? Current conversation will be saved.')) {
+        newConversation();
+      }
+    } else {
+      newConversation();
+    }
+  };
 
   /**
    * Handle clear conversation
@@ -60,16 +74,28 @@ const ChatInterface: React.FC = () => {
           {isInitialized && <span className="text-xs text-green-500">Ready</span>}
         </div>
 
-        {/* Clear Button */}
-        {messages.length > 0 && (
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1">
+          {/* New Conversation Button (Wave 2.2.4) */}
           <button
-            onClick={handleClearMessages}
+            onClick={handleNewConversation}
             className="p-1 hover:bg-vscode-bg-secondary rounded transition-colors"
-            title="Clear conversation"
+            title="New conversation"
           >
-            <Trash2 className="w-4 h-4 text-vscode-text-muted hover:text-vscode-text" />
+            <Plus className="w-4 h-4 text-vscode-text-muted hover:text-vscode-text" />
           </button>
-        )}
+
+          {/* Clear Button */}
+          {messages.length > 0 && (
+            <button
+              onClick={handleClearMessages}
+              className="p-1 hover:bg-vscode-bg-secondary rounded transition-colors"
+              title="Clear conversation"
+            >
+              <Trash2 className="w-4 h-4 text-vscode-text-muted hover:text-vscode-text" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages Container */}

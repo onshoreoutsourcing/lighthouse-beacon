@@ -8,8 +8,10 @@ import type {
   CreateFolderOptions,
   Result,
   WriteFileOptions,
+  Conversation,
+  ConversationListItem,
 } from '@shared/types';
-import { IPC_CHANNELS } from '@shared/types';
+import { IPC_CHANNELS, CONVERSATION_CHANNELS } from '@shared/types';
 
 /**
  * Preload Script - Secure IPC Bridge
@@ -115,6 +117,45 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     createDirectory: (options: CreateFolderOptions): Promise<Result<string>> => {
       return ipcRenderer.invoke(IPC_CHANNELS.DIR_CREATE, options);
+    },
+  },
+
+  /**
+   * Conversation Operations (Wave 2.2.4)
+   */
+  conversation: {
+    /**
+     * Save conversation to storage
+     * @param conversation - Conversation to save
+     * @returns Saved conversation with updated metadata
+     */
+    save: (conversation: Conversation): Promise<Result<Conversation>> => {
+      return ipcRenderer.invoke(CONVERSATION_CHANNELS.CONVERSATION_SAVE, conversation);
+    },
+
+    /**
+     * Load conversation by ID
+     * @param conversationId - ID of conversation to load
+     * @returns Loaded conversation
+     */
+    load: (conversationId: string): Promise<Result<Conversation>> => {
+      return ipcRenderer.invoke(CONVERSATION_CHANNELS.CONVERSATION_LOAD, conversationId);
+    },
+
+    /**
+     * List all conversations
+     * @returns Array of conversation list items
+     */
+    list: (): Promise<Result<ConversationListItem[]>> => {
+      return ipcRenderer.invoke(CONVERSATION_CHANNELS.CONVERSATION_LIST);
+    },
+
+    /**
+     * Delete conversation by ID
+     * @param conversationId - ID of conversation to delete
+     */
+    delete: (conversationId: string): Promise<Result<void>> => {
+      return ipcRenderer.invoke(CONVERSATION_CHANNELS.CONVERSATION_DELETE, conversationId);
     },
   },
 

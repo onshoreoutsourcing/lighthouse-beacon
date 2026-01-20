@@ -130,3 +130,15 @@ export interface CreateFolderOptions {
   path: string;
   name: string;
 }
+/**
+ * Export Conversation-related types
+ */
+export type { Conversation, ConversationMessage, ConversationListItem } from './conversation.types';
+
+// Conversation IPC Channels (Feature 2.2 - Wave 2.2.4)
+export const CONVERSATION_CHANNELS = {
+  CONVERSATION_SAVE: 'conversation:save',
+  CONVERSATION_LOAD: 'conversation:load',
+  CONVERSATION_LIST: 'conversation:list',
+  CONVERSATION_DELETE: 'conversation:delete',
+} as const;

@@ -12,6 +12,8 @@ import type {
   AIStatus,
   AppSettings,
   StreamOptions,
+  Conversation,
+  ConversationListItem,
 } from '@shared/types';
 
 /**
@@ -52,6 +54,12 @@ declare global {
         hasApiKey: () => Promise<Result<{ hasApiKey: boolean }>>;
         setApiKey: (apiKey: string) => Promise<Result<void>>;
         removeApiKey: () => Promise<Result<void>>;
+      };
+      conversation: {
+        save: (conversation: Conversation) => Promise<Result<Conversation>>;
+        load: (conversationId: string) => Promise<Result<Conversation>>;
+        list: () => Promise<Result<ConversationListItem[]>>;
+        delete: (conversationId: string) => Promise<Result<void>>;
       };
       versions: {
         node: () => string;
