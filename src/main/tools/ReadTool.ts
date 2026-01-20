@@ -162,11 +162,11 @@ export class ReadTool implements ToolExecutor {
     const startTime = Date.now();
 
     try {
-      const params = parameters as ReadToolParams;
+      const params = parameters as unknown as ReadToolParams;
 
       // Validate path security
-      const pathValidation = await this.validator.validateRealPath(params.path);
-      if (!pathValidation.valid) {
+      const pathValidation = this.validator.validate(params.path);
+      if (!pathValidation.isValid) {
         return {
           success: false,
           error: pathValidation.error,
@@ -174,7 +174,7 @@ export class ReadTool implements ToolExecutor {
         };
       }
 
-      const filePath = pathValidation.normalizedPath!;
+      const filePath = pathValidation.absolutePath!;
 
       // Check if file exists and is a file
       let stats;

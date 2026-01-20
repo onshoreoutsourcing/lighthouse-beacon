@@ -114,11 +114,11 @@ export class DeleteTool implements ToolExecutor {
     const startTime = Date.now();
 
     try {
-      const params = parameters as DeleteToolParams;
+      const params = parameters as unknown as DeleteToolParams;
 
       // Validate path security
-      const pathValidation = await this.validator.validateRealPath(params.path);
-      if (!pathValidation.valid) {
+      const pathValidation = this.validator.validate(params.path);
+      if (!pathValidation.isValid) {
         return {
           success: false,
           error: pathValidation.error,
@@ -126,7 +126,7 @@ export class DeleteTool implements ToolExecutor {
         };
       }
 
-      const filePath = pathValidation.normalizedPath!;
+      const filePath = pathValidation.absolutePath!;
 
       // Check if path exists
       let stats;

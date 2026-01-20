@@ -56,7 +56,8 @@ interface EditToolResult {
 
 export class EditTool implements ToolExecutor {
   private validator: PathValidator;
-  private readonly REGEX_TIMEOUT_MS = 5000; // 5 second timeout for regex operations
+  // TODO: Implement regex timeout protection in future version
+  // private readonly REGEX_TIMEOUT_MS = 5000; // 5 second timeout for regex operations
 
   constructor(projectRoot: string) {
     this.validator = new PathValidator(projectRoot);
@@ -208,12 +209,12 @@ export class EditTool implements ToolExecutor {
     const startTime = Date.now();
 
     try {
-      const params = parameters as EditToolParams;
+      const params = parameters as unknown as EditToolParams;
       const replaceAll = params.replaceAll ?? true; // Default to true
 
       // Validate path security
-      const pathValidation = await this.validator.validateRealPath(params.path);
-      if (!pathValidation.valid) {
+      const pathValidation = this.validator.validate(params.path);
+      if (!pathValidation.isValid) {
         return {
           success: false,
           error: pathValidation.error,
@@ -221,7 +222,7 @@ export class EditTool implements ToolExecutor {
         };
       }
 
-      const filePath = pathValidation.normalizedPath!;
+      const filePath = pathValidation.absolutePath!;
 
       // Check if file exists
       let stats;

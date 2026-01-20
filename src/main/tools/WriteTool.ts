@@ -142,11 +142,11 @@ export class WriteTool implements ToolExecutor {
     const startTime = Date.now();
 
     try {
-      const params = parameters as WriteToolParams;
+      const params = parameters as unknown as WriteToolParams;
 
       // Validate path security
       const pathValidation = this.validator.validate(params.path);
-      if (!pathValidation.valid) {
+      if (!pathValidation.isValid) {
         return {
           success: false,
           error: pathValidation.error,
@@ -154,7 +154,7 @@ export class WriteTool implements ToolExecutor {
         };
       }
 
-      const filePath = pathValidation.normalizedPath!;
+      const filePath = pathValidation.absolutePath!;
 
       // Check if file exists (to determine if this is creation or update)
       let fileExists = false;
