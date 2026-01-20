@@ -18,6 +18,7 @@ import type {
   ToolExecutionResult,
   PermissionRequest,
   PermissionResponse,
+  FileOperationEvent,
 } from '@shared/types';
 
 /**
@@ -74,6 +75,9 @@ declare global {
         load: (conversationId: string) => Promise<Result<Conversation>>;
         list: () => Promise<Result<ConversationListItem[]>>;
         delete: (conversationId: string) => Promise<Result<void>>;
+      };
+      fileOperations: {
+        onFileOperation: (callback: (event: FileOperationEvent) => void) => () => void;
       };
       versions: {
         node: () => string;
