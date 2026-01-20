@@ -24,6 +24,7 @@ import { IPC_CHANNELS } from '@shared/types';
 import { ToolRegistry } from '../services/ToolRegistry';
 import { PermissionService } from '../services/PermissionService';
 import { ToolExecutionService } from '../services/ToolExecutionService';
+import { GlobTool, GrepTool } from '../tools';
 
 // Singleton instances
 let toolRegistry: ToolRegistry | null = null;
@@ -36,8 +37,8 @@ let executionService: ToolExecutionService | null = null;
 function getToolRegistry(): ToolRegistry {
   if (!toolRegistry) {
     toolRegistry = new ToolRegistry();
-    // TODO: Register actual tools here (Wave 2.3.1 provides infrastructure only)
-    // Tools will be registered in Epic 3
+    // Tools will be registered via initializeToolsWithProjectRoot()
+    // when project directory is selected
   }
   return toolRegistry;
 }
@@ -144,6 +145,34 @@ export function registerToolHandlers(): void {
 
   // eslint-disable-next-line no-console
   console.log('[Tool Handlers] Tool framework IPC handlers registered');
+}
+
+/**
+ * Initialize tools with project root
+ * Called when project directory is selected
+ *
+ * @param projectRoot - Absolute path to project root
+ */
+export function initializeToolsWithProjectRoot(projectRoot: string): void {
+  // Clear existing registry and create new one
+  toolRegistry = new ToolRegistry();
+
+  try {
+    // Register search tools with project root
+    const globTool = new GlobTool(projectRoot);
+    toolRegistry.register(globTool);
+
+    const grepTool = new GrepTool(projectRoot);
+    toolRegistry.register(grepTool);
+
+    // Recreate execution service with new registry
+    executionService = new ToolExecutionService(toolRegistry, getPermissionService());
+
+    // eslint-disable-next-line no-console
+    console.log('[ToolRegistry] Tools initialized with project root:', projectRoot);
+  } catch (error) {
+    console.error('[ToolRegistry] Failed to initialize tools:', error);
+  }
 }
 
 /**
