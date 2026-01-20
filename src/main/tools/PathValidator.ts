@@ -59,6 +59,53 @@ export class PathValidator {
   }
 
   /**
+   * Resolve parent directory symlinks for non-existent paths
+   *
+   * This prevents symlink attacks where a symlink in a parent directory
+   * could point outside the project root, even though the final path
+   * doesn't exist yet.
+   *
+   * Algorithm:
+   * 1. Walk up directory tree until we find an existing directory
+   * 2. Resolve that directory's real path (catches symlinks)
+   * 3. Reconstruct full path with resolved parent + non-existent children
+   *
+   * @param absolutePath - Absolute path that doesn't exist
+   * @returns Resolved absolute path with parent symlinks resolved
+   */
+  private resolveParentSymlinks(absolutePath: string): string {
+    const pathParts = absolutePath.split(path.sep).filter(Boolean);
+
+    // Walk up the directory tree from the target path
+    for (let i = pathParts.length - 1; i >= 0; i--) {
+      // Reconstruct path up to this level
+      const partialPath = path.sep + path.join(...pathParts.slice(0, i + 1));
+
+      try {
+        // Try to resolve this path - if successful, it exists
+        const realPath = realpathSync(partialPath);
+
+        // Found existing parent - reconstruct full path with resolved parent
+        const remainingParts = pathParts.slice(i + 1);
+        if (remainingParts.length === 0) {
+          // The path we're checking actually exists
+          return realPath;
+        }
+
+        // Combine resolved parent with non-existent child paths
+        return path.normalize(path.join(realPath, ...remainingParts));
+      } catch {
+        // This level doesn't exist, continue walking up
+        continue;
+      }
+    }
+
+    // No existing parent found (shouldn't happen if project root exists)
+    // Return normalized path as fallback
+    return path.normalize(absolutePath);
+  }
+
+  /**
    * Validate a path to ensure it's within project root
    *
    * @param filePath - Path to validate (relative or absolute)
@@ -77,13 +124,10 @@ export class PathValidator {
         const realPath = realpathSync(absolutePath);
         absolutePath = realPath;
       } catch {
-        // Path doesn't exist yet (e.g., creating new file) - use normalized path
-        // This is OK because we'll validate it doesn't escape via relative path check
-        //
-        // FUTURE ENHANCEMENT: For non-existent paths, validate parent directory
-        // symlinks by resolving parent paths incrementally until an existing
-        // directory is found. This would prevent symlink creation that points
-        // outside the project root.
+        // Path doesn't exist yet (e.g., creating new file)
+        // Validate parent directory symlinks by resolving incrementally
+        // This prevents symlink creation that points outside project root
+        absolutePath = this.resolveParentSymlinks(absolutePath);
       }
 
       // Check if path is within project root

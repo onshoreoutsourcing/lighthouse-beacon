@@ -42,6 +42,35 @@ Create Planning Doc → Review → Refine → More Planning → Review → Repea
 - ✅ "Create a pull request"
 - ✅ "Merge this branch"
 
+### Technical Debt Policy
+
+**CRITICAL: We NEVER defer fixes or accumulate technical debt**
+
+- ❌ **NEVER use "FUTURE ENHANCEMENT" as an excuse to skip fixes**
+- ❌ **NEVER defer security issues, bugs, or functional problems**
+- ❌ **NEVER leave TODO comments for things that can be fixed now**
+- ❌ **NEVER document limitations instead of implementing solutions**
+- ✅ **ALWAYS fix issues immediately when discovered**
+- ✅ **ALWAYS implement suggested improvements from code reviews**
+- ✅ **ALWAYS address security vulnerabilities completely**
+
+**What qualifies as "can be fixed now":**
+- Security vulnerabilities (path validation, input sanitization, etc.)
+- Functional bugs (incorrect behavior, edge cases)
+- Performance issues (inefficient algorithms, unnecessary operations)
+- Code review suggestions (unless explicitly told to defer)
+- Type safety improvements
+- Error handling gaps
+
+**The ONLY acceptable reasons to defer:**
+1. **Explicit direction from user** - "We'll address this in Phase X"
+2. **Architectural changes beyond current scope** - Requires redesign of entire system
+3. **External dependencies** - Waiting for third-party library updates
+
+**Default mindset: "Fix it now, not later."**
+
+If you find yourself writing "FUTURE ENHANCEMENT" or "TODO", stop and implement the fix instead. Technical debt compounds - we pay it back immediately.
+
 ### Git Branching Strategy
 
 **Branch Hierarchy:**

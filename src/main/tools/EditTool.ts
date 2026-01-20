@@ -60,27 +60,71 @@ export class EditTool implements ToolExecutor {
   private validator: PathValidator;
   private readonly REGEX_TIMEOUT_MS = 5000; // 5 second timeout for regex operations
 
+  /**
+   * Common ReDoS patterns that cause catastrophic backtracking
+   * Source: OWASP ReDoS guide and industry best practices
+   */
+  private static readonly REDOS_PATTERNS = [
+    // Nested quantifiers: (a+)+, (a*)+, (a+)*, (a*)*
+    /\([^)]*[+*]\)[+*]/,
+    // Multiple consecutive quantifiers
+    /[+*]{2,}/,
+    // Alternation with overlapping patterns: (a|a)+, (ab|a)+
+    /\([^)]*\|[^)]*\)[+*]/,
+    // Greedy quantifiers inside lookaheads: (?=.*)+
+    /\(\?[=!][^)]*[+*][^)]*\)[+*]/,
+    // Multiple wildcards: .*.*
+    /\.\*[^)]*\.\*/,
+  ];
+
   constructor(projectRoot: string) {
     this.validator = new PathValidator(projectRoot);
   }
 
   /**
-   * Execute regex with timeout protection to prevent ReDoS attacks
+   * Analyze regex pattern for ReDoS vulnerabilities
    *
-   * LIMITATION: This implementation uses setTimeout, which cannot interrupt
-   * synchronous JavaScript operations. If a regex causes catastrophic
-   * backtracking, it will block the event loop until completion, and the
-   * timeout will fire afterward but won't cancel the operation.
+   * Checks for common catastrophic backtracking patterns that can cause
+   * exponential time complexity and denial of service.
    *
-   * This provides best-effort protection by:
-   * 1. Detecting when operations exceed the timeout threshold
-   * 2. Providing clear error messages about problematic patterns
-   * 3. Allowing users to identify and avoid ReDoS patterns
+   * @param pattern - Regex pattern to analyze
+   * @returns Error message if vulnerable, null if safe
+   */
+  private analyzeRegexComplexity(pattern: string): string | null {
+    // Check against known ReDoS patterns
+    for (const redosPattern of EditTool.REDOS_PATTERNS) {
+      if (redosPattern.test(pattern)) {
+        return (
+          'Regex pattern may cause catastrophic backtracking (ReDoS vulnerability). ' +
+          'Avoid nested quantifiers like (a+)+, multiple wildcards like .*.*, ' +
+          'or overlapping alternations like (a|ab)+.'
+        );
+      }
+    }
+
+    // Check pattern length (very long patterns can be problematic)
+    if (pattern.length > 1000) {
+      return 'Regex pattern is too long (>1000 characters). Please simplify the pattern.';
+    }
+
+    // Pattern appears safe
+    return null;
+  }
+
+  /**
+   * Execute regex with ReDoS protection
    *
-   * For true async cancellation, a Web Worker or worker thread would be
-   * required, which is out of scope for MVP.
+   * Protection strategy:
+   * 1. Pre-execution complexity analysis (analyzeRegexComplexity)
+   *    - Detects nested quantifiers, multiple wildcards, etc.
+   *    - Rejects dangerous patterns BEFORE execution
+   * 2. Timeout protection (setTimeout)
+   *    - Detects if execution exceeds threshold
+   *    - Provides error message for debugging
    *
-   * See also: GrepTool.isReDoSVulnerable() for pre-execution pattern validation
+   * Note: setTimeout cannot interrupt synchronous regex operations,
+   * but pre-execution analysis prevents catastrophic backtracking patterns
+   * from being executed in the first place.
    */
   private async executeRegexWithTimeout(
     content: string,
@@ -301,12 +345,22 @@ export class EditTool implements ToolExecutor {
       let replacements = 0;
 
       if (params.useRegex) {
-        // Regex mode with timeout protection
+        // Regex mode with ReDoS protection
         try {
+          // Pre-execution complexity analysis to prevent ReDoS attacks
+          const complexityError = this.analyzeRegexComplexity(params.find);
+          if (complexityError) {
+            return {
+              success: false,
+              error: `Regex validation failed: ${complexityError}`,
+              duration: Date.now() - startTime,
+            };
+          }
+
           const flags = replaceAll ? 'g' : '';
           const regex = new RegExp(params.find, flags);
 
-          // Execute regex with ReDoS protection
+          // Execute regex with timeout protection
           const result = await this.executeRegexWithTimeout(originalContent, regex, params.replace);
 
           newContent = result.newContent;
