@@ -31,6 +31,7 @@ import type {
   ToolValidationError,
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
+import { FileOperationEventService } from '../services/FileOperationEventService';
 
 interface DeleteToolParams {
   path: string;
@@ -121,7 +122,7 @@ export class DeleteTool implements ToolExecutor {
       if (!pathValidation.isValid) {
         return {
           success: false,
-          error: pathValidation.error,
+          error: pathValidation.error || 'Invalid path',
           duration: Date.now() - startTime,
         };
       }
@@ -173,6 +174,15 @@ export class DeleteTool implements ToolExecutor {
         // eslint-disable-next-line no-console
         console.log(`[DeleteTool] Deleted directory ${params.path} (${itemsDeleted} items)`);
 
+        // Emit file operation event (Feature 3.4 - Wave 3.4.1)
+        const eventService = FileOperationEventService.getInstance();
+        eventService.emitFileOperation(
+          eventService.createEvent('delete', [params.path], true, undefined, {
+            type: 'directory',
+            itemsDeleted,
+          })
+        );
+
         return {
           success: true,
           data: result,
@@ -192,6 +202,15 @@ export class DeleteTool implements ToolExecutor {
       // SOC logging
       // eslint-disable-next-line no-console
       console.log(`[DeleteTool] Deleted file ${params.path}`);
+
+      // Emit file operation event (Feature 3.4 - Wave 3.4.1)
+      const eventService = FileOperationEventService.getInstance();
+      eventService.emitFileOperation(
+        eventService.createEvent('delete', [params.path], true, undefined, {
+          type: 'file',
+          itemsDeleted: 1,
+        })
+      );
 
       return {
         success: true,

@@ -38,6 +38,7 @@ import type {
   ToolValidationError,
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
+import { FileOperationEventService } from '../services/FileOperationEventService';
 
 interface EditToolParams {
   path: string;
@@ -217,7 +218,7 @@ export class EditTool implements ToolExecutor {
       if (!pathValidation.isValid) {
         return {
           success: false,
-          error: pathValidation.error,
+          error: pathValidation.error || 'Invalid path',
           duration: Date.now() - startTime,
         };
       }
@@ -332,6 +333,16 @@ export class EditTool implements ToolExecutor {
         // eslint-disable-next-line no-console
         console.log(
           `[EditTool] Edited ${params.path}: ${replacements} replacement(s) using ${mode} mode (${scope})`
+        );
+
+        // Emit file operation event (Feature 3.4 - Wave 3.4.1)
+        const eventService = FileOperationEventService.getInstance();
+        eventService.emitFileOperation(
+          eventService.createEvent('edit', [params.path], true, undefined, {
+            replacements,
+            mode,
+            scope,
+          })
         );
 
         return {

@@ -195,3 +195,36 @@ export type {
 } from './tool.types';
 
 export { PermissionLevel, PermissionDecision, type ToolRiskLevel } from './tool.types';
+
+/**
+ * File Operation Event Types (Feature 3.4 - Wave 3.4.1)
+ */
+
+/**
+ * Type of file operation performed
+ */
+export type FileOperationType = 'write' | 'edit' | 'delete' | 'read' | 'glob' | 'grep' | 'bash';
+
+/**
+ * File operation event data
+ * Emitted by file operation tools to notify UI of changes
+ */
+export interface FileOperationEvent {
+  /** Type of operation performed */
+  operation: FileOperationType;
+  /** Paths affected by the operation (relative or absolute) */
+  paths: string[];
+  /** Whether operation succeeded */
+  success: boolean;
+  /** Timestamp of operation */
+  timestamp: number;
+  /** Optional error message if operation failed */
+  error?: string;
+  /** Additional operation-specific metadata */
+  metadata?: Record<string, unknown>;
+}
+
+// File Operation IPC Channel (Feature 3.4 - Wave 3.4.1)
+export const FILE_OPERATION_CHANNELS = {
+  FILE_OPERATION_EVENT: 'file-operation:event',
+} as const;

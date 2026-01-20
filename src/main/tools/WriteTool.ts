@@ -32,6 +32,7 @@ import type {
   ToolValidationError,
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
+import { FileOperationEventService } from '../services/FileOperationEventService';
 
 interface WriteToolParams {
   path: string;
@@ -149,7 +150,7 @@ export class WriteTool implements ToolExecutor {
       if (!pathValidation.isValid) {
         return {
           success: false,
-          error: pathValidation.error,
+          error: pathValidation.error || 'Invalid path',
           duration: Date.now() - startTime,
         };
       }
@@ -222,6 +223,15 @@ export class WriteTool implements ToolExecutor {
         const action = fileExists ? 'Updated' : 'Created';
         // eslint-disable-next-line no-console
         console.log(`[WriteTool] ${action} file ${params.path} (${bytesWritten} bytes)`);
+
+        // Emit file operation event (Feature 3.4 - Wave 3.4.1)
+        const eventService = FileOperationEventService.getInstance();
+        eventService.emitFileOperation(
+          eventService.createEvent('write', [params.path], true, undefined, {
+            created: !fileExists,
+            bytesWritten,
+          })
+        );
 
         return {
           success: true,
