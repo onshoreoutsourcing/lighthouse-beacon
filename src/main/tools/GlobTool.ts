@@ -27,6 +27,7 @@ import type {
   ToolValidationError,
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
+import { logger } from '@main/logger';
 
 /**
  * Glob tool parameters
@@ -304,11 +305,13 @@ export class GlobTool implements ToolExecutor {
       const duration = Date.now() - startTime;
 
       // SOC logging
-      // eslint-disable-next-line no-console
-      console.log(
-        `[GlobTool] Pattern: "${params.pattern}", CWD: "${params.cwd || '(root)'}", ` +
-          `Matches: ${allMatches.length}, Truncated: ${truncated}, Duration: ${duration}ms`
-      );
+      logger.debug('[GlobTool] Search completed', {
+        pattern: params.pattern,
+        cwd: params.cwd || '(root)',
+        matches: allMatches.length,
+        truncated,
+        duration,
+      });
 
       return {
         success: true,
@@ -320,9 +323,12 @@ export class GlobTool implements ToolExecutor {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
       // SOC logging for errors
-      console.error(
-        `[GlobTool] Error: ${errorMessage}, Pattern: "${String(parameters.pattern)}", Duration: ${duration}ms`
-      );
+      logger.error('[GlobTool] Search failed', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        pattern: String(parameters.pattern),
+        duration,
+      });
 
       return {
         success: false,

@@ -13,6 +13,11 @@
  * - View state persistence (cursor position, scroll position)
  */
 
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import React, { useRef, useEffect } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 
@@ -64,7 +69,7 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
     editorRef.current = editor;
 
     // Register Ctrl+S / Cmd+S keyboard shortcut for save
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       onSave();
     });

@@ -29,6 +29,7 @@ import type {
   ToolValidationError,
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
+import { logger } from '@main/logger';
 
 interface ReadToolParams {
   path: string;
@@ -160,10 +161,9 @@ export class ReadTool implements ToolExecutor {
     _context: ToolExecutionContext
   ): Promise<ToolExecutionResult> {
     const startTime = Date.now();
+    const params = parameters as unknown as ReadToolParams;
 
     try {
-      const params = parameters as unknown as ReadToolParams;
-
       // Validate path security
       const pathValidation = this.validator.validate(params.path);
       if (!pathValidation.isValid) {
@@ -199,9 +199,10 @@ export class ReadTool implements ToolExecutor {
       // Warn about large files (>10MB)
       const maxSafeSize = 10 * 1024 * 1024; // 10MB
       if (stats.size > maxSafeSize) {
-        console.warn(
-          `[ReadTool] Large file warning: ${params.path} is ${(stats.size / 1024 / 1024).toFixed(2)}MB`
-        );
+        logger.warn('[ReadTool] Large file warning', {
+          path: params.path,
+          sizeMB: (stats.size / 1024 / 1024).toFixed(2),
+        });
       }
 
       // Read file content
@@ -232,10 +233,11 @@ export class ReadTool implements ToolExecutor {
         };
 
         // SOC logging
-        // eslint-disable-next-line no-console
-        console.log(
-          `[ReadTool] Read lines ${start}-${Math.min(end, totalLines)} from ${params.path} (${totalLines} total lines)`
-        );
+        logger.debug('[ReadTool] Read lines from file', {
+          path: params.path,
+          lineRange: `${start}-${Math.min(end, totalLines)}`,
+          totalLines,
+        });
 
         return {
           success: true,
@@ -252,10 +254,11 @@ export class ReadTool implements ToolExecutor {
       };
 
       // SOC logging
-      // eslint-disable-next-line no-console
-      console.log(
-        `[ReadTool] Read full file ${params.path} (${totalLines} lines, ${stats.size} bytes)`
-      );
+      logger.debug('[ReadTool] Read full file', {
+        path: params.path,
+        totalLines,
+        sizeBytes: stats.size,
+      });
 
       return {
         success: true,
@@ -263,7 +266,11 @@ export class ReadTool implements ToolExecutor {
         duration: Date.now() - startTime,
       };
     } catch (error) {
-      console.error('[ReadTool] Execution error:', error);
+      logger.error('[ReadTool] Execution error', {
+        path: params.path,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return {
         success: false,
         error: `Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}. Please check file permissions and try again.`,

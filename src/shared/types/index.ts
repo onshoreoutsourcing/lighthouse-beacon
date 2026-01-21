@@ -65,6 +65,17 @@ export const IPC_CHANNELS = {
   TOOL_GET_SCHEMAS: 'tool:get-schemas',
   TOOL_PERMISSION_REQUEST: 'tool:permission-request',
   TOOL_PERMISSION_RESPONSE: 'tool:permission-response',
+
+  // Logging (Feature 7.1)
+  LOGS_READ: 'logs:read',
+  LOGS_EXPORT: 'logs:export',
+  LOGS_CLEAR: 'logs:clear',
+  LOGS_GET_FILE_SIZE: 'logs:get-file-size',
+  LOGS_GET_DISK_SPACE: 'logs:get-disk-space',
+
+  // Log Level Control (Feature 7.1 - User Story 3)
+  SETTINGS_SET_LOG_LEVEL: 'settings:set-log-level',
+  SETTINGS_GET_LOG_CONFIG: 'settings:get-log-config',
 } as const;
 
 /**
@@ -169,6 +180,8 @@ export type {
   AppSettings,
   StreamOptions,
   AIServiceResponse,
+  LoggingConfig,
+  LogConfig,
 } from './ai.types';
 
 // Conversation IPC Channels (Feature 2.2 - Wave 2.2.4)
@@ -195,6 +208,26 @@ export type {
 } from './tool.types';
 
 export { PermissionLevel, PermissionDecision, type ToolRiskLevel } from './tool.types';
+
+/**
+ * Log Entry Types (Feature 7.1)
+ */
+
+/**
+ * Log level types
+ */
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * Log entry structure
+ */
+export interface LogEntry {
+  timestamp: string;
+  level: LogLevel;
+  service: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
 
 /**
  * File Operation Event Types (Feature 3.4 - Wave 3.4.1)

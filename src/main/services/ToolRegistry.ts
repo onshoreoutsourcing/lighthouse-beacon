@@ -19,6 +19,7 @@
  */
 
 import type { ToolDefinition, ToolExecutor } from '@shared/types';
+import { logger } from '@main/logger';
 
 /**
  * Tool registry for managing all available tools
@@ -40,8 +41,10 @@ export class ToolRegistry {
     }
 
     this.tools.set(definition.name, executor);
-    // eslint-disable-next-line no-console
-    console.log(`[ToolRegistry] Registered tool: ${definition.name}`);
+    logger.debug('[ToolRegistry] Registered tool', {
+      toolName: definition.name,
+      riskLevel: definition.riskLevel,
+    });
   }
 
   /**
@@ -102,8 +105,10 @@ export class ToolRegistry {
    * Clear all registered tools (for testing)
    */
   clear(): void {
+    const toolCount = this.tools.size;
     this.tools.clear();
-    // eslint-disable-next-line no-console
-    console.log('[ToolRegistry] Cleared all tools');
+    logger.debug('[ToolRegistry] Cleared all tools', {
+      toolCount,
+    });
   }
 }

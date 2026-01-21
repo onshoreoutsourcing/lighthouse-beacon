@@ -25,6 +25,7 @@ import { ToolRegistry } from '../services/ToolRegistry';
 import { PermissionService } from '../services/PermissionService';
 import { ToolExecutionService } from '../services/ToolExecutionService';
 import { ReadTool, WriteTool, EditTool, DeleteTool, GlobTool, GrepTool, BashTool } from '../tools';
+import { logger } from '@main/logger';
 
 // Singleton instances
 let toolRegistry: ToolRegistry | null = null;
@@ -52,7 +53,10 @@ function getPermissionService(): PermissionService {
 
     // Initialize (load persisted permissions) - fire and forget
     permissionService.initialize().catch((error) => {
-      console.error('[ToolHandlers] Failed to initialize PermissionService:', error);
+      logger.error('[ToolHandlers] Failed to initialize PermissionService', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     });
 
     // Set up callback to send permission requests to renderer
@@ -148,8 +152,7 @@ export function registerToolHandlers(): void {
     }
   );
 
-  // eslint-disable-next-line no-console
-  console.log('[Tool Handlers] Tool framework IPC handlers registered');
+  logger.info('[Tool Handlers] Tool framework IPC handlers registered');
 }
 
 /**
@@ -175,10 +178,16 @@ export function initializeToolsWithProjectRoot(projectRoot: string): void {
     // Recreate execution service with new registry
     executionService = new ToolExecutionService(toolRegistry, getPermissionService());
 
-    // eslint-disable-next-line no-console
-    console.log('[ToolRegistry] Registered 7 file operation tools with project root:', projectRoot);
+    logger.info('[ToolRegistry] Registered 7 file operation tools with project root', {
+      projectRoot,
+      toolCount: toolRegistry.getToolCount(),
+    });
   } catch (error) {
-    console.error('[ToolRegistry] Failed to initialize tools:', error);
+    logger.error('[ToolRegistry] Failed to initialize tools', {
+      projectRoot,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 
@@ -200,6 +209,5 @@ export function unregisterToolHandlers(): void {
   toolRegistry = null;
   executionService = null;
 
-  // eslint-disable-next-line no-console
-  console.log('[Tool Handlers] Tool framework IPC handlers unregistered');
+  logger.info('[Tool Handlers] Tool framework IPC handlers unregistered');
 }

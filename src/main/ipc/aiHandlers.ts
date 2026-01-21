@@ -1,8 +1,11 @@
 import { ipcMain, BrowserWindow } from 'electron';
-import type { Result, AIStatus, AppSettings, StreamOptions } from '@shared/types';
+import type { Result, AIStatus, AppSettings, StreamOptions, LoggingConfig } from '@shared/types';
 import { IPC_CHANNELS } from '@shared/types';
 import { AIService } from '../services/AIService';
 import { SettingsService } from '../services/SettingsService';
+import { logger, setLogLevel, getLogConfig, type LogConfig } from '@main/logger';
+import { promises as fs } from 'node:fs';
+import { getAvailableDiskSpace } from '../utils/diskSpace';
 
 /**
  * AI IPC Handlers
@@ -243,8 +246,103 @@ export function registerAIHandlers(): void {
     }
   );
 
-  // eslint-disable-next-line no-console
-  console.log('[AI Handlers] AI and settings IPC handlers registered');
+  /**
+   * SETTINGS_SET_LOG_LEVEL: Change log level at runtime
+   * Updates both the logger and persists to settings
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.SETTINGS_SET_LOG_LEVEL,
+    async (_event, level: 'debug' | 'info' | 'warn' | 'error'): Promise<Result<void>> => {
+      try {
+        // Update logger immediately
+        setLogLevel(level);
+
+        // Persist to settings
+        await settings.setLoggingConfig({ level });
+
+        logger.info('[Settings] Log level changed', { level });
+        return { success: true, data: undefined };
+      } catch (error) {
+        logger.error('[Settings] Failed to set log level', { error });
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to set log level'),
+        };
+      }
+    }
+  );
+
+  /**
+   * SETTINGS_GET_LOG_CONFIG: Get current log configuration
+   * Returns level, file path, file size, max size
+   */
+  ipcMain.handle(
+    IPC_CHANNELS.SETTINGS_GET_LOG_CONFIG,
+    async (): Promise<Result<LogConfig & { loggingConfig: LoggingConfig }>> => {
+      try {
+        const logConfig = getLogConfig();
+        const loggingConfig = await settings.getLoggingConfig();
+
+        // Get actual file size
+        try {
+          const stats = await fs.stat(logConfig.filePath);
+          logConfig.fileSize = stats.size;
+        } catch {
+          // File doesn't exist yet
+          logConfig.fileSize = 0;
+        }
+
+        return {
+          success: true,
+          data: {
+            ...logConfig,
+            loggingConfig,
+          },
+        };
+      } catch (error) {
+        logger.error('[Settings] Failed to get log config', { error });
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to get log config'),
+        };
+      }
+    }
+  );
+
+  /**
+   * LOGS_GET_FILE_SIZE: Get current log file size
+   * Returns size in bytes
+   */
+  ipcMain.handle(IPC_CHANNELS.LOGS_GET_FILE_SIZE, async (): Promise<Result<number>> => {
+    try {
+      const logConfig = getLogConfig();
+      const stats = await fs.stat(logConfig.filePath);
+      return { success: true, data: stats.size };
+    } catch {
+      // File doesn't exist yet
+      return { success: true, data: 0 };
+    }
+  });
+
+  /**
+   * LOGS_GET_DISK_SPACE: Get available disk space
+   * Returns available space in bytes
+   */
+  ipcMain.handle(IPC_CHANNELS.LOGS_GET_DISK_SPACE, async (): Promise<Result<number>> => {
+    try {
+      const logConfig = getLogConfig();
+      const availableBytes = await getAvailableDiskSpace(logConfig.filePath);
+      return { success: true, data: availableBytes };
+    } catch (error) {
+      logger.error('[Logs] Failed to get disk space', { error });
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error('Failed to get disk space'),
+      };
+    }
+  });
+
+  logger.info('[AI Handlers] AI and settings IPC handlers registered');
 }
 
 /**
@@ -262,6 +360,10 @@ export async function unregisterAIHandlers(): Promise<void> {
   ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_REMOVE_API_KEY);
   ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_GET);
   ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_UPDATE);
+  ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_SET_LOG_LEVEL);
+  ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_GET_LOG_CONFIG);
+  ipcMain.removeHandler(IPC_CHANNELS.LOGS_GET_FILE_SIZE);
+  ipcMain.removeHandler(IPC_CHANNELS.LOGS_GET_DISK_SPACE);
 
   // Cleanup service instances
   if (aiService) {
@@ -270,6 +372,5 @@ export async function unregisterAIHandlers(): Promise<void> {
   }
   settingsService = null;
 
-  // eslint-disable-next-line no-console
-  console.log('[AI Handlers] AI and settings IPC handlers unregistered');
+  logger.info('[AI Handlers] AI and settings IPC handlers unregistered');
 }

@@ -18,6 +18,7 @@ import type {
   PermissionRequest,
   PermissionResponse,
   FileOperationEvent,
+  LogEntry,
 } from '@shared/types';
 import { IPC_CHANNELS, CONVERSATION_CHANNELS, FILE_OPERATION_CHANNELS } from '@shared/types';
 
@@ -359,6 +360,37 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on(FILE_OPERATION_CHANNELS.FILE_OPERATION_EVENT, listener);
       return () =>
         ipcRenderer.removeListener(FILE_OPERATION_CHANNELS.FILE_OPERATION_EVENT, listener);
+    },
+  },
+
+  /**
+   * Log Management Operations (Feature 7.1)
+   */
+  logs: {
+    /**
+     * Read recent log entries from log file
+     * @returns Array of recent log entries (last 100)
+     */
+    read: (): Promise<Result<LogEntry[]>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.LOGS_READ);
+    },
+
+    /**
+     * Export log file to user-selected location
+     * Shows save dialog and copies log file with timestamped filename
+     * @returns Path where logs were exported
+     */
+    export: (): Promise<Result<string>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.LOGS_EXPORT);
+    },
+
+    /**
+     * Clear log file
+     * Deletes the log file (it will be recreated on next log entry)
+     * @returns Clear result
+     */
+    clear: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.LOGS_CLEAR);
     },
   },
 

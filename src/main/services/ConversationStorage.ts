@@ -17,6 +17,7 @@ import { app } from 'electron';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { Conversation, ConversationListItem } from '@shared/types';
+import { logger } from '../logger';
 
 /**
  * Get the conversations storage directory path
@@ -222,7 +223,10 @@ export const listConversations = async (): Promise<ConversationListItem[]> => {
         });
       } catch (error) {
         // Skip corrupted files
-        console.error(`Failed to read conversation file ${file}:`, error);
+        logger.error('[ConversationStorage] Failed to read conversation file', {
+          file,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
