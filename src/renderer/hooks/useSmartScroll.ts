@@ -82,9 +82,18 @@ export function useSmartScroll<T extends HTMLElement>(
   /**
    * Auto-scroll on new content if user hasn't manually scrolled up
    *
-   * Note: This hook intentionally spreads dynamic dependencies passed by the caller.
-   * The exhaustive-deps warning is expected - we trust the caller to provide correct deps.
-   * This design allows the hook to be reusable with different dependency patterns.
+   * Implementation Note:
+   * This effect intentionally spreads the 'dependencies' DependencyList passed by the caller.
+   * This creates a flexible, reusable hook that can respond to different triggers
+   * (e.g., message count, streaming state, etc.) without hardcoding specific dependencies.
+   *
+   * The exhaustive-deps warning is unavoidable because:
+   * 1. We cannot statically analyze what the caller passes in 'dependencies'
+   * 2. Using useMemo would require the same dependencies, creating a circular problem
+   * 3. The caller is responsible for ensuring their dependencies are stable
+   *
+   * This is a deliberate design trade-off for hook reusability. The caller must ensure
+   * their dependency array is stable (e.g., using useMemo) to prevent infinite loops.
    */
   useEffect(() => {
     if (containerRef.current && !isUserScrolled) {
@@ -95,6 +104,7 @@ export function useSmartScroll<T extends HTMLElement>(
         }
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...dependencies, isUserScrolled, containerRef]);
 
   return {

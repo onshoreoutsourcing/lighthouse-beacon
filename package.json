@@ -20,6 +20,9 @@
     "prepare": "husky install",
     "postinstall": "cd node_modules/@ai-chat-sdk/core/typescript && npm install && npm run build"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "keywords": [
     "electron",
     "ide",

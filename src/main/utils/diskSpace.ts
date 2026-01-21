@@ -4,6 +4,9 @@
  * Provides functions to check available disk space and return warnings/critical alerts
  * when space is low. Used for log file management and space monitoring.
  *
+ * **Requirements:**
+ * - Node.js 19.6.0 or higher (for fs.statfs support)
+ *
  * Thresholds:
  * - Warning: <1GB available
  * - Critical: <100MB available
@@ -67,6 +70,8 @@ export async function getAvailableDiskSpace(targetPath: string): Promise<number>
   }
 
   // Get filesystem stats
+  // Note: fs.statfs requires Node.js 19.6.0+ (added in Node.js 19.6.0)
+  // This project requires Node.js 20+ for Electron compatibility
   const stats = await fs.statfs(checkPath);
 
   // Calculate available space

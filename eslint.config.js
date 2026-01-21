@@ -104,13 +104,15 @@ export default [
     },
   },
 
-  // Monaco Editor specific rules
+  // Monaco Editor component - OnMount callback type limitations
   {
     files: ['**/MonacoEditorContainer.tsx'],
     rules: {
-      // Monaco editor types from @monaco-editor/react may not fully resolve
-      // This is a known limitation of the library, not a bug in our code
-      '@typescript-eslint/no-unsafe-assignment': 'off',
+      // The 'monaco' parameter from @monaco-editor/react's OnMount callback
+      // has incomplete type resolution (verified with monaco-editor@0.55.1).
+      // This is a known limitation where monaco.KeyMod and monaco.KeyCode
+      // cannot be fully resolved by TypeScript, despite working correctly at runtime.
+      // Verified needed by removing and testing (2026-01-21).
       '@typescript-eslint/no-unsafe-member-access': 'off',
     },
   },
