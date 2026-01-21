@@ -1,6 +1,6 @@
 import type { AIStatus } from '@shared/types';
-import { AIChatSDK } from '@ai-chat-sdk/core/typescript/dist';
-import type { AIChatConfig, ChatMessage, ChatResponse } from '@ai-chat-sdk/core/typescript/dist';
+import { AIChatSDK } from '@ai-chat-sdk/core/typescript';
+import type { AIChatConfig, ChatMessage, ChatResponse } from '@ai-chat-sdk/core/typescript';
 import { logger } from '@main/logger';
 
 /**
@@ -72,7 +72,7 @@ export class AIService {
   async initialize(config: AIServiceConfig): Promise<void> {
     try {
       logger.info('[AIService] Initialize called with config', {
-        model: config.model || 'claude-3-sonnet-20240229',
+        model: config.model || 'claude-sonnet-4-5-20250929',
         socEndpoint: config.socEndpoint || 'not configured',
         hasApiKey: !!config.apiKey,
       });
@@ -82,7 +82,7 @@ export class AIService {
         provider: 'anthropic',
         providerConfig: {
           apiKey: config.apiKey,
-          model: config.model || 'claude-3-sonnet-20240229',
+          model: config.model || 'claude-sonnet-4-5-20250929',
           maxTokens: 4096,
         },
       };
@@ -103,7 +103,7 @@ export class AIService {
       this.status = {
         initialized: true,
         provider: 'anthropic',
-        model: config.model || 'claude-3-sonnet-20240229',
+        model: config.model || 'claude-sonnet-4-5-20250929',
         error: null,
       };
 
@@ -118,9 +118,61 @@ export class AIService {
         model: null,
         error: this.formatError(error),
       };
+      // Extract full error chain for debugging
+      const errorChain: Array<{
+        message: string;
+        name: string;
+        statusCode?: number;
+        code?: string;
+        context?: unknown;
+        responseStatus?: number;
+        responseData?: unknown;
+      }> = [];
+
+      let currentError = error;
+      while (currentError && typeof currentError === 'object') {
+        const err = currentError as Record<string, unknown>;
+        const errorInfo: {
+          message: string;
+          name: string;
+          statusCode?: number;
+          code?: string;
+          context?: unknown;
+          responseStatus?: number;
+          responseData?: unknown;
+        } = {
+          message: typeof err.message === 'string' ? err.message : 'Unknown error',
+          name: typeof err.name === 'string' ? err.name : 'Error',
+        };
+
+        // Include HTTP-specific details if available
+        if (typeof err.statusCode === 'number') {
+          errorInfo.statusCode = err.statusCode;
+        }
+        if (typeof err.code === 'string') {
+          errorInfo.code = err.code;
+        }
+        if (err.context !== undefined) {
+          errorInfo.context = err.context;
+        }
+        if (err.response && typeof err.response === 'object') {
+          const response = err.response as Record<string, unknown>;
+          if (typeof response.status === 'number') {
+            errorInfo.responseStatus = response.status;
+          }
+          if (response.data !== undefined) {
+            errorInfo.responseData = response.data;
+          }
+        }
+
+        errorChain.push(errorInfo);
+        currentError = err.cause;
+      }
+
       logger.error('[AIService] Initialization failed', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
+        errorChain,
       });
       throw error;
     }

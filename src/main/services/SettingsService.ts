@@ -32,7 +32,7 @@ export class SettingsService {
   private static readonly DEFAULT_SETTINGS: AppSettings = {
     ai: {
       provider: 'anthropic',
-      model: 'claude-3-sonnet-20240229',
+      model: 'claude-sonnet-4-5-20250929',
       hasApiKey: false,
     },
     soc: {

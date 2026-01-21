@@ -67,6 +67,15 @@ export function registerAIHandlers(): void {
     try {
       const apiKey = await settings.getApiKey();
 
+      // Log API key status (redacted for security)
+      const maskedKey = apiKey ? `${apiKey.slice(0, 7)}...${apiKey.slice(-4)}` : 'null';
+      logger.info('[AI Initialize] Retrieved API key', {
+        hasKey: !!apiKey,
+        keyLength: apiKey?.length || 0,
+        keyPrefix: apiKey?.slice(0, 7) || 'none',
+        maskedKey,
+      });
+
       if (!apiKey) {
         return {
           success: false,
@@ -75,6 +84,12 @@ export function registerAIHandlers(): void {
       }
 
       const appSettings = await settings.getSettings();
+
+      logger.info('[AI Initialize] Initializing with config', {
+        model: appSettings.ai.model,
+        socEndpoint: appSettings.soc.endpoint,
+        maskedKey,
+      });
 
       await ai.initialize({
         apiKey,
