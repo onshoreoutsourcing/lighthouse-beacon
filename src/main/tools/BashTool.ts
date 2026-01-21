@@ -25,6 +25,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as path from 'node:path';
+import { setTimeout, clearTimeout } from 'node:timers';
 import type {
   ToolDefinition,
   ToolExecutor,
@@ -607,7 +608,6 @@ export class BashTool implements ToolExecutor {
       });
 
       // Set up timeout handler
-      // eslint-disable-next-line no-undef
       const timeoutHandle = setTimeout(() => {
         if (!processKilled) {
           timedOut = true;
@@ -621,7 +621,6 @@ export class BashTool implements ToolExecutor {
           childProcess.kill('SIGTERM');
 
           // Force kill with SIGKILL after delay
-          // eslint-disable-next-line no-undef
           setTimeout(() => {
             if (!processKilled) {
               logger.warn('[BashTool] SIGTERM failed - sending SIGKILL', {
@@ -636,7 +635,6 @@ export class BashTool implements ToolExecutor {
       // Handle process exit
       childProcess.on('close', (code, signal) => {
         processKilled = true;
-        // eslint-disable-next-line no-undef
         clearTimeout(timeoutHandle);
 
         const duration = Date.now() - startTime;
@@ -655,7 +653,6 @@ export class BashTool implements ToolExecutor {
       // Handle spawn errors
       childProcess.on('error', (error) => {
         processKilled = true;
-        // eslint-disable-next-line no-undef
         clearTimeout(timeoutHandle);
 
         const duration = Date.now() - startTime;

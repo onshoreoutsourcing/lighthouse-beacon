@@ -91,6 +91,30 @@ export default [
     },
   },
 
+  // Test files specific rules
+  {
+    files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      // Disable rules that are false positives in test files
+      '@typescript-eslint/unbound-method': 'off', // Mocked functions are intentionally unbound
+      '@typescript-eslint/no-unsafe-assignment': 'off', // Mock types often involve any
+      '@typescript-eslint/no-unsafe-call': 'off', // Mock calls are type-safe at runtime
+      '@typescript-eslint/no-unsafe-member-access': 'off', // Mock property access is expected
+      '@typescript-eslint/no-explicit-any': 'off', // expect.any() is valid test syntax
+    },
+  },
+
+  // Monaco Editor specific rules
+  {
+    files: ['**/MonacoEditorContainer.tsx'],
+    rules: {
+      // Monaco editor types from @monaco-editor/react may not fully resolve
+      // This is a known limitation of the library, not a bug in our code
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+    },
+  },
+
   // Prettier config (must be last to override other configs)
   prettierConfig,
 ];

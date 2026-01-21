@@ -81,6 +81,10 @@ export function useSmartScroll<T extends HTMLElement>(
 
   /**
    * Auto-scroll on new content if user hasn't manually scrolled up
+   *
+   * Note: This hook intentionally spreads dynamic dependencies passed by the caller.
+   * The exhaustive-deps warning is expected - we trust the caller to provide correct deps.
+   * This design allows the hook to be reusable with different dependency patterns.
    */
   useEffect(() => {
     if (containerRef.current && !isUserScrolled) {
@@ -91,8 +95,7 @@ export function useSmartScroll<T extends HTMLElement>(
         }
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, dependencies);
+  }, [...dependencies, isUserScrolled, containerRef]);
 
   return {
     showScrollButton,

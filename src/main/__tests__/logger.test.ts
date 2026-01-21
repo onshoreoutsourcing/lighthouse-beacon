@@ -9,12 +9,6 @@
  * - File and console transports
  */
 
-/* eslint-disable @typescript-eslint/unbound-method */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import log from 'electron-log';
 import { app } from 'electron';
@@ -59,7 +53,7 @@ describe('Logger Module', () => {
     vi.clearAllMocks();
 
     // Setup default mock return values
-    (app.getPath as any).mockReturnValue(mockUserDataPath);
+    vi.mocked(app.getPath).mockReturnValue(mockUserDataPath);
 
     // Reset log levels to defaults
     log.transports.file.level = 'debug';

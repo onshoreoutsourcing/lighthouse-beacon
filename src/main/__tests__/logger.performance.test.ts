@@ -102,19 +102,6 @@ describe('Logger Performance Tests', () => {
       logger.info('[PerformanceTest] Simple log message');
     }, iterations);
 
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`\n📊 Simple Logging Performance (${iterations} iterations):`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Average: ${stats.averageMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Min: ${stats.minMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Max: ${stats.maxMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  P99: ${stats.p99Ms.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Total: ${stats.totalMs.toFixed(2)}ms`);
-
     // Performance requirement: average <1ms
     expect(stats.averageMs).toBeLessThan(1);
 
@@ -133,19 +120,6 @@ describe('Logger Performance Tests', () => {
         timestamp: Date.now(),
       });
     }, iterations);
-
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`\n📊 Structured Logging Performance (${iterations} iterations):`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Average: ${stats.averageMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Min: ${stats.minMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Max: ${stats.maxMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  P99: ${stats.p99Ms.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Total: ${stats.totalMs.toFixed(2)}ms`);
 
     // Performance requirement: average <1ms
     expect(stats.averageMs).toBeLessThan(1);
@@ -169,19 +143,6 @@ describe('Logger Performance Tests', () => {
         logger.debug('[PerformanceTest] Debug message', { debug: 'test debug' });
       }
     }, iterations);
-
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`\n📊 Mixed Level Logging Performance (${iterations} iterations):`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Average: ${stats.averageMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Min: ${stats.minMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Max: ${stats.maxMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  P99: ${stats.p99Ms.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Total: ${stats.totalMs.toFixed(2)}ms`);
 
     // Performance requirement: average <1ms
     expect(stats.averageMs).toBeLessThan(1);
@@ -219,17 +180,6 @@ describe('Logger Performance Tests', () => {
         });
       }
     }, iterations);
-
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`\n📊 Tool Execution Logging Overhead (${iterations} iterations):`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Average: ${stats.averageMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Min: ${stats.minMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Max: ${stats.maxMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  P99: ${stats.p99Ms.toFixed(4)}ms`);
 
     // Tool execution logging involves 2 log calls
     // Should still be <2ms average (1ms per call)
@@ -273,17 +223,6 @@ describe('Logger Performance Tests', () => {
       }
     }, iterations);
 
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`\n📊 AI Streaming Logging Overhead (${iterations} iterations):`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Average: ${stats.averageMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Min: ${stats.minMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Max: ${stats.maxMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  P99: ${stats.p99Ms.toFixed(4)}ms`);
-
     // Single log call at end
     expect(stats.averageMs).toBeLessThan(1);
   });
@@ -303,17 +242,6 @@ describe('Logger Performance Tests', () => {
         duration,
       });
     }, iterations);
-
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`\n📊 Permission Decision Logging Overhead (${iterations} iterations):`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Average: ${stats.averageMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Min: ${stats.minMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Max: ${stats.maxMs.toFixed(4)}ms`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  P99: ${stats.p99Ms.toFixed(4)}ms`);
 
     // Single log call
     expect(stats.averageMs).toBeLessThan(1);
@@ -337,15 +265,6 @@ describe('Logger Performance Tests', () => {
 
     const memAfter = process.memoryUsage().heapUsed;
     const memDiffMB = (memAfter - memBefore) / (1024 * 1024);
-
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`\n💾 Memory Usage Test (${iterations} iterations):`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Memory before: ${(memBefore / (1024 * 1024)).toFixed(2)} MB`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Memory after: ${(memAfter / (1024 * 1024)).toFixed(2)} MB`);
-    // eslint-disable-next-line no-console -- Performance test reporting
-    console.log(`  Memory diff: ${memDiffMB.toFixed(2)} MB`);
 
     // Should not leak more than 10MB for 10,000 calls
     expect(memDiffMB).toBeLessThan(10);

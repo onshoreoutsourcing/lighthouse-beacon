@@ -403,7 +403,3 @@ contextBridge.exposeInMainWorld('electronAPI', {
     electron: () => process.versions.electron,
   },
 });
-
-// Log to confirm preload script loaded successfully
-// eslint-disable-next-line no-console
-console.log('Preload script loaded successfully');
