@@ -29,6 +29,7 @@ import type { ToolExecutionContext, ToolExecutionResult, ToolValidationError } f
 import { PermissionDecision } from '@shared/types';
 import type { ToolRegistry } from './ToolRegistry';
 import type { PermissionService } from './PermissionService';
+import { logger } from '@main/logger';
 
 /**
  * Tool execution service
@@ -83,8 +84,10 @@ export class ToolExecutionService {
         );
 
         if (decision === PermissionDecision.DENIED) {
-          // eslint-disable-next-line no-console
-          console.log(`[ToolExecutionService] Permission denied for ${toolName}`);
+          logger.warn('[ToolExecutionService] Permission denied', {
+            toolName,
+            parameters,
+          });
           return this.createErrorResult(
             `Permission denied for operation '${toolName}'. User declined the request.`,
             startTime
@@ -92,8 +95,10 @@ export class ToolExecutionService {
         }
 
         if (decision === PermissionDecision.TIMEOUT) {
-          // eslint-disable-next-line no-console
-          console.log(`[ToolExecutionService] Permission timeout for ${toolName}`);
+          logger.warn('[ToolExecutionService] Permission timeout', {
+            toolName,
+            parameters,
+          });
           return this.createErrorResult(
             `Permission timeout for operation '${toolName}'. No response received within 5 minutes.`,
             startTime
@@ -102,8 +107,10 @@ export class ToolExecutionService {
       }
 
       // 4. Execute tool
-      // eslint-disable-next-line no-console
-      console.log(`[ToolExecutionService] Executing ${toolName}`);
+      logger.info('[ToolExecutionService] Executing tool', {
+        toolName,
+        parameters,
+      });
 
       const context: ToolExecutionContext = {
         toolName,
@@ -116,14 +123,33 @@ export class ToolExecutionService {
 
       // 5. Log successful execution
       const duration = Date.now() - startTime;
-      // eslint-disable-next-line no-console
-      console.log(`[ToolExecutionService] Completed ${toolName} in ${duration}ms`);
+
+      // Warn if execution took more than 1 second
+      if (duration > 1000) {
+        logger.warn('[ToolExecutionService] Slow tool execution detected', {
+          toolName,
+          duration,
+          threshold: 1000,
+        });
+      } else {
+        logger.info('[ToolExecutionService] Tool execution complete', {
+          toolName,
+          duration,
+          success: result.success,
+        });
+      }
 
       return result;
     } catch (error) {
       // 6. Handle execution errors
+      const duration = Date.now() - startTime;
 
-      console.error(`[ToolExecutionService] Error executing ${toolName}:`, error);
+      logger.error('[ToolExecutionService] Tool execution failed', {
+        toolName,
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
 
       return this.createErrorResult(this.formatExecutionError(error, toolName), startTime);
     }

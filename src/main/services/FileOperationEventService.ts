@@ -29,6 +29,7 @@
 import { BrowserWindow } from 'electron';
 import type { FileOperationEvent } from '@shared/types';
 import { FILE_OPERATION_CHANNELS } from '@shared/types';
+import { logger } from '../logger';
 
 export class FileOperationEventService {
   private static instance: FileOperationEventService | null = null;
@@ -78,13 +79,16 @@ export class FileOperationEventService {
       }
 
       // Debug logging
-      // eslint-disable-next-line no-console
-      console.log(
-        `[FileOperationEventService] Emitted ${event.operation} event for ${event.paths.length} path(s) to ${windows.length} window(s)`
-      );
+      logger.debug('[FileOperationEventService] Event emitted', {
+        operation: event.operation,
+        pathCount: event.paths.length,
+        windowCount: windows.length,
+      });
     } catch (error) {
       // Non-blocking: Log error but don't fail the operation
-      console.error('[FileOperationEventService] Failed to emit event:', error);
+      logger.error('[FileOperationEventService] Failed to emit event', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

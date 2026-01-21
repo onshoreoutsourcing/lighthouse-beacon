@@ -37,6 +37,7 @@ import type {
   ToolRiskLevel,
 } from '@shared/types';
 import { PermissionLevel as PL, PermissionDecision as PD } from '@shared/types';
+import { logger } from '@main/logger';
 
 /**
  * Default permission configuration for each tool type
@@ -109,11 +110,13 @@ export class PermissionService {
   async initialize(): Promise<void> {
     try {
       await this.loadPermissions();
-      // eslint-disable-next-line no-console
-      console.log('[PermissionService] Initialized with persisted permissions');
+      logger.info('[PermissionService] Initialized with persisted permissions', {
+        permissionCount: this.permissions.size,
+      });
     } catch {
-      // eslint-disable-next-line no-console
-      console.log('[PermissionService] Initialized with default permissions (no persisted file)');
+      logger.info('[PermissionService] Initialized with default permissions (no persisted file)', {
+        permissionCount: this.permissions.size,
+      });
     }
   }
 
@@ -149,7 +152,9 @@ export class PermissionService {
 
       // Validate schema version
       if (persisted.version !== 1) {
-        console.warn('[PermissionService] Unknown permissions file version, using defaults');
+        logger.warn('[PermissionService] Unknown permissions file version, using defaults', {
+          version: persisted.version,
+        });
         return;
       }
 
@@ -158,18 +163,22 @@ export class PermissionService {
         if (level === PL.ALWAYS_ALLOW || level === PL.PROMPT || level === PL.ALWAYS_DENY) {
           this.permissions.set(toolName, level);
         } else {
-          console.warn(
-            `[PermissionService] Invalid permission level for ${toolName}: ${String(level)}, using default`
-          );
+          logger.warn('[PermissionService] Invalid permission level, using default', {
+            toolName,
+            invalidLevel: String(level),
+          });
         }
       }
 
-      // eslint-disable-next-line no-console
-      console.log(`[PermissionService] Loaded ${this.permissions.size} permissions from disk`);
+      logger.info('[PermissionService] Loaded permissions from disk', {
+        permissionCount: this.permissions.size,
+      });
     } catch (error) {
       // File doesn't exist or is corrupt - use defaults
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-        console.warn('[PermissionService] Failed to load permissions file:', error);
+        logger.warn('[PermissionService] Failed to load permissions file', {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
       // Defaults already set in constructor
     }
@@ -203,10 +212,15 @@ export class PermissionService {
       await fs.writeFile(tempFile, JSON.stringify(persisted, null, 2), 'utf-8');
       await fs.rename(tempFile, filePath);
 
-      // eslint-disable-next-line no-console
-      console.log('[PermissionService] Saved permissions to disk');
+      logger.info('[PermissionService] Saved permissions to disk', {
+        permissionCount: this.permissions.size,
+        filePath,
+      });
     } catch (error) {
-      console.error('[PermissionService] Failed to save permissions:', error);
+      logger.error('[PermissionService] Failed to save permissions', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
   }
 
@@ -225,10 +239,15 @@ export class PermissionService {
     riskLevel: ToolRiskLevel,
     allowSessionTrust: boolean
   ): Promise<PermissionDecision> {
+    const startTime = Date.now();
+
     // Check session trust first
     if (this.sessionTrust.has(toolName)) {
-      // eslint-disable-next-line no-console
-      console.log(`[PermissionService] Session trust granted for ${toolName}`);
+      const duration = Date.now() - startTime;
+      logger.info('[PermissionService] Session trust granted', {
+        toolName,
+        duration,
+      });
       return PD.APPROVED;
     }
 
@@ -237,20 +256,34 @@ export class PermissionService {
 
     // ALWAYS_ALLOW: Auto-approve
     if (permissionLevel === PL.ALWAYS_ALLOW) {
-      // eslint-disable-next-line no-console
-      console.log(`[PermissionService] Auto-approved: ${toolName}`);
+      const duration = Date.now() - startTime;
+      logger.info('[PermissionService] Auto-approved', {
+        toolName,
+        reason: 'ALWAYS_ALLOW permission level',
+        duration,
+      });
       return PD.APPROVED;
     }
 
     // ALWAYS_DENY: Auto-deny
     if (permissionLevel === PL.ALWAYS_DENY) {
-      // eslint-disable-next-line no-console
-      console.log(`[PermissionService] Auto-denied: ${toolName}`);
+      const duration = Date.now() - startTime;
+      logger.warn('[PermissionService] Auto-denied', {
+        toolName,
+        reason: 'ALWAYS_DENY permission level',
+        duration,
+      });
       return PD.DENIED;
     }
 
     // PROMPT: Request user approval
-    return this.requestUserPermission(toolName, parameters, riskLevel, allowSessionTrust);
+    return this.requestUserPermission(
+      toolName,
+      parameters,
+      riskLevel,
+      allowSessionTrust,
+      startTime
+    );
   }
 
   /**
@@ -260,16 +293,22 @@ export class PermissionService {
    * @param parameters - Tool parameters
    * @param riskLevel - Risk level
    * @param allowSessionTrust - Whether session trust option should be shown
+   * @param startTime - Time when permission check started
    * @returns Promise resolving to user decision
    */
   private async requestUserPermission(
     toolName: string,
     parameters: Record<string, unknown>,
     riskLevel: ToolRiskLevel,
-    allowSessionTrust: boolean
+    allowSessionTrust: boolean,
+    startTime: number
   ): Promise<PermissionDecision> {
     if (!this.requestCallback) {
-      console.error('[PermissionService] No request callback set - denying by default');
+      const duration = Date.now() - startTime;
+      logger.error('[PermissionService] No request callback set - denying by default', {
+        toolName,
+        duration,
+      });
       return PD.DENIED;
     }
 
@@ -288,16 +327,55 @@ export class PermissionService {
       // Set up timeout
 
       const timeout = setTimeout(() => {
-        // eslint-disable-next-line no-console
-        console.log(`[PermissionService] Permission request timeout for ${toolName}`);
+        const duration = Date.now() - startTime;
+        logger.warn('[PermissionService] Permission request timeout', {
+          toolName,
+          requestId: request.id,
+          timeoutMs: PERMISSION_TIMEOUT_MS,
+          duration,
+        });
+
+        // Warn if decision took longer than 30 seconds
+        if (duration > 30000) {
+          logger.warn('[PermissionService] Slow permission decision detected', {
+            toolName,
+            requestId: request.id,
+            duration,
+            threshold: 30000,
+            reason: 'User did not respond within 30 seconds',
+          });
+        }
+
         this.pendingRequests.delete(request.id);
         resolve(PD.TIMEOUT);
       }, PERMISSION_TIMEOUT_MS);
 
-      // Store pending request
+      // Store pending request with startTime for tracking
       this.pendingRequests.set(request.id, {
         request,
-        resolve,
+        resolve: (decision: PermissionDecision) => {
+          const duration = Date.now() - startTime;
+
+          // Warn if decision took longer than 30 seconds
+          if (duration > 30000) {
+            logger.warn('[PermissionService] Slow permission decision detected', {
+              toolName,
+              requestId: request.id,
+              duration,
+              threshold: 30000,
+              decision,
+            });
+          } else {
+            logger.info('[PermissionService] Permission decision timing', {
+              toolName,
+              requestId: request.id,
+              duration,
+              decision,
+            });
+          }
+
+          resolve(decision);
+        },
         timeout,
       });
 
@@ -315,9 +393,9 @@ export class PermissionService {
     const pending = this.pendingRequests.get(response.requestId);
 
     if (!pending) {
-      console.warn(
-        `[PermissionService] Received response for unknown request: ${response.requestId}`
-      );
+      logger.warn('[PermissionService] Received response for unknown request', {
+        requestId: response.requestId,
+      });
       return;
     }
 
@@ -334,11 +412,11 @@ export class PermissionService {
     }
 
     // Log decision
-    // eslint-disable-next-line no-console
-    console.log(
-      `[PermissionService] Permission ${response.decision} for ${pending.request.toolName}` +
-        (response.trustForSession ? ' (session trust granted)' : '')
-    );
+    logger.info('[PermissionService] Permission decision received', {
+      toolName: pending.request.toolName,
+      decision: response.decision,
+      trustForSession: response.trustForSession || false,
+    });
 
     // Resolve promise
     pending.resolve(response.decision);
@@ -354,8 +432,9 @@ export class PermissionService {
       toolName,
       grantedAt: new Date(),
     });
-    // eslint-disable-next-line no-console
-    console.log(`[PermissionService] Session trust granted for ${toolName}`);
+    logger.info('[PermissionService] Session trust granted', {
+      toolName,
+    });
   }
 
   /**
@@ -366,12 +445,12 @@ export class PermissionService {
   clearSessionTrust(toolName?: string): void {
     if (toolName) {
       this.sessionTrust.delete(toolName);
-      // eslint-disable-next-line no-console
-      console.log(`[PermissionService] Cleared session trust for ${toolName}`);
+      logger.info('[PermissionService] Cleared session trust', {
+        toolName,
+      });
     } else {
       this.sessionTrust.clear();
-      // eslint-disable-next-line no-console
-      console.log('[PermissionService] Cleared all session trust');
+      logger.info('[PermissionService] Cleared all session trust');
     }
   }
 
@@ -392,8 +471,10 @@ export class PermissionService {
    */
   setPermissionLevel(toolName: string, level: PermissionLevel): void {
     this.permissions.set(toolName, level);
-    // eslint-disable-next-line no-console
-    console.log(`[PermissionService] Set permission for ${toolName}: ${level}`);
+    logger.info('[PermissionService] Set permission level', {
+      toolName,
+      level,
+    });
 
     // Persist to disk with debouncing to avoid excessive writes
     this.debouncedSavePermissions();
@@ -459,7 +540,8 @@ export class PermissionService {
     // Clear session trust
     this.sessionTrust.clear();
 
-    // eslint-disable-next-line no-console
-    console.log('[PermissionService] Shutdown complete');
+    logger.info('[PermissionService] Shutdown complete', {
+      clearedPendingRequests: this.pendingRequests.size,
+    });
   }
 }

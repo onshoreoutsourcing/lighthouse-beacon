@@ -19,6 +19,9 @@ import type {
   PermissionRequest,
   PermissionResponse,
   FileOperationEvent,
+  LogEntry,
+  LogConfig,
+  LogLevel,
 } from '@shared/types';
 
 /**
@@ -59,6 +62,8 @@ declare global {
         hasApiKey: () => Promise<Result<{ hasApiKey: boolean }>>;
         setApiKey: (apiKey: string) => Promise<Result<void>>;
         removeApiKey: () => Promise<Result<void>>;
+        setLogLevel: (level: LogLevel) => Promise<Result<void>>;
+        getLogConfig: () => Promise<Result<LogConfig>>;
       };
       tools: {
         execute: (
@@ -78,6 +83,14 @@ declare global {
       };
       fileOperations: {
         onFileOperation: (callback: (event: FileOperationEvent) => void) => () => void;
+      };
+      logs: {
+        read: () => Promise<Result<LogEntry[]>>;
+        export: () => Promise<Result<string>>;
+        clear: () => Promise<Result<void>>;
+        getFileSize: () => Promise<Result<number>>;
+        getDiskSpace: () => Promise<Result<number>>;
+        openLogFolder: () => Promise<Result<void>>;
       };
       versions: {
         node: () => string;

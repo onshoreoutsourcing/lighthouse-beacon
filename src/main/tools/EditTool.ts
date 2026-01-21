@@ -40,6 +40,7 @@ import type {
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
 import { FileOperationEventService } from '../services/FileOperationEventService';
+import { logger } from '@main/logger';
 
 interface EditToolParams {
   path: string;
@@ -432,10 +433,12 @@ export class EditTool implements ToolExecutor {
         // SOC logging
         const mode = params.useRegex ? 'regex' : 'string';
         const scope = replaceAll ? 'all' : 'first';
-        // eslint-disable-next-line no-console
-        console.log(
-          `[EditTool] Edited ${params.path}: ${replacements} replacement(s) using ${mode} mode (${scope})`
-        );
+        logger.debug('[EditTool] File edited', {
+          path: params.path,
+          replacements,
+          mode,
+          scope,
+        });
 
         // Emit file operation event (Feature 3.4 - Wave 3.4.1)
         const eventService = FileOperationEventService.getInstance();
@@ -467,7 +470,10 @@ export class EditTool implements ToolExecutor {
         };
       }
     } catch (error) {
-      console.error('[EditTool] Execution error:', error);
+      logger.error('[EditTool] Execution error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return {
         success: false,
         error: `Failed to edit file: ${error instanceof Error ? error.message : 'Unknown error'}`,

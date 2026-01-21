@@ -16,12 +16,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "baseUrl": ".",
     "paths": {
-      "@main/*": ["src/main/*"],
-      "@preload/*": ["src/preload/*"],
-      "@renderer/*": ["src/renderer/*"],
-      "@shared/*": ["src/shared/*"]
+      "@main/*": ["./src/main/*"],
+      "@preload/*": ["./src/preload/*"],
+      "@renderer/*": ["./src/renderer/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   },
   "include": ["src/**/*"],

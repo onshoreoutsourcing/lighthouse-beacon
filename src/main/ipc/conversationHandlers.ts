@@ -20,6 +20,7 @@ import {
   listConversations,
   deleteConversation,
 } from '../services/ConversationStorage';
+import { logger } from '../logger';
 
 /**
  * Register all conversation IPC handlers
@@ -48,7 +49,9 @@ export const registerConversationHandlers = (): void => {
           data: savedConversation,
         };
       } catch (error) {
-        console.error('Failed to save conversation:', error);
+        logger.error('[ConversationHandlers] Failed to save conversation', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return {
           success: false,
           error: error instanceof Error ? error : new Error('Failed to save conversation'),
@@ -80,7 +83,9 @@ export const registerConversationHandlers = (): void => {
           data: conversation,
         };
       } catch (error) {
-        console.error('Failed to load conversation:', error);
+        logger.error('[ConversationHandlers] Failed to load conversation', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return {
           success: false,
           error: error instanceof Error ? error : new Error('Failed to load conversation'),
@@ -104,7 +109,9 @@ export const registerConversationHandlers = (): void => {
           data: conversations,
         };
       } catch (error) {
-        console.error('Failed to list conversations:', error);
+        logger.error('[ConversationHandlers] Failed to list conversations', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return {
           success: false,
           error: error instanceof Error ? error : new Error('Failed to list conversations'),
@@ -136,7 +143,9 @@ export const registerConversationHandlers = (): void => {
           data: undefined,
         };
       } catch (error) {
-        console.error('Failed to delete conversation:', error);
+        logger.error('[ConversationHandlers] Failed to delete conversation', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return {
           success: false,
           error: error instanceof Error ? error : new Error('Failed to delete conversation'),

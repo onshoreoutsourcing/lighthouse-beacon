@@ -1,6 +1,7 @@
 import type { AIStatus } from '@shared/types';
 import { AIChatSDK } from '@ai-chat-sdk/core/typescript/dist';
 import type { AIChatConfig, ChatMessage, ChatResponse } from '@ai-chat-sdk/core/typescript/dist';
+import { logger } from '@main/logger';
 
 /**
  * AIService Configuration
@@ -70,8 +71,7 @@ export class AIService {
    */
   async initialize(config: AIServiceConfig): Promise<void> {
     try {
-      // eslint-disable-next-line no-console
-      console.log('[AIService] Initialize called with config:', {
+      logger.info('[AIService] Initialize called with config', {
         model: config.model || 'claude-3-sonnet-20240229',
         socEndpoint: config.socEndpoint || 'not configured',
         hasApiKey: !!config.apiKey,
@@ -107,8 +107,10 @@ export class AIService {
         error: null,
       };
 
-      // eslint-disable-next-line no-console
-      console.log('[AIService] Successfully initialized AIChatSDK');
+      logger.info('[AIService] Successfully initialized AIChatSDK', {
+        provider: 'anthropic',
+        model: this.status.model,
+      });
     } catch (error) {
       this.status = {
         initialized: false,
@@ -116,6 +118,10 @@ export class AIService {
         model: null,
         error: this.formatError(error),
       };
+      logger.error('[AIService] Initialization failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       throw error;
     }
   }
@@ -132,6 +138,8 @@ export class AIService {
     if (!this.status.initialized || !this.client) {
       throw new Error('AI service not initialized. Please configure your API key.');
     }
+
+    const startTime = Date.now();
 
     try {
       // Build message history
@@ -154,14 +162,31 @@ export class AIService {
       // Send to SDK
       const response: ChatResponse = await this.client.chat(messages);
 
-      // eslint-disable-next-line no-console
-      console.log('[AIService] Received response from AIChatSDK:', {
-        contentLength: response.content.length,
-        usage: response.usage,
-      });
+      const duration = Date.now() - startTime;
+
+      // Warn if response time is slow
+      if (duration > 5000) {
+        logger.warn('[AIService] Slow AI response detected', {
+          duration,
+          threshold: 5000,
+          contentLength: response.content.length,
+          usage: response.usage,
+        });
+      } else {
+        logger.debug('[AIService] Received response from AIChatSDK', {
+          duration,
+          contentLength: response.content.length,
+          usage: response.usage,
+        });
+      }
 
       return response.content;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error('[AIService] sendMessage failed', {
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new Error(this.formatError(error));
     }
   }
@@ -183,6 +208,9 @@ export class AIService {
     }
 
     this.currentAbortController = new AbortController();
+    const startTime = Date.now();
+    let chunkCount = 0;
+    let totalChunkSize = 0;
 
     try {
       // Build message history
@@ -209,10 +237,13 @@ export class AIService {
       for await (const chunk of stream) {
         // Check for abort
         if (this.currentAbortController.signal.aborted) {
-          // eslint-disable-next-line no-console
-          console.log('[AIService] Stream aborted by user');
+          logger.debug('[AIService] Stream aborted by user');
           return;
         }
+
+        // Track streaming metrics
+        chunkCount++;
+        totalChunkSize += chunk.content.length;
 
         // Accumulate response
         fullResponse += chunk.content;
@@ -226,19 +257,39 @@ export class AIService {
         }
       }
 
-      // eslint-disable-next-line no-console
-      console.log('[AIService] Stream complete:', {
-        totalLength: fullResponse.length,
-      });
+      const duration = Date.now() - startTime;
+      const averageChunkSize = chunkCount > 0 ? totalChunkSize / chunkCount : 0;
+
+      // Warn if streaming took too long
+      if (duration > 5000) {
+        logger.warn('[AIService] Slow streaming response detected', {
+          duration,
+          threshold: 5000,
+          totalLength: fullResponse.length,
+          chunkCount,
+          averageChunkSize: Math.round(averageChunkSize),
+        });
+      } else {
+        logger.debug('[AIService] Stream complete', {
+          duration,
+          totalLength: fullResponse.length,
+          chunkCount,
+          averageChunkSize: Math.round(averageChunkSize),
+        });
+      }
 
       callbacks.onComplete(fullResponse);
     } catch (error) {
+      const duration = Date.now() - startTime;
       if (error instanceof Error && error.name === 'AbortError') {
         // Request was cancelled, not an error
-        // eslint-disable-next-line no-console
-        console.log('[AIService] Stream cancelled');
+        logger.debug('[AIService] Stream cancelled', { duration });
         return;
       }
+      logger.error('[AIService] Stream error', {
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+      });
       callbacks.onError(new Error(this.formatError(error)));
     } finally {
       this.currentAbortController = null;
@@ -272,10 +323,12 @@ export class AIService {
     if (this.client) {
       try {
         await this.client.destroy();
-        // eslint-disable-next-line no-console
-        console.log('[AIService] Successfully shut down AIChatSDK');
+        logger.info('[AIService] Successfully shut down AIChatSDK');
       } catch (error) {
-        console.error('[AIService] Error during shutdown:', error);
+        logger.error('[AIService] Error during shutdown', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
       }
       this.client = null;
     }

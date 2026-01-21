@@ -33,6 +33,7 @@ import type {
   ToolValidationError,
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
+import { logger } from '@main/logger';
 
 /**
  * Grep search mode
@@ -444,12 +445,15 @@ export class GrepTool implements ToolExecutor {
       const duration = Date.now() - startTime;
 
       // SOC logging
-      // eslint-disable-next-line no-console
-      console.log(
-        `[GrepTool] Pattern: "${params.pattern}", Mode: ${mode}, ` +
-          `CWD: "${params.cwd || '(root)'}", Files: ${filesSearched}, ` +
-          `Matches: ${matches.length}, Truncated: ${truncated}, Duration: ${duration}ms`
-      );
+      logger.debug('[GrepTool] Search completed', {
+        pattern: params.pattern,
+        mode,
+        cwd: params.cwd || '(root)',
+        filesSearched,
+        matches: matches.length,
+        truncated,
+        duration,
+      });
 
       return {
         success: true,
@@ -461,9 +465,12 @@ export class GrepTool implements ToolExecutor {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
       // SOC logging for errors
-      console.error(
-        `[GrepTool] Error: ${errorMessage}, Pattern: "${String(parameters.pattern)}", Duration: ${duration}ms`
-      );
+      logger.error('[GrepTool] Search failed', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        pattern: String(parameters.pattern),
+        duration,
+      });
 
       return {
         success: false,

@@ -25,6 +25,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as path from 'node:path';
+import { setTimeout, clearTimeout } from 'node:timers';
 import type {
   ToolDefinition,
   ToolExecutor,
@@ -33,6 +34,7 @@ import type {
   ToolValidationError,
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
+import { logger } from '@main/logger';
 
 /**
  * Bash tool parameters
@@ -475,11 +477,11 @@ export class BashTool implements ToolExecutor {
           .join(', ');
 
         // SOC logging for blocked/invalid commands
-        console.error(
-          `[BashTool] Validation failed - ${errorMessages} | ` +
-            `Command: "${this.sanitizeCommand(String(parameters.command))}" | ` +
-            `Context: ${context.conversationId || 'no-conversation'}`
-        );
+        logger.error('[BashTool] Validation failed', {
+          errors: errorMessages,
+          command: this.sanitizeCommand(String(parameters.command)),
+          conversationId: context.conversationId || 'no-conversation',
+        });
 
         return {
           success: false,
@@ -511,15 +513,14 @@ export class BashTool implements ToolExecutor {
       const duration = Date.now() - startTime;
 
       // SOC logging for successful execution
-      // eslint-disable-next-line no-console
-      console.log(
-        `[BashTool] Executed - Command: "${this.sanitizeCommand(params.command)}" | ` +
-          `Exit code: ${result.exitCode} | ` +
-          `Timed out: ${result.timedOut} | ` +
-          `Duration: ${result.duration}ms | ` +
-          `CWD: "${params.cwd || '(root)'}" | ` +
-          `Context: ${context.conversationId || 'no-conversation'}`
-      );
+      logger.debug('[BashTool] Command executed', {
+        command: this.sanitizeCommand(params.command),
+        exitCode: result.exitCode,
+        timedOut: result.timedOut,
+        duration: result.duration,
+        cwd: params.cwd || '(root)',
+        conversationId: context.conversationId || 'no-conversation',
+      });
 
       return {
         success: true,
@@ -531,12 +532,13 @@ export class BashTool implements ToolExecutor {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
       // SOC logging for errors
-      console.error(
-        `[BashTool] Error - ${errorMessage} | ` +
-          `Command: "${this.sanitizeCommand(String(parameters.command))}" | ` +
-          `Duration: ${duration}ms | ` +
-          `Context: ${context.conversationId || 'no-conversation'}`
-      );
+      logger.error('[BashTool] Execution error', {
+        error: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        command: this.sanitizeCommand(String(parameters.command)),
+        duration,
+        conversationId: context.conversationId || 'no-conversation',
+      });
 
       return {
         success: false,
@@ -606,25 +608,24 @@ export class BashTool implements ToolExecutor {
       });
 
       // Set up timeout handler
-      // eslint-disable-next-line no-undef
       const timeoutHandle = setTimeout(() => {
         if (!processKilled) {
           timedOut = true;
 
-          console.warn(
-            `[BashTool] Command timeout (${timeoutMs}ms) - sending SIGTERM: "${this.sanitizeCommand(command)}"`
-          );
+          logger.warn('[BashTool] Command timeout - sending SIGTERM', {
+            timeout: timeoutMs,
+            command: this.sanitizeCommand(command),
+          });
 
           // Try graceful shutdown with SIGTERM
           childProcess.kill('SIGTERM');
 
           // Force kill with SIGKILL after delay
-          // eslint-disable-next-line no-undef
           setTimeout(() => {
             if (!processKilled) {
-              console.warn(
-                `[BashTool] SIGTERM failed - sending SIGKILL: "${this.sanitizeCommand(command)}"`
-              );
+              logger.warn('[BashTool] SIGTERM failed - sending SIGKILL', {
+                command: this.sanitizeCommand(command),
+              });
               childProcess.kill('SIGKILL');
             }
           }, BashTool.KILL_SIGNAL_DELAY_MS);
@@ -634,7 +635,6 @@ export class BashTool implements ToolExecutor {
       // Handle process exit
       childProcess.on('close', (code, signal) => {
         processKilled = true;
-        // eslint-disable-next-line no-undef
         clearTimeout(timeoutHandle);
 
         const duration = Date.now() - startTime;
@@ -653,7 +653,6 @@ export class BashTool implements ToolExecutor {
       // Handle spawn errors
       childProcess.on('error', (error) => {
         processKilled = true;
-        // eslint-disable-next-line no-undef
         clearTimeout(timeoutHandle);
 
         const duration = Date.now() - startTime;

@@ -31,11 +31,31 @@ export interface SOCConfig {
 }
 
 /**
+ * Logging configuration
+ */
+export interface LoggingConfig {
+  level: 'debug' | 'info' | 'warn' | 'error';
+  enableFileLogging: boolean;
+  enableConsoleLogging: boolean;
+}
+
+/**
+ * Log configuration details for runtime display
+ */
+export interface LogConfig {
+  level: 'debug' | 'info' | 'warn' | 'error';
+  filePath: string;
+  fileSize: number;
+  availableDiskSpace: number;
+}
+
+/**
  * Application settings structure
  */
 export interface AppSettings {
   ai: AIConfig;
   soc: SOCConfig;
+  logging: LoggingConfig;
 }
 
 /**
