@@ -1,4 +1,6 @@
 import type { AIStatus } from '@shared/types';
+import { AIChatSDK } from '@ai-chat-sdk/core/typescript/dist';
+import type { AIChatConfig, ChatMessage, ChatResponse } from '@ai-chat-sdk/core/typescript/dist';
 
 /**
  * AIService Configuration
@@ -51,8 +53,7 @@ export interface StreamCallbacks {
  * const response = await service.sendMessage('Hello, Claude!');
  */
 export class AIService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private client: any = null; // Will be AIChatClient from AIChatSDK
+  private client: AIChatSDK | null = null;
   private currentAbortController: AbortController | null = null;
   private status: AIStatus = {
     initialized: false,
@@ -67,13 +68,8 @@ export class AIService {
    * @param config - Service configuration including API key
    * @throws Error if initialization fails
    */
-  initialize(config: AIServiceConfig): void {
+  async initialize(config: AIServiceConfig): Promise<void> {
     try {
-      // NOTE: AIChatSDK import will be configured in tsconfig/vite
-      // For now, this is a placeholder that will be replaced with actual SDK
-      // const { AIChatClient, ClaudeProvider } = await import('AIChatSDK');
-
-      // Temporary implementation until AIChatSDK is integrated
       // eslint-disable-next-line no-console
       console.log('[AIService] Initialize called with config:', {
         model: config.model || 'claude-3-sonnet-20240229',
@@ -81,24 +77,28 @@ export class AIService {
         hasApiKey: !!config.apiKey,
       });
 
-      // TODO: Replace with actual AIChatSDK initialization
-      // const provider = new ClaudeProvider({
-      //   apiKey: config.apiKey,
-      //   model: config.model || 'claude-3-sonnet-20240229',
-      // });
+      // Build SDK configuration
+      const sdkConfig: AIChatConfig = {
+        provider: 'anthropic',
+        providerConfig: {
+          apiKey: config.apiKey,
+          model: config.model || 'claude-3-sonnet-20240229',
+          maxTokens: 4096,
+        },
+      };
 
-      // const socConfig = {
-      //   enabled: true,
-      //   endpoint: config.socEndpoint || process.env.LIGHTHOUSE_SOC_ENDPOINT,
-      // };
+      // Add SOC configuration if endpoint provided
+      if (config.socEndpoint) {
+        sdkConfig.socConfig = {
+          apiUrl: config.socEndpoint,
+          apiKey: config.apiKey, // Using same API key for SOC (can be configured differently)
+          projectId: 'lighthouse-beacon',
+        };
+      }
 
-      // this.client = new AIChatClient({
-      //   provider,
-      //   soc: socConfig,
-      // });
-
-      // Validate connection with minimal request
-      // await this.client.validateConnection();
+      // Create and initialize SDK client
+      this.client = new AIChatSDK(sdkConfig);
+      await this.client.initialize();
 
       this.status = {
         initialized: true,
@@ -106,6 +106,9 @@ export class AIService {
         model: config.model || 'claude-3-sonnet-20240229',
         error: null,
       };
+
+      // eslint-disable-next-line no-console
+      console.log('[AIService] Successfully initialized AIChatSDK');
     } catch (error) {
       this.status = {
         initialized: false,
@@ -125,24 +128,39 @@ export class AIService {
    * @returns AI response as string
    * @throws Error if service not initialized or request fails
    */
-  sendMessage(message: string, options?: SendMessageOptions): string {
-    if (!this.client) {
+  async sendMessage(message: string, options?: SendMessageOptions): Promise<string> {
+    if (!this.status.initialized || !this.client) {
       throw new Error('AI service not initialized. Please configure your API key.');
     }
 
     try {
-      // TODO: Replace with actual AIChatSDK call
-      // const response = await this.client.chat({
-      //   message,
-      //   conversationId: options?.conversationId,
-      //   systemPrompt: options?.systemPrompt,
-      // });
-      // return response.content;
+      // Build message history
+      const messages: ChatMessage[] = [];
 
-      // Temporary mock response
+      // Add system prompt if provided
+      if (options?.systemPrompt) {
+        messages.push({
+          role: 'system',
+          content: options.systemPrompt,
+        });
+      }
+
+      // Add user message
+      messages.push({
+        role: 'user',
+        content: message,
+      });
+
+      // Send to SDK
+      const response: ChatResponse = await this.client.chat(messages);
+
       // eslint-disable-next-line no-console
-      console.log('[AIService] sendMessage called:', { message, options });
-      return `Mock response to: ${message}`;
+      console.log('[AIService] Received response from AIChatSDK:', {
+        contentLength: response.content.length,
+        usage: response.usage,
+      });
+
+      return response.content;
     } catch (error) {
       throw new Error(this.formatError(error));
     }
@@ -155,48 +173,70 @@ export class AIService {
    * @param callbacks - Callbacks for token, complete, and error events
    * @param options - Optional conversation ID and system prompt
    */
-  streamMessage(message: string, callbacks: StreamCallbacks, options?: SendMessageOptions): void {
-    if (!this.client) {
+  async streamMessage(
+    message: string,
+    callbacks: StreamCallbacks,
+    options?: SendMessageOptions
+  ): Promise<void> {
+    if (!this.status.initialized || !this.client) {
       throw new Error('AI service not initialized. Please configure your API key.');
     }
 
     this.currentAbortController = new AbortController();
 
     try {
-      // TODO: Replace with actual AIChatSDK streaming
-      // const stream = this.client.streamChat({
-      //   message,
-      //   conversationId: options?.conversationId,
-      //   systemPrompt: options?.systemPrompt,
-      //   signal: this.currentAbortController.signal,
-      // });
+      // Build message history
+      const messages: ChatMessage[] = [];
 
-      // let fullResponse = '';
-      // for await (const chunk of stream) {
-      //   fullResponse += chunk;
-      //   callbacks.onToken(chunk);
-      // }
-      // callbacks.onComplete(fullResponse);
-
-      // Temporary mock streaming
-      // eslint-disable-next-line no-console
-      console.log('[AIService] streamMessage called:', { message, options });
-      const mockResponse = `Mock streaming response to: ${message}`;
-      const tokens = mockResponse.split(' ');
-
-      for (const token of tokens) {
-        if (this.currentAbortController.signal.aborted) {
-          return;
-        }
-        callbacks.onToken(token + ' ');
-        // Simulate streaming delay (disabled for testing)
-        // await new Promise((resolve) => setTimeout(resolve, 50));
+      // Add system prompt if provided
+      if (options?.systemPrompt) {
+        messages.push({
+          role: 'system',
+          content: options.systemPrompt,
+        });
       }
 
-      callbacks.onComplete(mockResponse);
+      // Add user message
+      messages.push({
+        role: 'user',
+        content: message,
+      });
+
+      // Stream from SDK
+      let fullResponse = '';
+      const stream = this.client.streamChat(messages);
+
+      for await (const chunk of stream) {
+        // Check for abort
+        if (this.currentAbortController.signal.aborted) {
+          // eslint-disable-next-line no-console
+          console.log('[AIService] Stream aborted by user');
+          return;
+        }
+
+        // Accumulate response
+        fullResponse += chunk.content;
+
+        // Send token to callback
+        callbacks.onToken(chunk.content);
+
+        // If this is the final chunk, we're done
+        if (chunk.done || chunk.isComplete) {
+          break;
+        }
+      }
+
+      // eslint-disable-next-line no-console
+      console.log('[AIService] Stream complete:', {
+        totalLength: fullResponse.length,
+      });
+
+      callbacks.onComplete(fullResponse);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         // Request was cancelled, not an error
+        // eslint-disable-next-line no-console
+        console.log('[AIService] Stream cancelled');
         return;
       }
       callbacks.onError(new Error(this.formatError(error)));
@@ -227,11 +267,16 @@ export class AIService {
   /**
    * Shutdown AI service and cleanup resources
    */
-  shutdown(): void {
+  async shutdown(): Promise<void> {
     this.cancelCurrentRequest();
     if (this.client) {
-      // TODO: Call actual disconnect when AIChatSDK is integrated
-      // await this.client.disconnect();
+      try {
+        await this.client.destroy();
+        // eslint-disable-next-line no-console
+        console.log('[AIService] Successfully shut down AIChatSDK');
+      } catch (error) {
+        console.error('[AIService] Error during shutdown:', error);
+      }
       this.client = null;
     }
     this.status = {

@@ -79,7 +79,8 @@ app.on('before-quit', () => {
   // Unregister IPC handlers
   unregisterFileSystemHandlers();
   unregisterConversationHandlers();
-  unregisterAIHandlers();
+  // Fire-and-forget async cleanup (app is quitting anyway)
+  void unregisterAIHandlers();
   unregisterToolHandlers();
 
   if (windowManager) {

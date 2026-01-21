@@ -73,7 +73,7 @@ export function registerAIHandlers(): void {
 
       const appSettings = await settings.getSettings();
 
-      ai.initialize({
+      await ai.initialize({
         apiKey,
         model: appSettings.ai.model,
         socEndpoint: appSettings.soc.endpoint,
@@ -98,9 +98,9 @@ export function registerAIHandlers(): void {
    */
   ipcMain.handle(
     IPC_CHANNELS.AI_SEND_MESSAGE,
-    (_event, message: string, options?: StreamOptions): Result<string> => {
+    async (_event, message: string, options?: StreamOptions): Promise<Result<string>> => {
       try {
-        const response = ai.sendMessage(message, options);
+        const response = await ai.sendMessage(message, options);
         return { success: true, data: response };
       } catch (error) {
         return {
@@ -117,14 +117,14 @@ export function registerAIHandlers(): void {
    */
   ipcMain.handle(
     IPC_CHANNELS.AI_STREAM_MESSAGE,
-    (_event, message: string, options?: StreamOptions): Result<void> => {
+    async (_event, message: string, options?: StreamOptions): Promise<Result<void>> => {
       const mainWindow = getMainWindow();
       if (!mainWindow) {
         return { success: false, error: new Error('No window available') };
       }
 
       try {
-        ai.streamMessage(
+        await ai.streamMessage(
           message,
           {
             onToken: (token) => {
@@ -200,7 +200,7 @@ export function registerAIHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.SETTINGS_REMOVE_API_KEY, async (): Promise<Result<void>> => {
     try {
       await settings.removeApiKey();
-      ai.shutdown();
+      await ai.shutdown();
       return { success: true, data: undefined };
     } catch (error) {
       return {
@@ -251,7 +251,7 @@ export function registerAIHandlers(): void {
  * Unregister all AI and settings IPC handlers
  * Call this during app cleanup
  */
-export function unregisterAIHandlers(): void {
+export async function unregisterAIHandlers(): Promise<void> {
   ipcMain.removeHandler(IPC_CHANNELS.AI_INITIALIZE);
   ipcMain.removeHandler(IPC_CHANNELS.AI_SEND_MESSAGE);
   ipcMain.removeHandler(IPC_CHANNELS.AI_STREAM_MESSAGE);
@@ -265,7 +265,7 @@ export function unregisterAIHandlers(): void {
 
   // Cleanup service instances
   if (aiService) {
-    aiService.shutdown();
+    await aiService.shutdown();
     aiService = null;
   }
   settingsService = null;

@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@renderer/stores/chat.store';
 import ChatMessage from './ChatMessage';
 import MessageInput from './MessageInput';
-import { MessageSquare, Trash2, ArrowDown, Plus } from 'lucide-react';
+import { MessageSquare, Trash2, ArrowDown, Plus, Settings } from 'lucide-react';
 import { useSmartScroll } from '@renderer/hooks/useSmartScroll';
+import SettingsModal from '../modals/SettingsModal';
 
 /**
  * ChatInterface Component
@@ -23,6 +24,7 @@ import { useSmartScroll } from '@renderer/hooks/useSmartScroll';
  */
 const ChatInterface: React.FC = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const { messages, initializeAI, clearMessages, newConversation, isInitializing, isInitialized } =
     useChatStore();
@@ -76,6 +78,15 @@ const ChatInterface: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-1">
+          {/* Settings Button */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-1 hover:bg-vscode-bg-secondary rounded transition-colors"
+            title="Settings"
+          >
+            <Settings className="w-4 h-4 text-vscode-text-muted hover:text-vscode-text" />
+          </button>
+
           {/* New Conversation Button (Wave 2.2.4) */}
           <button
             onClick={handleNewConversation}
@@ -135,6 +146,9 @@ const ChatInterface: React.FC = () => {
 
       {/* Message Input */}
       <MessageInput />
+
+      {/* Settings Modal */}
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };
