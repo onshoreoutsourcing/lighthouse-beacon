@@ -111,6 +111,7 @@ declare global {
         }) => Promise<Result<WorkflowExecutionResult>>;
         validate: (workflow: Workflow) => Promise<ValidationResult>;
         list: () => Promise<Result<{ workflows: WorkflowMetadata[] }>>;
+        delete: (filePath: string) => Promise<boolean>;
         execution: {
           subscribe: (workflowId?: string) => Promise<Result<{ subscribed: boolean }>>;
           unsubscribe: () => Promise<Result<{ unsubscribed: boolean }>>;

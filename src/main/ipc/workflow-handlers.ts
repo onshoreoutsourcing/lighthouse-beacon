@@ -397,6 +397,47 @@ export function registerWorkflowHandlers(): void {
     }
   });
 
+  /**
+   * Delete workflow file
+   */
+  ipcMain.handle('workflow:delete', async (_event, filePath: string) => {
+    log.debug('[WorkflowHandlers] workflow:delete', { filePath });
+
+    try {
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        log.error('[WorkflowHandlers] Invalid file path for deletion', {
+          filePath,
+        });
+        return false;
+      }
+
+      // Delete workflow
+      const success = await service.deleteWorkflow(filePath);
+
+      if (success) {
+        log.info('[WorkflowHandlers] Workflow deleted successfully', {
+          filePath,
+        });
+      } else {
+        log.warn('[WorkflowHandlers] Failed to delete workflow', {
+          filePath,
+        });
+      }
+
+      return success;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      log.error('[WorkflowHandlers] workflow:delete error', {
+        filePath,
+        error: errorMessage,
+      });
+
+      return false;
+    }
+  });
+
   log.info('[WorkflowHandlers] Workflow IPC handlers registered');
 }
 
@@ -411,6 +452,7 @@ export function unregisterWorkflowHandlers(): void {
   ipcMain.removeHandler('workflow:execute');
   ipcMain.removeHandler('workflow:validate');
   ipcMain.removeHandler('workflow:list');
+  ipcMain.removeHandler('workflow:delete');
 
   log.info('[WorkflowHandlers] Workflow IPC handlers unregistered');
 }

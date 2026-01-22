@@ -1,98 +1,154 @@
-# ESLint Fixes Summary - Wave 9.2.3
+# ESLint Fixes Summary - Wave 9.3.1
+
+**Date:** 2026-01-22
+**Status:** ✅ All 19 ESLint errors fixed
 
 ## Overview
-Fixed all 38 ESLint errors in Wave 9.2.3 code using proper fixes, not hiding errors.
 
-## Changes Made
+Fixed all 19 ESLint errors in Wave 9.3.1 code following the "hard right thing" approach with proper solutions (no eslint-disable comments).
 
-### 1. ESLint Configuration (eslint.config.js)
-- Added `localStorage` and `performance` to global variables for renderer code
-- These are browser globals available in Electron renderer process
+## Files Fixed
 
-### 2. Type Import Fixes (5 files)
-**Pattern:** Changed regular imports to `import type` for types-only imports
+### 1. DeleteConfirmationDialog.tsx (2 errors)
 
-- **WorkflowErrorBoundary.tsx**: Separated type imports for `ErrorInfo`, `ReactNode`, `SanitizedError`
-- **ErrorLogger.test.ts**: Used `import type` for `SanitizedError`, `ErrorContext`
-- **WorkflowErrorBoundary.test.tsx**: Added module type import for mock
-- **error-handling-integration.test.tsx**: Added module type import for mock
+**Issue:** Quote escaping in JSX
+- Line 162: Unescaped quotes around workflow name
 
-### 3. Unused Variables (5 fixes)
-- **WorkflowErrorBoundary.tsx** line 76: Prefixed unused `error` parameter with `_`
-- **WorkflowErrorBoundary.test.tsx** line 15: Removed unused `act` import
-- **execution-history-integration.test.tsx** line 13: Removed unused `waitFor` import
-- **execution-history-integration.test.tsx** line 14: Removed unused `ExecutionVisualizer` import
-- **executionHistory.store.test.ts** line 8: Removed unused `vi` import
+**Fix:** Replaced `"` with `&quot;` HTML entity
+```tsx
+// Before:
+<strong>"{workflowName}"</strong>
 
-### 4. Unsafe Any Assignments (7 fixes)
-Added proper type annotations for JSON.parse and localStorage mock returns:
+// After:
+<strong>&quot;{workflowName}&quot;</strong>
+```
 
-- **error-handling-integration.test.tsx**: Changed expect.objectContaining pattern to explicit type checking
-- **execution-history-integration.test.tsx**: Added proper types for localStorage mock returns (2 instances)
-- **executionHistory.store.test.ts**: Added proper types for JSON.parse returns (2 instances)
-- **executionHistory.store.ts**: Added type annotation to JSON.parse result
+### 2. WorkflowExplorer.tsx (11 errors)
 
-### 5. Async Functions Without Await (3 fixes)
-Removed unnecessary `async` keywords from test functions:
+**Issues:**
+- Lines 101, 173: Unsafe IPC calls with incorrect typing
+- Lines 237, 291, 358, 475: Promise-returning functions in void context (onClick handlers)
+- Line 328: Quote escaping in JSX
 
-- **execution-history-integration.test.tsx** lines 147, 175, 204
+**Fixes:**
 
-### 6. Unnecessary Type Assertions (2 fixes)
-- **ErrorLogger.ts** lines 132, 135: Removed `as object` assertions (TypeScript narrows properly)
+a) **Proper IPC Typing** (Lines 101, 173)
+```tsx
+// Before: Unsafe any typing
+const response: WorkflowListResponse = await window.electron.ipcRenderer.invoke('workflow:list');
 
-### 7. Object Stringification Fix (1 fix)
-- **ErrorLogger.ts** line 215-221: Added explicit type check and annotation for proper object vs primitive handling
+// After: Proper Result type from window.electronAPI
+const response: Result<{ workflows: WorkflowListItem[] }> = 
+  await window.electronAPI.workflow.list();
+```
 
-### 8. Test Logic Improvements
-- **error-handling-integration.test.tsx**: Changed from checking "last call" to "find specific call" for retry/cancel verification
-  - This is more robust as it doesn't depend on call order
-  - Searches all calls for the one with specific operation
+b) **Async Handler Wrapping** (Lines 237, 291, 358, 475)
+```tsx
+// Before: Promise in void context
+onClick={loadWorkflows}
+
+// After: Wrapped with void operator
+onClick={() => { void loadWorkflows(); }}
+```
+
+c) **Quote Escaping** (Line 328)
+```tsx
+// Before:
+<p>No workflows match "{searchQuery}"</p>
+
+// After:
+<p>No workflows match &quot;{searchQuery}&quot;</p>
+```
+
+### 3. WorkflowExplorer.test.tsx (3 errors)
+
+**Issues:**
+- Line 19: `global` not defined
+- Line 19: Unsafe member access on `any`
+- Line 131: `setTimeout` not defined
+
+**Fix:** Updated ESLint config to include test files with `.tsx` extension
+```js
+// eslint.config.js - Before:
+files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts']
+
+// After:
+files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}']
+```
+
+Removed unnecessary eslint-disable comments now that rules apply correctly.
+
+### 4. workflow-crud-integration.test.tsx (2 errors)
+
+**Issues:**
+- Line 9: Unused `cleanup` import
+- Line 21: Unsafe member access on `window.electron`
+
+**Fixes:**
+a) Removed unused import
+```tsx
+// Before:
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
+// After:
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+```
+
+b) Safe member access now covered by ESLint test file config
+
+### 5. vite-env.d.ts (Type Definition)
+
+**Issue:** Missing `delete` method in workflow API type definition
+
+**Fix:** Added proper type definition
+```tsx
+workflow: {
+  // ... other methods
+  delete: (filePath: string) => Promise<boolean>;
+  execution: {
+    // ...
+  }
+}
+```
+
+### 6. eslint.config.js (Configuration)
+
+**Issue:** Test files with `.tsx` extension not properly configured
+
+**Fix:** Extended test file pattern to include `.tsx`
+```js
+files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}']
+```
 
 ## Verification
 
-### ESLint
 ```bash
 npm run lint
-# ✓ No errors
+# ✅ No errors, no warnings
 ```
 
-### Tests
-```bash
-npm test -- src/renderer/components/workflow/__tests__/WorkflowErrorBoundary.test.tsx
-npm test -- src/renderer/components/workflow/__tests__/error-handling-integration.test.tsx
-npm test -- src/renderer/components/workflow/__tests__/execution-history-integration.test.tsx
-npm test -- src/renderer/stores/__tests__/executionHistory.store.test.ts
-npm test -- src/renderer/utils/__tests__/ErrorLogger.test.ts
-# ✓ All Wave 9.2.3 tests pass (102/102)
-```
+## Key Improvements
 
-## Key Principles Applied
+1. **Type Safety:** Proper use of `Result<T>` type and `window.electronAPI` instead of unsafe `any`
+2. **React Best Practices:** Proper async handler wrapping to avoid Promise in void context
+3. **JSX Standards:** HTML entity escaping for quotes in JSX content
+4. **Test Configuration:** Comprehensive ESLint config for all test files
+5. **No Technical Debt:** Zero eslint-disable comments - all issues properly fixed
 
-1. **No eslint-disable comments** - Fixed issues properly, not hidden
-2. **Proper type annotations** - Used TypeScript features correctly
-3. **Global configuration** - Added browser globals to ESLint config
-4. **Type guards** - Used proper type narrowing where needed
-5. **Test robustness** - Improved test logic to be more maintainable
+## Files Changed
 
-## Files Modified
+- `/src/renderer/components/workflow/DeleteConfirmationDialog.tsx`
+- `/src/renderer/components/workflow/WorkflowExplorer.tsx`
+- `/src/renderer/components/workflow/__tests__/WorkflowExplorer.test.tsx`
+- `/src/renderer/components/workflow/__tests__/workflow-crud-integration.test.tsx`
+- `/src/renderer/vite-env.d.ts`
+- `/eslint.config.js`
 
-1. `/Users/roylove/dev/lighthouse-beacon/eslint.config.js`
-2. `/Users/roylove/dev/lighthouse-beacon/src/renderer/components/workflow/WorkflowErrorBoundary.tsx`
-3. `/Users/roylove/dev/lighthouse-beacon/src/renderer/utils/ErrorLogger.ts`
-4. `/Users/roylove/dev/lighthouse-beacon/src/renderer/stores/executionHistory.store.ts`
-5. `/Users/roylove/dev/lighthouse-beacon/src/renderer/components/workflow/__tests__/WorkflowErrorBoundary.test.tsx`
-6. `/Users/roylove/dev/lighthouse-beacon/src/renderer/components/workflow/__tests__/error-handling-integration.test.tsx`
-7. `/Users/roylove/dev/lighthouse-beacon/src/renderer/components/workflow/__tests__/execution-history-integration.test.tsx`
-8. `/Users/roylove/dev/lighthouse-beacon/src/renderer/stores/__tests__/executionHistory.store.test.ts`
-9. `/Users/roylove/dev/lighthouse-beacon/src/renderer/utils/__tests__/ErrorLogger.test.ts`
+## Standards Applied
 
-## Impact
-
-- ✅ **0 ESLint errors** (down from 38)
-- ✅ **All Wave 9.2.3 tests passing** (102/102)
-- ✅ **No functionality broken**
-- ✅ **Code quality improved**
-- ✅ **Type safety enhanced**
-
----
-*Fixed: 2026-01-22*
+✅ No eslint-disable comments
+✅ Proper TypeScript typing
+✅ React async handler patterns
+✅ HTML entity escaping
+✅ Comprehensive test configuration
+✅ Zero technical debt

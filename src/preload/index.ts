@@ -462,6 +462,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     /**
+     * Delete workflow file
+     * @param filePath - Workflow file path or name
+     * @returns Whether deletion was successful
+     */
+    delete: (filePath: string): Promise<boolean> => {
+      return ipcRenderer.invoke('workflow:delete', filePath);
+    },
+
+    /**
      * Workflow Execution Events (Feature 9.2 - Wave 9.2.2)
      */
     execution: {
