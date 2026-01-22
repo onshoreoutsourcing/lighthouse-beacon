@@ -309,8 +309,8 @@ export interface ValidationResult {
 export interface VariableReference {
   /** Original variable reference string (e.g., "${workflow.inputs.repo_path}") */
   raw: string;
-  /** Variable scope (workflow, steps, loop) */
-  scope: 'workflow' | 'steps' | 'loop';
+  /** Variable scope (workflow, steps, loop, env) */
+  scope: 'workflow' | 'steps' | 'loop' | 'env';
   /** Path components (e.g., ["inputs", "repo_path"]) */
   path: string[];
   /** For steps scope: the step ID being referenced */

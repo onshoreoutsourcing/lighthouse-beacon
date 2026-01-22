@@ -66,7 +66,7 @@ export class VariableResolver {
           continue;
         }
 
-        const scope = parts[0] as 'workflow' | 'steps' | 'loop';
+        const scope = parts[0] as 'workflow' | 'steps' | 'loop' | 'env';
         const pathParts = parts.slice(1);
 
         // Extract step ID for steps scope
@@ -249,6 +249,8 @@ export class VariableResolver {
         return this.resolveStepVariable(ref, context);
       case 'loop':
         return this.resolveLoopVariable(ref, context);
+      case 'env':
+        return this.resolveEnvVariable(ref);
       default:
         return {
           success: false,
@@ -259,7 +261,7 @@ export class VariableResolver {
               line: ref.line,
               message: `Invalid variable scope: ${String(ref.scope)}`,
               severity: 'error',
-              suggestion: 'Use workflow, steps, or loop scope',
+              suggestion: 'Use workflow, steps, loop, or env scope',
             },
           ],
         };
@@ -475,6 +477,65 @@ export class VariableResolver {
   }
 
   /**
+   * Resolve environment variable (${env.VAR_NAME})
+   */
+  private resolveEnvVariable(ref: VariableReference): VariableResolutionResult {
+    // Expected format: env.VAR_NAME
+    if (ref.path.length !== 1) {
+      return {
+        success: false,
+        value: ref.raw,
+        errors: [
+          {
+            field: ref.field,
+            line: ref.line,
+            message: `Invalid environment variable reference: ${ref.raw}`,
+            severity: 'error',
+            suggestion: 'Use format: ${env.VAR_NAME}',
+          },
+        ],
+      };
+    }
+
+    const envVarName = ref.path[0];
+    if (!envVarName) {
+      return {
+        success: false,
+        value: ref.raw,
+        errors: [
+          {
+            field: ref.field,
+            line: ref.line,
+            message: `Invalid environment variable reference: ${ref.raw}`,
+            severity: 'error',
+            suggestion: 'Use format: ${env.VAR_NAME}',
+          },
+        ],
+      };
+    }
+
+    const value = process.env[envVarName];
+
+    if (value === undefined) {
+      return {
+        success: false,
+        value: ref.raw,
+        errors: [
+          {
+            field: ref.field,
+            line: ref.line,
+            message: `Undefined environment variable: ${envVarName}`,
+            severity: 'error',
+            suggestion: `Set environment variable "${envVarName}" before running workflow`,
+          },
+        ],
+      };
+    }
+
+    return { success: true, value };
+  }
+
+  /**
    * Format resolved value for string interpolation
    */
   private formatResolvedValue(value: unknown): string {
@@ -566,6 +627,31 @@ export class VariableResolver {
               message: `Reference to unknown step: ${ref.stepId}`,
               severity: 'error',
               suggestion: `Ensure step "${ref.stepId}" exists`,
+            });
+          }
+        }
+
+        // Validate environment variable references
+        if (ref.scope === 'env') {
+          if (ref.path.length !== 1 || !ref.path[0]) {
+            errors.push({
+              field: ref.field,
+              line: ref.line,
+              message: `Invalid environment variable: ${ref.raw}`,
+              severity: 'error',
+              suggestion: 'Use format: ${env.VAR_NAME}',
+            });
+            continue;
+          }
+
+          const envVarName = ref.path[0];
+          if (process.env[envVarName] === undefined) {
+            errors.push({
+              field: ref.field,
+              line: ref.line,
+              message: `Undefined environment variable: ${envVarName}`,
+              severity: 'warning', // Warning instead of error (env vars may be set at runtime)
+              suggestion: `Set environment variable "${envVarName}" before running workflow`,
             });
           }
         }

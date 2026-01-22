@@ -281,6 +281,95 @@ describe('VariableResolver', () => {
     });
   });
 
+  describe('resolve() - environment variables', () => {
+    it('should resolve environment variable', () => {
+      // Set test environment variable
+      process.env.TEST_VAR = 'test_value';
+
+      const context: VariableResolutionContext = {
+        workflowInputs: {},
+        stepOutputs: {},
+      };
+
+      const result = resolver.resolve('${env.TEST_VAR}', context, 'test.field');
+
+      expect(result.success).toBe(true);
+      expect(result.value).toBe('test_value');
+
+      // Clean up
+      delete process.env.TEST_VAR;
+    });
+
+    it('should resolve multiple environment variables in string', () => {
+      process.env.API_KEY = 'sk_test_123';
+      process.env.API_ENDPOINT = 'https://api.example.com';
+
+      const context: VariableResolutionContext = {
+        workflowInputs: {},
+        stepOutputs: {},
+      };
+
+      const result = resolver.resolve(
+        'URL: ${env.API_ENDPOINT}, Key: ${env.API_KEY}',
+        context,
+        'test.field'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.value).toBe('URL: https://api.example.com, Key: sk_test_123');
+
+      delete process.env.API_KEY;
+      delete process.env.API_ENDPOINT;
+    });
+
+    it('should error on undefined environment variable', () => {
+      const context: VariableResolutionContext = {
+        workflowInputs: {},
+        stepOutputs: {},
+      };
+
+      const result = resolver.resolve('${env.UNDEFINED_VAR}', context, 'test.field');
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toBeDefined();
+      expect(result.errors?.[0]?.message).toContain('Undefined environment variable');
+    });
+
+    it('should error on invalid environment variable format', () => {
+      const context: VariableResolutionContext = {
+        workflowInputs: {},
+        stepOutputs: {},
+      };
+
+      const result = resolver.resolve('${env.INVALID.PATH}', context, 'test.field');
+
+      expect(result.success).toBe(false);
+      expect(result.errors?.[0]?.message).toContain('Invalid environment variable reference');
+    });
+
+    it('should handle mixed workflow inputs and environment variables', () => {
+      process.env.API_KEY = 'secret_key';
+
+      const context: VariableResolutionContext = {
+        workflowInputs: {
+          url: 'https://api.example.com',
+        },
+        stepOutputs: {},
+      };
+
+      const result = resolver.resolve(
+        'URL: ${workflow.inputs.url}, Key: ${env.API_KEY}',
+        context,
+        'test.field'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.value).toBe('URL: https://api.example.com, Key: secret_key');
+
+      delete process.env.API_KEY;
+    });
+  });
+
   describe('resolve() - complex scenarios', () => {
     it('should resolve object with nested variables', () => {
       const context: VariableResolutionContext = {
@@ -420,6 +509,65 @@ describe('VariableResolver', () => {
 
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0]?.message).toContain('unknown step');
+    });
+
+    it('should validate environment variable references', () => {
+      process.env.TEST_API_KEY = 'test_value';
+
+      const steps = [
+        {
+          id: 'step1',
+          inputs: {
+            api_key: '${env.TEST_API_KEY}',
+          },
+        },
+      ];
+
+      const inputIds = new Set<string>();
+
+      const errors = resolver.validateReferences(steps, inputIds);
+
+      expect(errors).toHaveLength(0);
+
+      delete process.env.TEST_API_KEY;
+    });
+
+    it('should warn on undefined environment variable', () => {
+      const steps = [
+        {
+          id: 'step1',
+          inputs: {
+            api_key: '${env.UNDEFINED_ENV_VAR}',
+          },
+        },
+      ];
+
+      const inputIds = new Set<string>();
+
+      const errors = resolver.validateReferences(steps, inputIds);
+
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]?.message).toContain('Undefined environment variable');
+      expect(errors[0]?.severity).toBe('warning'); // Warning, not error
+    });
+
+    it('should error on invalid environment variable format', () => {
+      const steps = [
+        {
+          id: 'step1',
+          inputs: {
+            api_key: '${env.INVALID.PATH}',
+          },
+        },
+      ];
+
+      const inputIds = new Set<string>();
+
+      const errors = resolver.validateReferences(steps, inputIds);
+
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0]?.message).toContain('Invalid environment variable');
+      expect(errors[0]?.severity).toBe('error');
     });
   });
 });
