@@ -26,13 +26,22 @@ import {
   type NodeChange,
   type EdgeChange,
   type NodeTypes,
+  type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import { useWorkflowStore } from '@renderer/stores/workflow.store';
+import type {
+  WorkflowNodeData,
+  PythonNodeData,
+  ClaudeNodeData,
+} from '@renderer/stores/workflow.store';
 import { PythonScriptNode, ClaudeAPINode, InputNode, OutputNode, ConditionalNode } from './nodes';
 import { DebugToolbar, VariableInspector } from './debug';
 import { useDebugState } from '@renderer/hooks/useDebugState';
+import { NodeContextMenu, createNodeContextMenuOptions } from './NodeContextMenu';
+import { TestNodeDialog } from './TestNodeDialog';
+import type { WorkflowStep, PythonStep, ClaudeStep, StepType } from '@shared/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
@@ -79,6 +88,14 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
   // Variable inspector panel visibility
   const [showVariableInspector, setShowVariableInspector] = useState(false);
 
+  // Context menu state (Wave 9.5.3 User Story 3)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(
+    null
+  );
+
+  // Node testing dialog state (Wave 9.5.3 User Story 3)
+  const [testingNode, setTestingNode] = useState<WorkflowStep | null>(null);
+
   // Check if workflow is currently executing (simplified - would need execution state from store)
   const isExecuting = false; // TODO: Get from execution state when available
 
@@ -119,6 +136,105 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
       addEdge(connection);
     },
     [addEdge]
+  );
+
+  /**
+   * Convert workflow node to WorkflowStep for testing
+   * Wave 9.5.3 User Story 3
+   */
+  const convertNodeToStep = useCallback((node: Node<WorkflowNodeData>): WorkflowStep => {
+    const baseStep = {
+      id: node.id,
+      label: node.data.label,
+      depends_on: [],
+      inputs: {},
+      outputs: [],
+    };
+
+    switch (node.type) {
+      case 'python': {
+        const pythonData = node.data as PythonNodeData;
+        return {
+          ...baseStep,
+          type: 'python' as StepType,
+          script: pythonData.scriptPath || '',
+          args: pythonData.args,
+        } as PythonStep;
+      }
+
+      case 'claude': {
+        const claudeData = node.data as ClaudeNodeData;
+        return {
+          ...baseStep,
+          type: 'claude' as StepType,
+          model: claudeData.model || 'claude-sonnet-4',
+          prompt_template: claudeData.prompt || '',
+          temperature: claudeData.temperature,
+          max_tokens: claudeData.maxTokens,
+        } as ClaudeStep;
+      }
+
+      case 'input':
+        return {
+          ...baseStep,
+          type: 'input' as StepType,
+          prompt: 'Enter input',
+          input_type: 'string',
+        } as WorkflowStep;
+
+      case 'output':
+        return {
+          ...baseStep,
+          type: 'output' as StepType,
+          message: 'Output result',
+          format: 'text',
+        } as WorkflowStep;
+
+      case 'conditional':
+        return {
+          ...baseStep,
+          type: 'conditional' as StepType,
+          condition: '',
+          then_steps: [],
+          else_steps: [],
+        } as WorkflowStep;
+
+      default:
+        return {
+          ...baseStep,
+          type: 'python' as StepType,
+          script: '',
+        } as WorkflowStep;
+    }
+  }, []);
+
+  /**
+   * Handle node context menu (right-click)
+   * Wave 9.5.3 User Story 3
+   */
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node<WorkflowNodeData>) => {
+    event.preventDefault();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      nodeId: node.id,
+    });
+  }, []);
+
+  /**
+   * Handle test node action from context menu
+   * Wave 9.5.3 User Story 3
+   */
+  const handleTestNode = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node) {
+        const step = convertNodeToStep(node);
+        setTestingNode(step);
+      }
+      setContextMenu(null);
+    },
+    [nodes, convertNodeToStep]
   );
 
   /**
@@ -180,6 +296,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
       onNodesChange,
       onEdgesChange,
       onConnect,
+      onNodeContextMenu,
       fitView: true,
       minZoom: 0.1,
       maxZoom: 2,
@@ -190,7 +307,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
       snapToGrid: true,
       snapGrid: [15, 15] as [number, number],
     }),
-    [nodes, edges, onNodesChange, onEdgesChange, onConnect]
+    [nodes, edges, onNodesChange, onEdgesChange, onConnect, onNodeContextMenu]
   );
 
   return (
@@ -251,7 +368,9 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
             <button
               onClick={() => setShowVariableInspector(!showVariableInspector)}
               className="absolute top-4 right-4 p-2 bg-vscode-panel border border-vscode-border rounded hover:bg-vscode-bg transition-colors focus:outline-none focus:ring-2 focus:ring-vscode-accent"
-              aria-label={showVariableInspector ? 'Hide variable inspector' : 'Show variable inspector'}
+              aria-label={
+                showVariableInspector ? 'Hide variable inspector' : 'Show variable inspector'
+              }
               title={showVariableInspector ? 'Hide Variables' : 'Show Variables'}
             >
               {showVariableInspector ? (
@@ -278,6 +397,21 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
           </div>
         )}
       </div>
+
+      {/* Node Context Menu - Wave 9.5.3 User Story 3 */}
+      {contextMenu && (
+        <NodeContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          options={createNodeContextMenuOptions(contextMenu.nodeId, () =>
+            handleTestNode(contextMenu.nodeId)
+          )}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Test Node Dialog - Wave 9.5.3 User Story 3 */}
+      {testingNode && <TestNodeDialog step={testingNode} onClose={() => setTestingNode(null)} />}
     </div>
   );
 };
