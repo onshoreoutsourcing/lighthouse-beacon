@@ -19,6 +19,9 @@ import { useEditorStore } from '@renderer/stores/editor.store';
 import { MonacoEditorContainer } from '@renderer/components/editor/MonacoEditorContainer';
 import { TabBar } from '@renderer/components/editor/TabBar';
 import { FileCode, Loader2 } from 'lucide-react';
+import type { editor } from 'monaco-editor';
+
+type EditorViewState = editor.ICodeEditorViewState | null;
 
 /**
  * CodeEditorPanel Component
@@ -177,7 +180,7 @@ const CodeEditorPanel: React.FC = () => {
           filepath={activeFile.path}
           content={activeFile.content}
           language={activeFile.language}
-          initialViewState={activeFile.viewState}
+          initialViewState={activeFile.viewState as EditorViewState | undefined}
           onChange={handleContentChange}
           onSave={() => {
             void handleSave();

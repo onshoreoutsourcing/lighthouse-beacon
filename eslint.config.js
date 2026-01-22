@@ -87,6 +87,10 @@ export default [
         __filename: 'readonly',
         Buffer: 'readonly',
         require: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
   },
@@ -94,6 +98,15 @@ export default [
   // Test files specific rules
   {
     files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    languageOptions: {
+      globals: {
+        global: 'readonly',
+        setTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        clearTimeout: 'readonly',
+      },
+    },
     rules: {
       // Disable rules that are false positives in test files
       '@typescript-eslint/unbound-method': 'off', // Mocked functions are intentionally unbound

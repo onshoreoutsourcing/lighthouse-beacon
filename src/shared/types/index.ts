@@ -261,3 +261,104 @@ export interface FileOperationEvent {
 export const FILE_OPERATION_CHANNELS = {
   FILE_OPERATION_EVENT: 'file-operation:event',
 } as const;
+
+/**
+ * Workflow Execution Event Types (Feature 9.2 - Wave 9.2.2)
+ */
+
+/**
+ * Workflow execution started event data
+ */
+export interface WorkflowStartedEvent {
+  workflowId: string;
+  startTime: number;
+  totalSteps?: number;
+}
+
+/**
+ * Step execution started event data
+ */
+export interface StepStartedEvent {
+  workflowId: string;
+  stepId: string;
+  timestamp: number;
+  stepIndex?: number;
+}
+
+/**
+ * Step execution completed event data
+ */
+export interface StepCompletedEvent {
+  workflowId: string;
+  stepId: string;
+  outputs: Record<string, unknown>;
+  duration: number;
+  timestamp: number;
+}
+
+/**
+ * Step execution failed event data
+ */
+export interface StepFailedEvent {
+  workflowId: string;
+  stepId: string;
+  error: string;
+  duration: number;
+  timestamp: number;
+  exitCode?: number;
+}
+
+/**
+ * Workflow execution completed event data
+ */
+export interface WorkflowCompletedEvent {
+  workflowId: string;
+  totalDuration: number;
+  results: Record<string, unknown>;
+  timestamp: number;
+  successCount: number;
+  failureCount: number;
+}
+
+// Workflow Execution IPC Channels (Feature 9.2 - Wave 9.2.2)
+export const WORKFLOW_EXECUTION_CHANNELS = {
+  SUBSCRIBE: 'workflow:execution:subscribe',
+  UNSUBSCRIBE: 'workflow:execution:unsubscribe',
+  WORKFLOW_STARTED: 'workflow:execution:started',
+  STEP_STARTED: 'workflow:execution:step-started',
+  STEP_COMPLETED: 'workflow:execution:step-completed',
+  STEP_FAILED: 'workflow:execution:step-failed',
+  WORKFLOW_COMPLETED: 'workflow:execution:completed',
+} as const;
+
+/**
+ * Export Workflow types (Feature 9.1 - Wave 9.1.2)
+ */
+export type {
+  Workflow,
+  WorkflowMetadata,
+  WorkflowInput,
+  WorkflowInputType,
+  WorkflowStep,
+  WorkflowStepBase,
+  PythonStep,
+  ClaudeStep,
+  FileOperationStep,
+  ConditionalStep,
+  LoopStep,
+  InputStep,
+  OutputStep,
+  UIMetadata,
+  NodeUIMetadata,
+  ViewportMetadata,
+  ValidationError,
+  ValidationResult,
+  VariableReference,
+  VariableResolutionContext,
+  VariableResolutionResult,
+  YAMLParseOptions,
+  YAMLParseResult,
+  YAMLSerializeOptions,
+} from './workflow.types';
+
+export { StepType } from './workflow.types';

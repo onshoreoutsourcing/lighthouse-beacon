@@ -22,6 +22,15 @@ import type {
   LogEntry,
   LogConfig,
   LogLevel,
+  WorkflowStartedEvent,
+  StepStartedEvent,
+  StepCompletedEvent,
+  StepFailedEvent,
+  WorkflowCompletedEvent,
+  Workflow,
+  WorkflowMetadata,
+  WorkflowExecutionResult,
+  ValidationResult,
 } from '@shared/types';
 
 /**
@@ -91,6 +100,26 @@ declare global {
         getFileSize: () => Promise<Result<number>>;
         getDiskSpace: () => Promise<Result<number>>;
         openLogFolder: () => Promise<Result<void>>;
+      };
+      workflow: {
+        load: (filePath: string) => Promise<Result<{ workflow: Workflow }>>;
+        save: (workflow: Workflow, fileName?: string) => Promise<Result<{ filePath: string }>>;
+        execute: (request: {
+          workflow: Workflow | string;
+          inputs: Record<string, unknown>;
+          workflowId?: string;
+        }) => Promise<Result<WorkflowExecutionResult>>;
+        validate: (workflow: Workflow) => Promise<ValidationResult>;
+        list: () => Promise<Result<{ workflows: WorkflowMetadata[] }>>;
+        execution: {
+          subscribe: (workflowId?: string) => Promise<Result<{ subscribed: boolean }>>;
+          unsubscribe: () => Promise<Result<{ unsubscribed: boolean }>>;
+          onWorkflowStarted: (callback: (event: WorkflowStartedEvent) => void) => () => void;
+          onStepStarted: (callback: (event: StepStartedEvent) => void) => () => void;
+          onStepCompleted: (callback: (event: StepCompletedEvent) => void) => () => void;
+          onStepFailed: (callback: (event: StepFailedEvent) => void) => () => void;
+          onWorkflowCompleted: (callback: (event: WorkflowCompletedEvent) => void) => () => void;
+        };
       };
       versions: {
         node: () => string;
