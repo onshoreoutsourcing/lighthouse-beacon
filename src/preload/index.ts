@@ -28,12 +28,18 @@ import type {
   WorkflowMetadata,
   WorkflowExecutionResult,
   ValidationResult,
+  DebugMode,
+  DebugState,
+  StepMode,
+  Breakpoint,
+  DebugContext,
 } from '@shared/types';
 import {
   IPC_CHANNELS,
   CONVERSATION_CHANNELS,
   FILE_OPERATION_CHANNELS,
   WORKFLOW_EXECUTION_CHANNELS,
+  WORKFLOW_DEBUG_CHANNELS,
 } from '@shared/types';
 
 /**
@@ -566,6 +572,188 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on(WORKFLOW_EXECUTION_CHANNELS.WORKFLOW_COMPLETED, listener);
         return () =>
           ipcRenderer.removeListener(WORKFLOW_EXECUTION_CHANNELS.WORKFLOW_COMPLETED, listener);
+      },
+    },
+  },
+
+  /**
+   * Workflow Debug API (Wave 9.4.6: Step-by-Step Debugging)
+   */
+  workflowDebug: {
+    /**
+     * Set debug mode (ON/OFF)
+     */
+    setMode: (mode: DebugMode): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.SET_MODE, mode);
+    },
+
+    /**
+     * Get current debug mode
+     */
+    getMode: (): Promise<Result<DebugMode>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_MODE);
+    },
+
+    /**
+     * Get current debug state
+     */
+    getState: (): Promise<Result<{ state: DebugState; stepMode: StepMode }>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_STATE);
+    },
+
+    /**
+     * Add breakpoint to node
+     */
+    addBreakpoint: (nodeId: string, enabled?: boolean): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.ADD_BREAKPOINT, nodeId, enabled);
+    },
+
+    /**
+     * Remove breakpoint from node
+     */
+    removeBreakpoint: (nodeId: string): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.REMOVE_BREAKPOINT, nodeId);
+    },
+
+    /**
+     * Toggle breakpoint enabled state
+     */
+    toggleBreakpoint: (nodeId: string): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.TOGGLE_BREAKPOINT, nodeId);
+    },
+
+    /**
+     * Get all breakpoints
+     */
+    getBreakpoints: (): Promise<Result<Breakpoint[]>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_BREAKPOINTS);
+    },
+
+    /**
+     * Clear all breakpoints
+     */
+    clearBreakpoints: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.CLEAR_BREAKPOINTS);
+    },
+
+    /**
+     * Pause execution (will pause at next node)
+     */
+    pause: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.PAUSE);
+    },
+
+    /**
+     * Resume execution
+     */
+    resume: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.RESUME);
+    },
+
+    /**
+     * Step over: execute current node and pause at next
+     */
+    stepOver: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.STEP_OVER);
+    },
+
+    /**
+     * Continue: resume until next breakpoint or completion
+     */
+    continue: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.CONTINUE);
+    },
+
+    /**
+     * Get current debug context (variables, stack)
+     */
+    getContext: (): Promise<Result<DebugContext | null>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_CONTEXT);
+    },
+
+    /**
+     * Set variable value during pause (for testing/debugging)
+     */
+    setVariable: (path: string, value: unknown): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.SET_VARIABLE, path, value);
+    },
+
+    /**
+     * Debug Events
+     */
+    events: {
+      /**
+       * Subscribe to paused events
+       */
+      onPaused: (callback: (context: DebugContext) => void): (() => void) => {
+        const listener = (_event: unknown, data: DebugContext) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.PAUSED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.PAUSED, listener);
+      },
+
+      /**
+       * Subscribe to resumed events
+       */
+      onResumed: (
+        callback: (data: { workflowId: string; nodeId: string }) => void
+      ): (() => void) => {
+        const listener = (_event: unknown, data: { workflowId: string; nodeId: string }) =>
+          callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.RESUMED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.RESUMED, listener);
+      },
+
+      /**
+       * Subscribe to breakpoint added events
+       */
+      onBreakpointAdded: (callback: (data: { nodeId: string }) => void): (() => void) => {
+        const listener = (_event: unknown, data: { nodeId: string }) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_ADDED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_ADDED, listener);
+      },
+
+      /**
+       * Subscribe to breakpoint removed events
+       */
+      onBreakpointRemoved: (callback: (data: { nodeId: string }) => void): (() => void) => {
+        const listener = (_event: unknown, data: { nodeId: string }) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_REMOVED, listener);
+        return () =>
+          ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_REMOVED, listener);
+      },
+
+      /**
+       * Subscribe to breakpoint toggled events
+       */
+      onBreakpointToggled: (
+        callback: (data: { nodeId: string; enabled: boolean }) => void
+      ): (() => void) => {
+        const listener = (_event: unknown, data: { nodeId: string; enabled: boolean }) =>
+          callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_TOGGLED, listener);
+        return () =>
+          ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_TOGGLED, listener);
+      },
+
+      /**
+       * Subscribe to mode changed events
+       */
+      onModeChanged: (callback: (data: { mode: DebugMode }) => void): (() => void) => {
+        const listener = (_event: unknown, data: { mode: DebugMode }) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.MODE_CHANGED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.MODE_CHANGED, listener);
+      },
+
+      /**
+       * Subscribe to variable changed events
+       */
+      onVariableChanged: (
+        callback: (data: { path: string; value: unknown }) => void
+      ): (() => void) => {
+        const listener = (_event: unknown, data: { path: string; value: unknown }) =>
+          callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.VARIABLE_CHANGED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.VARIABLE_CHANGED, listener);
       },
     },
   },

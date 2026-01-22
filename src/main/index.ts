@@ -10,6 +10,7 @@ import { registerAIHandlers, unregisterAIHandlers } from './ipc/aiHandlers';
 import { registerToolHandlers, unregisterToolHandlers } from './ipc/toolHandlers';
 import { registerLogHandlers, unregisterLogHandlers } from './ipc/logHandlers';
 import { registerWorkflowHandlers, unregisterWorkflowHandlers } from './ipc/workflow-handlers';
+import { registerWorkflowDebugHandlers } from './ipc/workflow-debug-handlers';
 import { initializeLogger, logger } from './logger';
 
 // Initialize logger before any other operations
@@ -60,6 +61,7 @@ void app.whenReady().then(() => {
   registerToolHandlers();
   registerLogHandlers();
   registerWorkflowHandlers();
+  registerWorkflowDebugHandlers();
 
   createMainWindow();
 

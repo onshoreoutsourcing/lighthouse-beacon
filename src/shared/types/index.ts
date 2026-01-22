@@ -367,3 +367,57 @@ export type {
 } from './workflow.types';
 
 export { StepType } from './workflow.types';
+
+/**
+ * Debug mode types (Wave 9.4.6)
+ */
+export type DebugMode = 'OFF' | 'ON';
+export type DebugState = 'RUNNING' | 'PAUSED' | 'COMPLETED';
+export type StepMode = 'NONE' | 'STEP_OVER' | 'CONTINUE';
+
+/**
+ * Breakpoint definition (Wave 9.4.6)
+ */
+export interface Breakpoint {
+  nodeId: string;
+  enabled: boolean;
+  condition?: string;
+}
+
+/**
+ * Debug context at pause point (Wave 9.4.6)
+ */
+export interface DebugContext {
+  workflowId: string;
+  nodeId: string;
+  // eslint-disable-next-line no-undef -- VariableResolutionContext is exported from workflow.types above
+  variables: VariableResolutionContext;
+  executionStack: string[];
+  pausedAt: number;
+}
+
+// Workflow Debug IPC Channels (Wave 9.4.6: Step-by-Step Debugging)
+export const WORKFLOW_DEBUG_CHANNELS = {
+  SET_MODE: 'workflow:debug:set-mode',
+  GET_MODE: 'workflow:debug:get-mode',
+  GET_STATE: 'workflow:debug:get-state',
+  ADD_BREAKPOINT: 'workflow:debug:add-breakpoint',
+  REMOVE_BREAKPOINT: 'workflow:debug:remove-breakpoint',
+  TOGGLE_BREAKPOINT: 'workflow:debug:toggle-breakpoint',
+  GET_BREAKPOINTS: 'workflow:debug:get-breakpoints',
+  CLEAR_BREAKPOINTS: 'workflow:debug:clear-breakpoints',
+  PAUSE: 'workflow:debug:pause',
+  RESUME: 'workflow:debug:resume',
+  STEP_OVER: 'workflow:debug:step-over',
+  CONTINUE: 'workflow:debug:continue',
+  GET_CONTEXT: 'workflow:debug:get-context',
+  SET_VARIABLE: 'workflow:debug:set-variable',
+  // Events (renderer receives these)
+  PAUSED: 'workflow:debug:paused',
+  RESUMED: 'workflow:debug:resumed',
+  BREAKPOINT_ADDED: 'workflow:debug:breakpoint-added',
+  BREAKPOINT_REMOVED: 'workflow:debug:breakpoint-removed',
+  BREAKPOINT_TOGGLED: 'workflow:debug:breakpoint-toggled',
+  MODE_CHANGED: 'workflow:debug:mode-changed',
+  VARIABLE_CHANGED: 'workflow:debug:variable-changed',
+} as const;

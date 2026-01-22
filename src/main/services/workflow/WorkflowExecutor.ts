@@ -32,6 +32,7 @@ import { VariableResolver } from './VariableResolver';
 import { RetryPolicy } from './RetryPolicy';
 import { ConditionEvaluator } from './ConditionEvaluator';
 import { DependencyGraphAnalyzer } from './DependencyGraphAnalyzer';
+import { DebugExecutor } from './DebugExecutor';
 import type { AIService } from '../AIService';
 import type {
   Workflow,
@@ -103,6 +104,7 @@ export class WorkflowExecutor {
   private variableResolver: VariableResolver;
   private conditionEvaluator: ConditionEvaluator;
   private dependencyAnalyzer: DependencyGraphAnalyzer;
+  private debugExecutor: DebugExecutor;
   private aiService: AIService | null = null;
   private projectRoot: string;
 
@@ -119,6 +121,7 @@ export class WorkflowExecutor {
     this.variableResolver = new VariableResolver();
     this.conditionEvaluator = new ConditionEvaluator();
     this.dependencyAnalyzer = new DependencyGraphAnalyzer();
+    this.debugExecutor = DebugExecutor.getInstance();
     this.aiService = aiService || null;
 
     log.info('[WorkflowExecutor] Initialized', { projectRoot: this.projectRoot });
@@ -162,6 +165,9 @@ export class WorkflowExecutor {
       parallelExecutionEnabled: options.enableParallelExecution,
       maxConcurrency: options.maxConcurrency,
     });
+
+    // Reset debug state for new workflow execution (Wave 9.4.6)
+    this.debugExecutor.reset();
 
     // Initialize execution context
     const stepOutputs: Record<string, Record<string, unknown>> = {};
@@ -491,6 +497,9 @@ export class WorkflowExecutor {
         failureCount
       );
 
+      // Mark debug execution as completed (Wave 9.4.6)
+      this.debugExecutor.markCompleted();
+
       return {
         success: true,
         outputs: stepOutputs,
@@ -521,6 +530,9 @@ export class WorkflowExecutor {
         successCount,
         failureCount
       );
+
+      // Mark debug execution as completed (Wave 9.4.6)
+      this.debugExecutor.markCompleted();
 
       return {
         success: false,
@@ -562,6 +574,16 @@ export class WorkflowExecutor {
       stepType: step.type,
       stepIndex,
       executionLevel,
+    });
+
+    // Check breakpoint (Wave 9.4.6: Step-by-Step Debugging)
+    // This will block execution if breakpoint is set or step mode is active
+    await this.debugExecutor.checkBreakpoint(step.id, {
+      workflowId,
+      nodeId: step.id,
+      variables: context,
+      executionStack: executionLevel !== undefined ? [`level-${executionLevel}`] : [],
+      pausedAt: Date.now(),
     });
 
     // Emit step started event
