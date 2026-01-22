@@ -41,6 +41,8 @@ interface WorkflowExecutionRequest {
   inputs: Record<string, unknown>;
   /** Optional workflow ID for tracking */
   workflowId?: string;
+  /** Enable dry run mode - mock all operations without real execution (Wave 9.5.3) */
+  dryRun?: boolean;
 }
 
 // Singleton instances
@@ -288,11 +290,13 @@ export function registerWorkflowHandlers(): void {
       log.info('[WorkflowHandlers] Executing workflow', {
         workflowName: workflow.workflow.name,
         stepCount: workflow.steps.length,
+        dryRun: request.dryRun || false,
       });
 
       // Execute workflow
       const result = await executor.execute(workflow, request.inputs, {
         workflowId: request.workflowId || workflow.workflow.name,
+        dryRun: request.dryRun,
       });
 
       if (result.success) {

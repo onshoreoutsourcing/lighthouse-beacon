@@ -364,6 +364,7 @@ export type {
   RetryPolicyConfig,
   RetryDelayStrategy,
   CircuitBreakerConfig,
+  WorkflowExecutionResult,
 } from './workflow.types';
 
 export { StepType } from './workflow.types';

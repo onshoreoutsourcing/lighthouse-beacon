@@ -484,3 +484,28 @@ export interface WorkflowTemplate {
   /** Number of workflow steps */
   steps: number;
 }
+
+/**
+ * Result of workflow execution
+ * Wave 9.1.3: Basic Workflow Execution
+ */
+export interface WorkflowExecutionResult {
+  /** Whether workflow completed successfully */
+  success: boolean;
+  /** Final workflow outputs (aggregated step outputs) */
+  outputs: Record<string, Record<string, unknown>>;
+  /** Error message (if failed) */
+  error?: string;
+  /** Failed step ID (if failed) */
+  failedStepId?: string;
+  /** Total execution time in milliseconds */
+  totalDuration: number;
+  /** Number of steps that completed successfully */
+  successCount: number;
+  /** Number of steps that failed */
+  failureCount: number;
+  /** Execution start time */
+  startTime: number;
+  /** Execution end time */
+  endTime: number;
+}

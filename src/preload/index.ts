@@ -446,6 +446,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       workflow: Workflow | string;
       inputs: Record<string, unknown>;
       workflowId?: string;
+      dryRun?: boolean;
     }): Promise<Result<WorkflowExecutionResult>> => {
       return ipcRenderer.invoke('workflow:execute', request);
     },

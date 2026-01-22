@@ -110,6 +110,7 @@ declare global {
           workflow: Workflow | string;
           inputs: Record<string, unknown>;
           workflowId?: string;
+          dryRun?: boolean;
         }) => Promise<Result<WorkflowExecutionResult>>;
         validate: (workflow: Workflow) => Promise<ValidationResult>;
         list: () => Promise<Result<{ workflows: WorkflowMetadata[] }>>;
