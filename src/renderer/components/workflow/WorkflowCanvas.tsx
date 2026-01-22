@@ -41,6 +41,7 @@ import { DebugToolbar, VariableInspector } from './debug';
 import { useDebugState } from '@renderer/hooks/useDebugState';
 import { NodeContextMenu, createNodeContextMenuOptions } from './NodeContextMenu';
 import { TestNodeDialog } from './TestNodeDialog';
+import { PromptEditorDialog } from './PromptEditorDialog';
 import type { WorkflowStep, PythonStep, ClaudeStep, StepType } from '@shared/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -69,7 +70,7 @@ const nodeTypes: NodeTypes = {
  */
 export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }) => {
   // Get workflow state from Zustand store
-  const { nodes, edges, addEdge, updateNodePosition } = useWorkflowStore();
+  const { nodes, edges, addEdge, updateNodePosition, updateNode } = useWorkflowStore();
 
   // Debug state management (Wave 9.4.6)
   const {
@@ -95,6 +96,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
 
   // Node testing dialog state (Wave 9.5.3 User Story 3)
   const [testingNode, setTestingNode] = useState<WorkflowStep | null>(null);
+
+  // Prompt editor dialog state (Wave 9.5.4)
+  const [editingPromptNode, setEditingPromptNode] = useState<{
+    nodeId: string;
+    step: ClaudeStep;
+  } | null>(null);
 
   // Check if workflow is currently executing (simplified - would need execution state from store)
   const isExecuting = false; // TODO: Get from execution state when available
@@ -235,6 +242,43 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
       setContextMenu(null);
     },
     [nodes, convertNodeToStep]
+  );
+
+  /**
+   * Handle edit prompt action from context menu
+   * Wave 9.5.4
+   */
+  const handleEditPrompt = useCallback(
+    (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (node && node.type === 'claude') {
+        const step = convertNodeToStep(node) as ClaudeStep;
+        setEditingPromptNode({ nodeId, step });
+      }
+      setContextMenu(null);
+    },
+    [nodes, convertNodeToStep]
+  );
+
+  /**
+   * Handle save prompt from editor
+   * Wave 9.5.4
+   */
+  const handleSavePrompt = useCallback(
+    (prompt: string) => {
+      if (!editingPromptNode) return;
+
+      const { nodeId } = editingPromptNode;
+      const node = nodes.find((n) => n.id === nodeId);
+
+      if (node && node.type === 'claude') {
+        // Update node data with new prompt
+        updateNode(nodeId, { prompt });
+      }
+
+      setEditingPromptNode(null);
+    },
+    [editingPromptNode, nodes, updateNode]
   );
 
   /**
@@ -398,20 +442,37 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
         )}
       </div>
 
-      {/* Node Context Menu - Wave 9.5.3 User Story 3 */}
-      {contextMenu && (
-        <NodeContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          options={createNodeContextMenuOptions(contextMenu.nodeId, () =>
-            handleTestNode(contextMenu.nodeId)
-          )}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+      {/* Node Context Menu - Wave 9.5.3 User Story 3 + Wave 9.5.4 */}
+      {contextMenu &&
+        (() => {
+          const node = nodes.find((n) => n.id === contextMenu.nodeId);
+          const isClaudeNode = node?.type === 'claude';
+
+          return (
+            <NodeContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              options={createNodeContextMenuOptions(
+                contextMenu.nodeId,
+                () => handleTestNode(contextMenu.nodeId),
+                isClaudeNode ? () => handleEditPrompt(contextMenu.nodeId) : undefined
+              )}
+              onClose={() => setContextMenu(null)}
+            />
+          );
+        })()}
 
       {/* Test Node Dialog - Wave 9.5.3 User Story 3 */}
       {testingNode && <TestNodeDialog step={testingNode} onClose={() => setTestingNode(null)} />}
+
+      {/* Prompt Editor Dialog - Wave 9.5.4 */}
+      {editingPromptNode && (
+        <PromptEditorDialog
+          step={editingPromptNode.step}
+          onSave={handleSavePrompt}
+          onClose={() => setEditingPromptNode(null)}
+        />
+      )}
     </div>
   );
 };
