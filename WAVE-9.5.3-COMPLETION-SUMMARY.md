@@ -3,14 +3,14 @@
 **Epic:** 9 - Visual Workflow Generator
 **Feature:** 9.5 - UX Polish & Templates
 **Wave:** 9.5.3 - Workflow Testing UI
-**Status:** ✅ COMPLETE (Core Features)
+**Status:** ✅ COMPLETE (All User Stories)
 **Date:** 2026-01-22
 
 ---
 
 ## Executive Summary
 
-Successfully implemented dry run testing infrastructure for workflows, enabling users to test workflows without executing real operations. The implementation includes a comprehensive backend mocking service, frontend testing UI component, and full integration with the existing workflow execution system. Core features are complete with 42 passing unit tests.
+Successfully implemented complete dry run testing infrastructure for workflows, enabling users to test workflows and individual nodes without executing real operations. The implementation includes a comprehensive backend mocking service, frontend testing UI components (workflow panel and node testing dialog), context menu integration, and full integration with the existing workflow execution system. All three user stories are complete with 42 passing unit tests.
 
 ### Key Achievements
 
@@ -437,11 +437,21 @@ export interface WorkflowExecutionResult {
 - Performance tests
 - Consistency tests
 
+### Part 4: Individual Node Testing (User Story 3)
+**Commit:** `feat: Complete Wave 9.5.3 User Story 3 - Individual Node Testing`
+- NodeContextMenu component with right-click handler
+- TestNodeDialog component for single-node testing
+- WorkflowCanvas integration with onNodeContextMenu
+- Smart mock input generation
+- Dry run execution for individual nodes
+- Result visualization with outputs and duration
+- convertNodeToStep helper function
+
 ---
 
-## Completed vs Deferred
+## Completed User Stories
 
-### ✅ Completed (User Stories 1 & 2)
+### ✅ All User Stories Complete (1, 2, & 3)
 
 **User Story 1: Mock Input Editor**
 - [x] Form-based input editor
@@ -473,40 +483,28 @@ export interface WorkflowExecutionResult {
 - [x] Duration display
 - [x] Step completion tracking
 
-### 📋 Deferred (User Story 3)
-
 **User Story 3: Individual Node Testing**
-- [ ] Right-click context menu on workflow nodes
-- [ ] "Test Node" option
-- [ ] Node-specific mock input dialog
-- [ ] Single-step execution
-- [ ] Node test result display
+- [x] NodeContextMenu component with right-click handler
+- [x] "Test Node" option with context menu integration
+- [x] TestNodeDialog component for node-specific testing
+- [x] Mock input editor with smart defaults
+- [x] Single-step dry run execution
+- [x] Node test result display with outputs and duration
+- [x] WorkflowCanvas integration with onNodeContextMenu handler
+- [x] Node-to-WorkflowStep conversion helper
 
-**Reason for Deferral:**
-- Requires workflow canvas UI integration
-- Canvas component structure not yet available
-- Can be added in future wave when canvas is mature
-- Core testing infrastructure (Stories 1 & 2) is complete and usable
+**Implementation:**
+- Created NodeContextMenu.tsx for right-click actions
+- Created TestNodeDialog.tsx for individual node testing
+- Integrated with WorkflowCanvas via onNodeContextMenu
+- Uses existing DryRunExecutor for mock execution
+- Creates minimal single-step workflow for testing
 
 ---
 
 ## Known Limitations
 
-### 1. Node Testing Dialog
-**Status:** Deferred to future wave
-
-**Reason:**
-- Requires workflow canvas component integration
-- Canvas UI patterns not yet established
-- Node selection and context menu architecture pending
-
-**Future Implementation:**
-- Add right-click handler to workflow nodes
-- Create TestNodeDialog component
-- Integrate with DryRunExecutor for single-step execution
-- Display node-specific results
-
-### 2. Mock Data Customization
+### 1. Mock Data Customization
 **Status:** Not implemented
 
 **Reason:**
@@ -518,7 +516,7 @@ export interface WorkflowExecutionResult {
 - Save/load mock data templates
 - Mock data library for common patterns
 
-### 3. Workflow Template Testing
+### 2. Workflow Template Testing
 **Status:** Not implemented
 
 **Reason:**
@@ -537,27 +535,34 @@ export interface WorkflowExecutionResult {
 1. `src/main/services/workflow/DryRunExecutor.ts` - Backend dry run service
 2. `src/main/services/workflow/__tests__/DryRunExecutor.test.ts` - Unit tests (42 tests)
 3. `src/renderer/components/workflow/WorkflowTestingPanel.tsx` - Frontend testing UI
+4. `src/renderer/components/workflow/NodeContextMenu.tsx` - Context menu for node testing (User Story 3)
+5. `src/renderer/components/workflow/TestNodeDialog.tsx` - Individual node testing dialog (User Story 3)
 
 ### Modified Files
-1. `src/main/services/workflow/WorkflowExecutor.ts`
+1. `src/renderer/components/workflow/WorkflowCanvas.tsx`
+   - Added onNodeContextMenu handler
+   - Added context menu and test dialog state management
+   - Added convertNodeToStep helper function
+
+2. `src/main/services/workflow/WorkflowExecutor.ts`
    - Added dryRun support
    - Added DryRunExecutor integration
    - Added dry run logging
 
-2. `src/main/ipc/workflow-handlers.ts`
+3. `src/main/ipc/workflow-handlers.ts`
    - Added dryRun to WorkflowExecutionRequest
    - Updated execute handler
 
-3. `src/preload/index.ts`
+4. `src/preload/index.ts`
    - Added dryRun to workflow.execute type
 
-4. `src/renderer/vite-env.d.ts`
+5. `src/renderer/vite-env.d.ts`
    - Added dryRun to workflow.execute type
 
-5. `src/shared/types/workflow.types.ts`
+6. `src/shared/types/workflow.types.ts`
    - Added WorkflowExecutionResult interface
 
-6. `src/shared/types/index.ts`
+7. `src/shared/types/index.ts`
    - Exported WorkflowExecutionResult
 
 ---
@@ -597,11 +602,13 @@ export interface WorkflowExecutionResult {
 - [x] Step completion tracking
 
 ### User Story 3: Individual Node Testing
-📋 **DEFERRED**
-- [ ] Right-click context menu on nodes
-- [ ] Test node dialog
-- [ ] Single-step execution
-- [ ] Node result display
+✅ **COMPLETE**
+- [x] Right-click context menu on nodes
+- [x] Test node dialog with mock input editor
+- [x] Single-step dry run execution
+- [x] Node result display with outputs and duration
+- [x] Smart default value generation
+- [x] Error handling and display
 
 ### Acceptance Tests
 ✅ **PASSING**
@@ -656,15 +663,14 @@ export interface WorkflowExecutionResult {
 
 ## Next Steps
 
-### Wave 9.5.3 Core Complete
-This wave is now **COMPLETE** for core features (User Stories 1 & 2) and ready for:
+### Wave 9.5.3 Fully Complete
+This wave is now **COMPLETE** for all user stories (1, 2, & 3) and ready for:
 1. ✅ Merge to epic-9 branch
 2. 📋 Manual validation in development environment
 3. 📋 User acceptance testing
-4. 📋 Integration with workflow canvas (User Story 3 in future wave)
+4. 📋 Integration testing with full workflow canvas features
 
 ### Future Enhancements (Out of Scope)
-- Individual node testing dialog (User Story 3)
 - Mock data customization UI
 - Mock data template library
 - Workflow template testing integration
@@ -698,22 +704,25 @@ This wave is now **COMPLETE** for core features (User Stories 1 & 2) and ready f
 
 ## Sign-Off
 
-**Implementation Status:** ✅ COMPLETE (User Stories 1 & 2)
+**Implementation Status:** ✅ COMPLETE (All 3 User Stories)
 **Test Status:** ✅ 42/42 PASSING (Backend)
 **Code Quality:** ✅ ESLint clean, TypeScript strict
 **Documentation:** ✅ Complete
 
-**Core Features Ready for:**
+**All Features Ready for:**
 - Workflow testing without real operations
-- Mock input configuration
-- Dry run execution
+- Individual node testing with context menu
+- Mock input configuration (workflow and node-level)
+- Dry run execution (full workflow and single nodes)
 - Result visualization
 - Integration testing
 - User acceptance testing
 - Merge to epic-9 branch
 
-**Deferred to Future Wave:**
-- User Story 3: Individual Node Testing (requires canvas integration)
+**All User Stories Complete:**
+- ✅ User Story 1: Mock Input Editor
+- ✅ User Story 2: Dry Run Execution
+- ✅ User Story 3: Individual Node Testing
 
 **Completed By:** Claude Sonnet 4.5
 **Date:** 2026-01-22
