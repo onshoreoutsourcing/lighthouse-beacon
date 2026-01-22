@@ -38,6 +38,9 @@ export interface WorkflowStartedEvent {
   workflowId: string;
   startTime: number;
   totalSteps?: number;
+  parallelExecutionEnabled?: boolean;
+  maxConcurrency?: number;
+  maxParallelism?: number;
 }
 
 /**
@@ -48,6 +51,7 @@ export interface StepStartedEvent {
   stepId: string;
   timestamp: number;
   stepIndex?: number;
+  executionLevel?: number;
 }
 
 /**
@@ -86,10 +90,22 @@ export interface WorkflowCompletedEvent {
 }
 
 /**
+ * Execution level started event data (for parallel execution visualization)
+ */
+export interface ExecutionLevelStartedEvent {
+  workflowId: string;
+  level: number;
+  stepCount: number;
+  stepIds: string[];
+  timestamp: number;
+}
+
+/**
  * All execution event types
  */
 export type ExecutionEventType =
   | 'workflow_started'
+  | 'execution_level_started'
   | 'step_started'
   | 'step_completed'
   | 'step_failed'
@@ -100,6 +116,7 @@ export type ExecutionEventType =
  */
 export interface ExecutionEventMap {
   workflow_started: (data: WorkflowStartedEvent) => void;
+  execution_level_started: (data: ExecutionLevelStartedEvent) => void;
   step_started: (data: StepStartedEvent) => void;
   step_completed: (data: StepCompletedEvent) => void;
   step_failed: (data: StepFailedEvent) => void;
@@ -144,11 +161,20 @@ export class ExecutionEvents extends EventEmitter {
   /**
    * Emit workflow started event
    */
-  emitWorkflowStarted(workflowId: string, totalSteps?: number): void {
+  emitWorkflowStarted(
+    workflowId: string,
+    totalSteps?: number,
+    parallelExecutionEnabled?: boolean,
+    maxConcurrency?: number,
+    maxParallelism?: number
+  ): void {
     const data: WorkflowStartedEvent = {
       workflowId,
       startTime: Date.now(),
       totalSteps,
+      parallelExecutionEnabled,
+      maxConcurrency,
+      maxParallelism,
     };
 
     this.activeWorkflows.add(workflowId);
@@ -157,18 +183,54 @@ export class ExecutionEvents extends EventEmitter {
     log.info('[ExecutionEvents] Workflow started', {
       workflowId,
       totalSteps,
+      parallelExecutionEnabled,
+      maxConcurrency,
+      maxParallelism,
+    });
+  }
+
+  /**
+   * Emit execution level started event (for parallel execution visualization)
+   */
+  emitExecutionLevelStarted(
+    workflowId: string,
+    level: number,
+    stepCount: number,
+    stepIds: string[]
+  ): void {
+    const data: ExecutionLevelStartedEvent = {
+      workflowId,
+      level,
+      stepCount,
+      stepIds,
+      timestamp: Date.now(),
+    };
+
+    this.emit('execution_level_started', data);
+
+    log.debug('[ExecutionEvents] Execution level started', {
+      workflowId,
+      level,
+      stepCount,
+      stepIds,
     });
   }
 
   /**
    * Emit step started event
    */
-  emitStepStarted(workflowId: string, stepId: string, stepIndex?: number): void {
+  emitStepStarted(
+    workflowId: string,
+    stepId: string,
+    stepIndex?: number,
+    executionLevel?: number
+  ): void {
     const data: StepStartedEvent = {
       workflowId,
       stepId,
       timestamp: Date.now(),
       stepIndex,
+      executionLevel,
     };
 
     this.emit('step_started', data);
@@ -177,6 +239,7 @@ export class ExecutionEvents extends EventEmitter {
       workflowId,
       stepId,
       stepIndex,
+      executionLevel,
     });
   }
 

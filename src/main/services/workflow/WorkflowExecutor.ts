@@ -157,10 +157,9 @@ export class WorkflowExecutor {
       workflowName: workflow.workflow.name,
       stepCount: workflow.steps.length,
       inputKeys: Object.keys(workflowInputs),
+      parallelExecutionEnabled: options.enableParallelExecution,
+      maxConcurrency: options.maxConcurrency,
     });
-
-    // Emit workflow started event
-    this.executionEvents.emitWorkflowStarted(workflowId, workflow.steps.length);
 
     // Initialize execution context
     const stepOutputs: Record<string, Record<string, unknown>> = {};
@@ -173,6 +172,9 @@ export class WorkflowExecutor {
         // Use parallel execution
         return await this.executeParallel(workflow, workflowInputs, workflowId, startTime, options);
       }
+
+      // Emit workflow started event for sequential execution
+      this.executionEvents.emitWorkflowStarted(workflowId, workflow.steps.length);
 
       // 1. Sort steps by dependency order (topological sort)
       const executionOrder = this.topologicalSort(workflow.steps);
@@ -347,6 +349,7 @@ export class WorkflowExecutor {
    * @param workflowId - Workflow ID for event tracking
    * @param stepIndex - Step index in execution order
    * @param workflow - Full workflow definition
+   * @param executionLevel - Optional execution level (for parallel execution visualization)
    * @returns Step execution result
    */
   private async executeStep(
@@ -354,7 +357,8 @@ export class WorkflowExecutor {
     context: VariableResolutionContext,
     workflowId: string,
     stepIndex: number,
-    workflow: Workflow
+    workflow: Workflow,
+    executionLevel?: number
   ): Promise<StepExecutionResult> {
     const startTime = Date.now();
 
@@ -363,10 +367,11 @@ export class WorkflowExecutor {
       stepId: step.id,
       stepType: step.type,
       stepIndex,
+      executionLevel,
     });
 
     // Emit step started event
-    this.executionEvents.emitStepStarted(workflowId, step.id, stepIndex);
+    this.executionEvents.emitStepStarted(workflowId, step.id, stepIndex, executionLevel);
 
     try {
       // Resolve step inputs using variable resolver
@@ -1262,11 +1267,20 @@ export class WorkflowExecutor {
       totalSteps: analysis.totalSteps,
     });
 
+    // Emit workflow started event with parallel execution metadata
+    const maxConcurrency = options.maxConcurrency || 4;
+    this.executionEvents.emitWorkflowStarted(
+      workflowId,
+      workflow.steps.length,
+      true,
+      maxConcurrency,
+      analysis.maxParallelism
+    );
+
     // Initialize execution context
     const stepOutputs: Record<string, Record<string, unknown>> = {};
     let successCount = 0;
     let failureCount = 0;
-    const maxConcurrency = options.maxConcurrency || 4;
 
     // Step 2: Build conditional branch mapping (for skipped steps)
     const conditionalBranches = this.buildConditionalBranchMap(workflow.steps);
@@ -1319,6 +1333,14 @@ export class WorkflowExecutor {
           continue;
         }
 
+        // Emit execution level started event for visualization
+        this.executionEvents.emitExecutionLevelStarted(
+          workflowId,
+          level.level,
+          stepsToExecute.length,
+          stepsToExecute.map((s) => s.id)
+        );
+
         // Step 4: Execute steps in level with concurrency limiting
         const levelResult = await this.executeLevelWithConcurrency(
           stepsToExecute,
@@ -1326,7 +1348,8 @@ export class WorkflowExecutor {
           stepOutputs,
           workflowId,
           workflow,
-          maxConcurrency
+          maxConcurrency,
+          level.level
         );
 
         // Step 5: Process level results
@@ -1452,6 +1475,7 @@ export class WorkflowExecutor {
    * @param workflowId - Workflow ID
    * @param workflow - Full workflow definition
    * @param maxConcurrency - Maximum concurrent steps
+   * @param executionLevel - Execution level number (for visualization)
    * @returns Level execution results
    */
   private async executeLevelWithConcurrency(
@@ -1460,7 +1484,8 @@ export class WorkflowExecutor {
     stepOutputs: Record<string, Record<string, unknown>>,
     workflowId: string,
     workflow: Workflow,
-    maxConcurrency: number
+    maxConcurrency: number,
+    executionLevel: number
   ): Promise<{
     results: Array<{
       stepId: string;
@@ -1502,7 +1527,8 @@ export class WorkflowExecutor {
           context,
           workflowId,
           currentIndex,
-          workflow
+          workflow,
+          executionLevel
         );
 
         return {
