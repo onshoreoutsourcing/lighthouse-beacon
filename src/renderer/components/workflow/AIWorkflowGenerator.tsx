@@ -100,8 +100,7 @@ export const AIWorkflowGenerator: React.FC<AIWorkflowGeneratorProps> = ({
     setGeneratedYaml('');
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      const result = (await window.electron.workflow.generate({
+      const result = (await window.electronAPI.workflow.generate({
         description: description.trim(),
         projectType,
         language,

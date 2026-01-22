@@ -114,6 +114,27 @@ declare global {
         validate: (workflow: Workflow) => Promise<ValidationResult>;
         list: () => Promise<Result<{ workflows: WorkflowMetadata[] }>>;
         delete: (filePath: string) => Promise<boolean>;
+        generate: (params: {
+          description: string;
+          projectType?: string;
+          language?: string;
+          model?: string;
+        }) => Promise<{
+          success: boolean;
+          workflow?: Workflow;
+          yaml?: string;
+          error?: {
+            type: 'claude_api' | 'yaml_parse' | 'schema_validation' | 'unknown';
+            message: string;
+            details?: string;
+            validationErrors?: unknown[];
+          };
+          metadata?: {
+            modelUsed: string;
+            tokensUsed?: number;
+            durationMs: number;
+          };
+        }>;
         execution: {
           subscribe: (workflowId?: string) => Promise<Result<{ subscribed: boolean }>>;
           unsubscribe: () => Promise<Result<{ unsubscribed: boolean }>>;
