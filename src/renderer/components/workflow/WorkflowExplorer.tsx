@@ -27,10 +27,14 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, Plus, Trash2, RefreshCw, Clock } from 'lucide-react';
+import { Search, Plus, Trash2, RefreshCw, Clock, Sparkles, X } from 'lucide-react';
 import type { WorkflowListItem } from '@main/services/workflow/WorkflowService';
 import type { Result } from '@shared/types';
+import type { WorkflowTemplate } from '@shared/types/workflow.types';
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog';
+import { TemplateGallery } from './TemplateGallery';
+import { TemplateDetailModal } from './TemplateDetailModal';
+import { TemplateService } from '../../services/TemplateService';
 
 export interface WorkflowExplorerProps {
   /** Callback when workflow is selected */
@@ -39,6 +43,8 @@ export interface WorkflowExplorerProps {
   onNewWorkflow?: () => void;
   /** Callback when workflow is deleted */
   onDeleteWorkflow?: (workflow: WorkflowListItem) => void;
+  /** Callback when template is selected for use */
+  onUseTemplate?: (template: WorkflowTemplate) => void;
   /** Custom className */
   className?: string;
 }
@@ -73,7 +79,7 @@ function truncate(text: string, maxLength: number): string {
  * WorkflowExplorer Component
  */
 export const WorkflowExplorer: React.FC<WorkflowExplorerProps> = React.memo(
-  ({ onWorkflowSelect, onNewWorkflow, onDeleteWorkflow, className = '' }) => {
+  ({ onWorkflowSelect, onNewWorkflow, onDeleteWorkflow, onUseTemplate, className = '' }) => {
     // State
     const [workflows, setWorkflows] = useState<WorkflowListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -83,6 +89,13 @@ export const WorkflowExplorer: React.FC<WorkflowExplorerProps> = React.memo(
     const [hoveredWorkflowId, setHoveredWorkflowId] = useState<string | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowListItem | null>(null);
+
+    // Template gallery state
+    const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
+    const [isTemplatesLoading, setIsTemplatesLoading] = useState(false);
+    const [templateGalleryOpen, setTemplateGalleryOpen] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null);
+    const [templateDetailModalOpen, setTemplateDetailModalOpen] = useState(false);
 
     /**
      * Load workflows from IPC
@@ -148,6 +161,67 @@ export const WorkflowExplorer: React.FC<WorkflowExplorerProps> = React.memo(
     const handleNewWorkflow = useCallback(() => {
       onNewWorkflow?.();
     }, [onNewWorkflow]);
+
+    /**
+     * Load templates
+     */
+    const loadTemplates = useCallback(async () => {
+      setIsTemplatesLoading(true);
+      try {
+        const loadedTemplates = await TemplateService.getTemplates();
+        setTemplates(loadedTemplates);
+      } catch (err) {
+        console.error('Failed to load templates:', err);
+      } finally {
+        setIsTemplatesLoading(false);
+      }
+    }, []);
+
+    /**
+     * Handle "New from Template" button click
+     */
+    const handleNewFromTemplate = useCallback(async () => {
+      if (templates.length === 0) {
+        await loadTemplates();
+      }
+      setTemplateGalleryOpen(true);
+    }, [templates.length, loadTemplates]);
+
+    /**
+     * Handle template selection from gallery
+     */
+    const handleTemplateSelect = useCallback((template: WorkflowTemplate) => {
+      setSelectedTemplate(template);
+      setTemplateDetailModalOpen(true);
+    }, []);
+
+    /**
+     * Handle "Use This Template" from detail modal
+     */
+    const handleUseTemplate = useCallback(
+      (template: WorkflowTemplate) => {
+        setTemplateDetailModalOpen(false);
+        setTemplateGalleryOpen(false);
+        setSelectedTemplate(null);
+        onUseTemplate?.(template);
+      },
+      [onUseTemplate]
+    );
+
+    /**
+     * Handle template detail modal close
+     */
+    const handleTemplateDetailClose = useCallback(() => {
+      setTemplateDetailModalOpen(false);
+      setSelectedTemplate(null);
+    }, []);
+
+    /**
+     * Handle template gallery close
+     */
+    const handleTemplateGalleryClose = useCallback(() => {
+      setTemplateGalleryOpen(false);
+    }, []);
 
     /**
      * Handle delete workflow (show confirmation dialog)
@@ -363,6 +437,17 @@ export const WorkflowExplorer: React.FC<WorkflowExplorerProps> = React.memo(
               </button>
               <button
                 type="button"
+                onClick={() => {
+                  void handleNewFromTemplate();
+                }}
+                className="px-2 py-1 text-xs text-vscode-button-foreground bg-vscode-button-secondaryBackground hover:bg-vscode-button-secondaryHoverBackground border border-vscode-button-border rounded transition-colors flex items-center gap-1"
+                aria-label="New from template"
+              >
+                <Sparkles className="w-3 h-3" />
+                Template
+              </button>
+              <button
+                type="button"
                 onClick={handleNewWorkflow}
                 className="px-2 py-1 text-xs text-vscode-button-foreground bg-vscode-button-bg hover:bg-vscode-button-hoverBg rounded transition-colors flex items-center gap-1"
                 aria-label="New workflow"
@@ -476,6 +561,48 @@ export const WorkflowExplorer: React.FC<WorkflowExplorerProps> = React.memo(
             void handleConfirmDelete();
           }}
           onCancel={handleCancelDelete}
+        />
+
+        {/* Template Gallery Modal */}
+        {templateGalleryOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-vscode-editor-bg border border-vscode-panel-border rounded-lg shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex-shrink-0 flex items-center justify-between p-5 border-b border-vscode-panel-border">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-vscode-descriptionForeground" />
+                  <h2 className="text-lg font-semibold text-vscode-foreground">
+                    Workflow Templates
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTemplateGalleryClose}
+                  className="p-1 text-vscode-descriptionForeground hover:text-vscode-foreground hover:bg-vscode-hover rounded transition-colors"
+                  aria-label="Close template gallery"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Template Gallery */}
+              <div className="flex-1 overflow-hidden">
+                <TemplateGallery
+                  templates={templates}
+                  onSelectTemplate={handleTemplateSelect}
+                  isLoading={isTemplatesLoading}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Template Detail Modal */}
+        <TemplateDetailModal
+          template={selectedTemplate}
+          isOpen={templateDetailModalOpen}
+          onClose={handleTemplateDetailClose}
+          onUseTemplate={handleUseTemplate}
         />
       </div>
     );

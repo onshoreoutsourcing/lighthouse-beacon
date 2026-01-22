@@ -1,0 +1,128 @@
+workflow:
+  name: "Code Review Automation"
+  version: "1.0.0"
+  description: "Automated code review with AI-powered analysis for quality, security, and best practices"
+  tags:
+    - code-review
+    - ai
+    - quality
+    - security
+  author: "Lighthouse Beacon"
+
+inputs:
+  - id: pr_diff_file
+    type: file
+    label: "Pull Request Diff File"
+    description: "Git diff file or patch file to review"
+    required: true
+
+  - id: review_focus
+    type: select
+    label: "Review Focus"
+    description: "Primary focus area for the review"
+    required: false
+    default: "comprehensive"
+    options:
+      - comprehensive
+      - security
+      - performance
+      - style
+      - testing
+
+steps:
+  - id: load_diff
+    type: python
+    label: "Load Diff File"
+    description: "Read and parse the git diff file"
+    script: "./scripts/load_diff.py"
+    inputs:
+      file_path: "${workflow.inputs.pr_diff_file}"
+    outputs:
+      - diff
+      - files_changed
+      - additions
+      - deletions
+
+  - id: review_code
+    type: claude
+    label: "AI Code Review"
+    description: "Perform comprehensive code review using Claude AI"
+    depends_on:
+      - load_diff
+    model: "claude-sonnet-4"
+    prompt_template: |
+      You are an expert code reviewer with deep knowledge of software engineering best practices, security, and performance optimization.
+
+      Review Focus: ${workflow.inputs.review_focus}
+
+      Code Changes:
+      ${steps.load_diff.outputs.diff}
+
+      Files Changed: ${steps.load_diff.outputs.files_changed}
+      Lines Added: ${steps.load_diff.outputs.additions}
+      Lines Deleted: ${steps.load_diff.outputs.deletions}
+
+      Please provide a comprehensive code review covering:
+
+      1. **Code Quality**
+         - Readability and maintainability
+         - Code complexity and organization
+         - Naming conventions
+         - Comments and documentation
+
+      2. **Security**
+         - Input validation
+         - Authentication and authorization
+         - Data exposure risks
+         - Injection vulnerabilities
+
+      3. **Performance**
+         - Algorithm efficiency
+         - Resource usage
+         - Database query optimization
+         - Caching opportunities
+
+      4. **Best Practices**
+         - Design patterns
+         - Error handling
+         - Testing coverage
+         - Dependency management
+
+      5. **Suggestions**
+         - Specific improvements
+         - Alternative approaches
+         - Refactoring opportunities
+
+      Format your review as structured feedback with severity levels (Critical, High, Medium, Low, Info).
+    max_tokens: 4096
+    temperature: 0.2
+
+  - id: format_review
+    type: python
+    label: "Format Review Report"
+    description: "Format the AI review into a structured report"
+    depends_on:
+      - review_code
+    script: "./scripts/format_review.py"
+    inputs:
+      review: "${steps.review_code.outputs.result}"
+      diff_stats:
+        files_changed: "${steps.load_diff.outputs.files_changed}"
+        additions: "${steps.load_diff.outputs.additions}"
+        deletions: "${steps.load_diff.outputs.deletions}"
+    outputs:
+      - report_path
+      - summary
+
+  - id: output_summary
+    type: output
+    label: "Review Summary"
+    depends_on:
+      - format_review
+    message: |
+      Code Review Completed!
+
+      ${steps.format_review.outputs.summary}
+
+      Full report saved to: ${steps.format_review.outputs.report_path}
+    format: markdown

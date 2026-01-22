@@ -471,6 +471,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     /**
+     * Import workflow from YAML file
+     * @param filePath - Path to YAML file to import
+     * @returns Import result with workflow or validation error
+     */
+    import: (filePath: string): Promise<Result<{ workflow: Workflow }>> => {
+      return ipcRenderer.invoke('workflow:import', filePath);
+    },
+
+    /**
+     * Export workflow to YAML file
+     * @param workflow - Workflow to export
+     * @param filePath - Absolute path where to save the workflow
+     * @returns Export result with file path or error
+     */
+    export: (workflow: Workflow, filePath: string): Promise<Result<{ filePath: string }>> => {
+      return ipcRenderer.invoke('workflow:export', workflow, filePath);
+    },
+
+    /**
      * Workflow Execution Events (Feature 9.2 - Wave 9.2.2)
      */
     execution: {

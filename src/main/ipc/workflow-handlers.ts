@@ -438,6 +438,108 @@ export function registerWorkflowHandlers(): void {
     }
   });
 
+  /**
+   * Import workflow from YAML file
+   */
+  ipcMain.handle('workflow:import', async (_event, filePath: string) => {
+    log.debug('[WorkflowHandlers] workflow:import', { filePath });
+
+    try {
+      // Validate input
+      if (!filePath || typeof filePath !== 'string') {
+        return {
+          success: false,
+          error: 'Invalid file path: must be a non-empty string',
+        };
+      }
+
+      // Load workflow (this validates and parses YAML)
+      const result = await service.loadWorkflow(filePath);
+
+      if (result.success) {
+        log.info('[WorkflowHandlers] Workflow imported successfully', {
+          filePath,
+          workflowName: result.workflow?.workflow.name,
+        });
+      } else {
+        log.warn('[WorkflowHandlers] Failed to import workflow', {
+          filePath,
+          error: result.error,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      log.error('[WorkflowHandlers] workflow:import error', {
+        filePath,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  });
+
+  /**
+   * Export workflow to YAML file
+   */
+  ipcMain.handle('workflow:export', async (_event, workflow: Workflow, filePath: string) => {
+    log.debug('[WorkflowHandlers] workflow:export', {
+      workflowName: workflow?.workflow?.name,
+      filePath,
+    });
+
+    try {
+      // Validate input
+      if (!workflow || typeof workflow !== 'object') {
+        return {
+          success: false,
+          error: 'Invalid workflow: must be a workflow object',
+        };
+      }
+
+      if (!filePath || typeof filePath !== 'string') {
+        return {
+          success: false,
+          error: 'Invalid file path: must be a non-empty string',
+        };
+      }
+
+      // Save workflow to specified path
+      const result = await service.saveWorkflowToPath(workflow, filePath);
+
+      if (result.success) {
+        log.info('[WorkflowHandlers] Workflow exported successfully', {
+          workflowName: workflow.workflow.name,
+          filePath: result.filePath,
+        });
+      } else {
+        log.warn('[WorkflowHandlers] Failed to export workflow', {
+          workflowName: workflow.workflow.name,
+          error: result.error,
+        });
+      }
+
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      log.error('[WorkflowHandlers] workflow:export error', {
+        workflowName: workflow?.workflow?.name,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  });
+
   log.info('[WorkflowHandlers] Workflow IPC handlers registered');
 }
 
@@ -453,6 +555,8 @@ export function unregisterWorkflowHandlers(): void {
   ipcMain.removeHandler('workflow:validate');
   ipcMain.removeHandler('workflow:list');
   ipcMain.removeHandler('workflow:delete');
+  ipcMain.removeHandler('workflow:import');
+  ipcMain.removeHandler('workflow:export');
 
   log.info('[WorkflowHandlers] Workflow IPC handlers unregistered');
 }

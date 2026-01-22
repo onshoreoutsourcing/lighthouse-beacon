@@ -385,3 +385,32 @@ export interface YAMLSerializeOptions {
   /** Whether to include comments */
   includeComments?: boolean;
 }
+
+/**
+ * Workflow template metadata for template gallery
+ * Wave 9.3.2: Import/Export & Workflow Templates
+ */
+export interface WorkflowTemplate {
+  /** Unique template identifier */
+  id: string;
+  /** Template name */
+  name: string;
+  /** Template version */
+  version: string;
+  /** Short description for template cards */
+  description: string;
+  /** Full description from README (supports markdown) */
+  fullDescription: string;
+  /** Template tags for search and categorization */
+  tags: string[];
+  /** Complexity level indicator */
+  complexity: 'Beginner' | 'Intermediate' | 'Advanced';
+  /** Path to preview image */
+  previewImage: string;
+  /** Path to workflow YAML file */
+  workflowPath: string;
+  /** Required input parameter IDs */
+  requiredInputs: string[];
+  /** Number of workflow steps */
+  steps: number;
+}

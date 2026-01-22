@@ -540,6 +540,87 @@ export class WorkflowService {
   }
 
   /**
+   * Save workflow to arbitrary path (for export functionality)
+   *
+   * Unlike saveWorkflow(), this method allows saving to any path on the file system,
+   * not just within the workflow directory. Used for workflow export feature.
+   *
+   * @param workflow - Workflow to save
+   * @param absolutePath - Absolute path where to save the workflow
+   * @returns Save result with file path or error
+   */
+  async saveWorkflowToPath(workflow: Workflow, absolutePath: string): Promise<SaveWorkflowResult> {
+    log.debug('[WorkflowService] Saving workflow to path', {
+      workflowName: workflow.workflow.name,
+      absolutePath,
+    });
+
+    try {
+      // 1. Validate path is absolute
+      if (!path.isAbsolute(absolutePath)) {
+        return {
+          success: false,
+          error: 'Path must be absolute',
+        };
+      }
+
+      // 2. Validate workflow before saving
+      const validation = this.workflowValidator.validate(workflow);
+
+      if (!validation.valid) {
+        log.warn('[WorkflowService] Workflow validation failed', {
+          workflowName: workflow.workflow.name,
+          errorCount: validation.errors.length,
+          errors: validation.errors.map((e) => e.message),
+        });
+
+        return {
+          success: false,
+          error: 'Workflow validation failed',
+          validationErrors: validation,
+        };
+      }
+
+      // 3. Serialize workflow to YAML
+      const yamlContent = this.yamlParser.serialize(workflow, {
+        indent: 2,
+        lineWidth: 80,
+      });
+
+      // 4. Ensure directory exists
+      const directory = path.dirname(absolutePath);
+      await fs.mkdir(directory, { recursive: true });
+
+      // 5. Write to file
+      await fs.writeFile(absolutePath, yamlContent, 'utf-8');
+
+      log.info('[WorkflowService] Workflow saved to path successfully', {
+        workflowName: workflow.workflow.name,
+        filePath: absolutePath,
+        fileSize: yamlContent.length,
+      });
+
+      return {
+        success: true,
+        filePath: absolutePath,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error during save';
+
+      log.error('[WorkflowService] Failed to save workflow to path', {
+        workflowName: workflow.workflow.name,
+        absolutePath,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
    * Sanitize workflow name for use as file name
    *
    * Removes special characters and spaces, converts to lowercase.

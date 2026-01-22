@@ -104,6 +104,8 @@ declare global {
       workflow: {
         load: (filePath: string) => Promise<Result<{ workflow: Workflow }>>;
         save: (workflow: Workflow, fileName?: string) => Promise<Result<{ filePath: string }>>;
+        import: (filePath: string) => Promise<Result<{ workflow: Workflow }>>;
+        export: (workflow: Workflow, filePath: string) => Promise<Result<{ filePath: string }>>;
         execute: (request: {
           workflow: Workflow | string;
           inputs: Record<string, unknown>;
