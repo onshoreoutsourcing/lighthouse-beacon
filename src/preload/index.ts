@@ -496,6 +496,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     /**
+     * Generate workflow from natural language description using AI
+     * Wave 9.5.2: AI-Assisted Workflow Generation
+     * @param params - Generation parameters
+     * @param params.description - Natural language description of desired workflow
+     * @param params.projectType - Optional project type (e.g., "web", "cli", "api")
+     * @param params.language - Optional programming language (e.g., "python", "typescript")
+     * @param params.model - Optional AI model override
+     * @returns Generation result with workflow or error
+     */
+    generate: (params: {
+      description: string;
+      projectType?: string;
+      language?: string;
+      model?: string;
+    }): Promise<{
+      success: boolean;
+      workflow?: Workflow;
+      yaml?: string;
+      error?: {
+        type: 'claude_api' | 'yaml_parse' | 'schema_validation' | 'unknown';
+        message: string;
+        details?: string;
+        validationErrors?: unknown[];
+      };
+      metadata?: {
+        modelUsed: string;
+        tokensUsed?: number;
+        durationMs: number;
+      };
+    }> => {
+      return ipcRenderer.invoke('workflow:generate', params);
+    },
+
+    /**
      * Workflow Execution Events (Feature 9.2 - Wave 9.2.2)
      */
     execution: {

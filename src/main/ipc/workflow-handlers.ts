@@ -27,6 +27,7 @@ import { ipcMain } from 'electron';
 import log from 'electron-log';
 import { WorkflowService } from '../services/workflow/WorkflowService';
 import { WorkflowExecutor } from '../services/workflow/WorkflowExecutor';
+import { AIWorkflowGenerator } from '../services/workflow/AIWorkflowGenerator';
 import type { AIService } from '../services/AIService';
 import type { Workflow } from '../../shared/types';
 
@@ -46,6 +47,7 @@ interface WorkflowExecutionRequest {
 let workflowService: WorkflowService | null = null;
 let workflowExecutor: WorkflowExecutor | null = null;
 let aiService: AIService | null = null;
+let aiWorkflowGenerator: AIWorkflowGenerator | null = null;
 
 /**
  * Get or create WorkflowService instance
@@ -81,6 +83,21 @@ function getWorkflowExecutor(): WorkflowExecutor {
 }
 
 /**
+ * Get or create AIWorkflowGenerator instance
+ */
+function getAIWorkflowGenerator(): AIWorkflowGenerator | null {
+  if (!aiService) {
+    log.warn('[WorkflowHandlers] AIService not initialized, cannot create AIWorkflowGenerator');
+    return null;
+  }
+
+  if (!aiWorkflowGenerator) {
+    aiWorkflowGenerator = new AIWorkflowGenerator(aiService);
+  }
+  return aiWorkflowGenerator;
+}
+
+/**
  * Set AIService instance (called from main process initialization)
  */
 export function setWorkflowAIService(service: AIService): void {
@@ -88,6 +105,8 @@ export function setWorkflowAIService(service: AIService): void {
   if (workflowExecutor) {
     workflowExecutor.setAIService(service);
   }
+  // Invalidate generator so it gets recreated with new service
+  aiWorkflowGenerator = null;
 }
 
 /**
@@ -540,6 +559,83 @@ export function registerWorkflowHandlers(): void {
     }
   });
 
+  /**
+   * Generate workflow from natural language description
+   * Wave 9.5.2: AI-Assisted Workflow Generation
+   */
+  ipcMain.handle(
+    'workflow:generate',
+    async (
+      _event,
+      params: {
+        description: string;
+        projectType?: string;
+        language?: string;
+        model?: string;
+      }
+    ) => {
+      log.debug('[WorkflowHandlers] workflow:generate', {
+        descriptionLength: params.description?.length,
+        projectType: params.projectType,
+        language: params.language,
+      });
+
+      try {
+        // Validate input
+        if (!params.description || typeof params.description !== 'string') {
+          return {
+            success: false,
+            error: 'Invalid description: must be a non-empty string',
+          };
+        }
+
+        if (params.description.trim().length < 10) {
+          return {
+            success: false,
+            error: 'Description too short: please provide more details (at least 10 characters)',
+          };
+        }
+
+        // Get AI workflow generator
+        const generator = getAIWorkflowGenerator();
+        if (!generator) {
+          return {
+            success: false,
+            error: 'AI service not initialized. Please configure your API key in settings.',
+          };
+        }
+
+        // Generate workflow
+        const result = await generator.generateWorkflow({
+          description: params.description,
+          projectType: params.projectType,
+          language: params.language,
+          model: params.model,
+        });
+
+        log.debug('[WorkflowHandlers] workflow:generate result', {
+          success: result.success,
+          hasWorkflow: !!result.workflow,
+          errorType: result.error?.type,
+        });
+
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        log.error('[WorkflowHandlers] workflow:generate error', {
+          descriptionLength: params.description?.length,
+          error: errorMessage,
+        });
+
+        return {
+          success: false,
+          error: errorMessage,
+        };
+      }
+    }
+  );
+
   log.info('[WorkflowHandlers] Workflow IPC handlers registered');
 }
 
@@ -557,6 +653,7 @@ export function unregisterWorkflowHandlers(): void {
   ipcMain.removeHandler('workflow:delete');
   ipcMain.removeHandler('workflow:import');
   ipcMain.removeHandler('workflow:export');
+  ipcMain.removeHandler('workflow:generate');
 
   log.info('[WorkflowHandlers] Workflow IPC handlers unregistered');
 }
