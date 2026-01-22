@@ -11,12 +11,15 @@
  * - Prompt preview (truncated)
  * - Configuration display (temperature, maxTokens)
  * - Accessible keyboard navigation
+ * - Breakpoint indicator (Wave 9.4.6)
  */
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Bot, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import type { ClaudeNodeData } from '@renderer/stores/workflow.store';
+import { BreakpointIndicator } from '../debug';
+import { useDebugState } from '@renderer/hooks/useDebugState';
 
 /**
  * Props for ClaudeAPINode
@@ -24,13 +27,17 @@ import type { ClaudeNodeData } from '@renderer/stores/workflow.store';
 interface ClaudeAPINodeProps {
   data: ClaudeNodeData;
   selected?: boolean;
+  id: string;
 }
 
 /**
  * ClaudeAPINode Component
  */
-export const ClaudeAPINode: React.FC<ClaudeAPINodeProps> = ({ data, selected = false }) => {
+export const ClaudeAPINode: React.FC<ClaudeAPINodeProps> = ({ data, selected = false, id }) => {
   const { label, status, model, prompt, temperature, maxTokens, error } = data;
+
+  // Debug state management (Wave 9.4.6)
+  const { debugMode, hasBreakpoint, isBreakpointEnabled, toggleBreakpoint } = useDebugState();
 
   // Status icon rendering
   const renderStatusIcon = () => {
@@ -66,10 +73,19 @@ export const ClaudeAPINode: React.FC<ClaudeAPINodeProps> = ({ data, selected = f
 
   return (
     <div
-      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[250px] max-w-[350px]`}
+      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[250px] max-w-[350px] relative`}
       role="article"
       aria-label={`Claude AI node: ${label}`}
     >
+      {/* Breakpoint Indicator - Wave 9.4.6 */}
+      <BreakpointIndicator
+        nodeId={id}
+        hasBreakpoint={hasBreakpoint(id)}
+        enabled={isBreakpointEnabled(id)}
+        onToggle={toggleBreakpoint}
+        debugMode={debugMode === 'ON'}
+      />
+
       {/* Target handle (top) */}
       <Handle
         type="target"

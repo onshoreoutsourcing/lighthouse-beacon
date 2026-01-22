@@ -59,9 +59,11 @@ export const VariableInspector: React.FC<VariableInspectorProps> = ({
     if (!context) return [];
 
     const nodes: VariableNode[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- VariableResolutionContext has dynamic structure
     const vars = context.variables;
 
     // Workflow inputs
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Dynamic variable structure
     const workflowInputs = vars.workflowInputs as Record<string, unknown> | undefined;
     if (workflowInputs && Object.keys(workflowInputs).length > 0) {
       nodes.push({
@@ -79,6 +81,7 @@ export const VariableInspector: React.FC<VariableInspectorProps> = ({
     }
 
     // Step outputs
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Dynamic variable structure
     const stepOutputs = vars.stepOutputs as Record<string, Record<string, unknown>> | undefined;
     if (stepOutputs && Object.keys(stepOutputs).length > 0) {
       const stepNodes: VariableNode[] = [];
@@ -113,6 +116,7 @@ export const VariableInspector: React.FC<VariableInspectorProps> = ({
     }
 
     // Environment variables
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Dynamic variable structure
     const env = vars.env as Record<string, unknown> | undefined;
     if (env && Object.keys(env).length > 0) {
       nodes.push({
@@ -154,6 +158,7 @@ export const VariableInspector: React.FC<VariableInspectorProps> = ({
     if (editingPath) {
       try {
         // Try to parse as JSON first for objects/arrays
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Parsed JSON value
         const parsedValue = JSON.parse(editValue);
         onVariableChange(editingPath, parsedValue);
       } catch {
@@ -174,6 +179,7 @@ export const VariableInspector: React.FC<VariableInspectorProps> = ({
   // Copy value to clipboard
   const copyValue = (path: string, value: unknown) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Intentional stringify for all types
       const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
       void window.navigator.clipboard.writeText(text);
       setCopiedPath(path);

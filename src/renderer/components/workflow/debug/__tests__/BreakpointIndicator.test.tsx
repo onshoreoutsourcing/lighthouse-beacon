@@ -3,7 +3,7 @@
  * Wave 9.4.6: Step-by-Step Debugging
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BreakpointIndicator } from '../BreakpointIndicator';
 
@@ -64,7 +64,7 @@ describe('BreakpointIndicator', () => {
 
     it('should stop event propagation when clicked', () => {
       const handleParentClick = vi.fn();
-      const { container } = render(
+      render(
         <div onClick={handleParentClick}>
           <BreakpointIndicator {...defaultProps} />
         </div>

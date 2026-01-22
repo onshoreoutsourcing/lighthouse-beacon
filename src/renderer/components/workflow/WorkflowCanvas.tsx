@@ -13,9 +13,10 @@
  * - Performance optimized (<100ms render for 50 nodes)
  * - Keyboard navigation
  * - Auto-sync with Zustand store
+ * - Step-by-step debugging (Wave 9.4.6)
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -30,6 +31,9 @@ import '@xyflow/react/dist/style.css';
 
 import { useWorkflowStore } from '@renderer/stores/workflow.store';
 import { PythonScriptNode, ClaudeAPINode, InputNode, OutputNode, ConditionalNode } from './nodes';
+import { DebugToolbar, VariableInspector } from './debug';
+import { useDebugState } from '@renderer/hooks/useDebugState';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
  * WorkflowCanvas Props
@@ -57,6 +61,26 @@ const nodeTypes: NodeTypes = {
 export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }) => {
   // Get workflow state from Zustand store
   const { nodes, edges, addEdge, updateNodePosition } = useWorkflowStore();
+
+  // Debug state management (Wave 9.4.6)
+  const {
+    debugMode,
+    debugState,
+    breakpoints,
+    currentContext,
+    setDebugMode,
+    pause,
+    resume,
+    stepOver,
+    continue: continueExecution,
+    setVariable,
+  } = useDebugState();
+
+  // Variable inspector panel visibility
+  const [showVariableInspector, setShowVariableInspector] = useState(false);
+
+  // Check if workflow is currently executing (simplified - would need execution state from store)
+  const isExecuting = false; // TODO: Get from execution state when available
 
   /**
    * Handle node position changes
@@ -95,6 +119,36 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
       addEdge(connection);
     },
     [addEdge]
+  );
+
+  /**
+   * Debug toolbar handlers (Wave 9.4.6)
+   */
+  const handleToggleDebugMode = useCallback(() => {
+    void setDebugMode(debugMode === 'ON' ? 'OFF' : 'ON');
+  }, [debugMode, setDebugMode]);
+
+  const handlePause = useCallback(() => {
+    void pause();
+  }, [pause]);
+
+  const handleResume = useCallback(() => {
+    void resume();
+  }, [resume]);
+
+  const handleStepOver = useCallback(() => {
+    void stepOver();
+  }, [stepOver]);
+
+  const handleContinue = useCallback(() => {
+    void continueExecution();
+  }, [continueExecution]);
+
+  const handleVariableChange = useCallback(
+    (path: string, value: unknown) => {
+      void setVariable(path, value);
+    },
+    [setVariable]
   );
 
   /**
@@ -141,36 +195,89 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
 
   return (
     <div
-      className={`workflow-canvas ${className}`}
+      className={`workflow-canvas ${className} flex flex-col`}
       style={{ width: '100%', height: '100%' }}
       role="region"
       aria-label="Workflow canvas"
     >
-      <ReactFlow {...reactFlowProps}>
-        {/* Background grid */}
-        <Background color="#3e3e42" gap={16} size={1} />
-
-        {/* Zoom and pan controls */}
-        <Controls
-          showZoom
-          showFitView
-          showInteractive={false}
-          position="bottom-right"
-          className="react-flow-controls bg-vscode-panel border border-vscode-border rounded"
+      {/* Debug Toolbar - Wave 9.4.6 */}
+      <div className="p-3 border-b border-vscode-border bg-vscode-bg">
+        <DebugToolbar
+          debugMode={debugMode}
+          debugState={debugState}
+          currentNodeId={currentContext?.nodeId}
+          breakpointCount={breakpoints.length}
+          onToggleDebugMode={handleToggleDebugMode}
+          onPause={handlePause}
+          onResume={handleResume}
+          onStepOver={handleStepOver}
+          onContinue={handleContinue}
+          isExecuting={isExecuting}
         />
+      </div>
 
-        {/* Minimap for navigation */}
-        <MiniMap
-          nodeColor={minimapNodeColor}
-          nodeBorderRadius={8}
-          position="bottom-left"
-          className="react-flow-minimap bg-vscode-panel border border-vscode-border rounded"
-          style={{
-            backgroundColor: '#252526',
-            border: '1px solid #3e3e42',
-          }}
-        />
-      </ReactFlow>
+      {/* Canvas and Variable Inspector Container */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* React Flow Canvas */}
+        <div className="flex-1 relative">
+          <ReactFlow {...reactFlowProps}>
+            {/* Background grid */}
+            <Background color="#3e3e42" gap={16} size={1} />
+
+            {/* Zoom and pan controls */}
+            <Controls
+              showZoom
+              showFitView
+              showInteractive={false}
+              position="bottom-right"
+              className="react-flow-controls bg-vscode-panel border border-vscode-border rounded"
+            />
+
+            {/* Minimap for navigation */}
+            <MiniMap
+              nodeColor={minimapNodeColor}
+              nodeBorderRadius={8}
+              position="bottom-left"
+              className="react-flow-minimap bg-vscode-panel border border-vscode-border rounded"
+              style={{
+                backgroundColor: '#252526',
+                border: '1px solid #3e3e42',
+              }}
+            />
+          </ReactFlow>
+
+          {/* Variable Inspector Toggle Button */}
+          {debugMode === 'ON' && (
+            <button
+              onClick={() => setShowVariableInspector(!showVariableInspector)}
+              className="absolute top-4 right-4 p-2 bg-vscode-panel border border-vscode-border rounded hover:bg-vscode-bg transition-colors focus:outline-none focus:ring-2 focus:ring-vscode-accent"
+              aria-label={showVariableInspector ? 'Hide variable inspector' : 'Show variable inspector'}
+              title={showVariableInspector ? 'Hide Variables' : 'Show Variables'}
+            >
+              {showVariableInspector ? (
+                <ChevronRight className="w-5 h-5 text-vscode-text" aria-hidden="true" />
+              ) : (
+                <ChevronLeft className="w-5 h-5 text-vscode-text" aria-hidden="true" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Variable Inspector Panel - Wave 9.4.6 */}
+        {debugMode === 'ON' && showVariableInspector && (
+          <div
+            className="w-96 border-l border-vscode-border bg-vscode-bg overflow-hidden"
+            role="complementary"
+            aria-label="Variable inspector panel"
+          >
+            <VariableInspector
+              context={currentContext}
+              isPaused={debugState === 'PAUSED'}
+              onVariableChange={handleVariableChange}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };

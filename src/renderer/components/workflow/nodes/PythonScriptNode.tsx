@@ -10,12 +10,15 @@
  * - Python icon with script path display
  * - Arguments display
  * - Accessible keyboard navigation
+ * - Breakpoint indicator (Wave 9.4.6)
  */
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { FileCode, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import type { PythonNodeData } from '@renderer/stores/workflow.store';
+import { BreakpointIndicator } from '../debug';
+import { useDebugState } from '@renderer/hooks/useDebugState';
 
 /**
  * Props for PythonScriptNode
@@ -23,13 +26,17 @@ import type { PythonNodeData } from '@renderer/stores/workflow.store';
 interface PythonScriptNodeProps {
   data: PythonNodeData;
   selected?: boolean;
+  id: string;
 }
 
 /**
  * PythonScriptNode Component
  */
-export const PythonScriptNode: React.FC<PythonScriptNodeProps> = ({ data, selected = false }) => {
+export const PythonScriptNode: React.FC<PythonScriptNodeProps> = ({ data, selected = false, id }) => {
   const { label, status, scriptPath, args, error } = data;
+
+  // Debug state management (Wave 9.4.6)
+  const { debugMode, hasBreakpoint, isBreakpointEnabled, toggleBreakpoint } = useDebugState();
 
   // Status icon rendering
   const renderStatusIcon = () => {
@@ -62,10 +69,19 @@ export const PythonScriptNode: React.FC<PythonScriptNodeProps> = ({ data, select
 
   return (
     <div
-      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[250px] max-w-[350px]`}
+      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[250px] max-w-[350px] relative`}
       role="article"
       aria-label={`Python script node: ${label}`}
     >
+      {/* Breakpoint Indicator - Wave 9.4.6 */}
+      <BreakpointIndicator
+        nodeId={id}
+        hasBreakpoint={hasBreakpoint(id)}
+        enabled={isBreakpointEnabled(id)}
+        onToggle={toggleBreakpoint}
+        debugMode={debugMode === 'ON'}
+      />
+
       {/* Target handle (top) */}
       <Handle
         type="target"
