@@ -170,7 +170,10 @@ export class AIWorkflowGenerator {
       return {
         success: false,
         error: {
-          type: error instanceof Error && error.message.includes('API') ? 'claude_api' : 'unknown',
+          type:
+            error instanceof Error && error.message.startsWith('Claude API error:')
+              ? 'claude_api'
+              : 'unknown',
           message: error instanceof Error ? error.message : 'Unknown error occurred',
           details: error instanceof Error ? error.stack : undefined,
         },
@@ -318,9 +321,15 @@ Now generate a valid YAML workflow for the user's description. Output ONLY the Y
       logger.error(`[${this.SERVICE_NAME}] Claude API call failed`, {
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
-        `Claude API error: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+
+      // Only wrap actual API errors, pass through network errors
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isApiError =
+        errorMessage.toLowerCase().includes('api') ||
+        errorMessage.toLowerCase().includes('rate limit') ||
+        errorMessage.toLowerCase().includes('authentication');
+
+      throw new Error(isApiError ? `Claude API error: ${errorMessage}` : errorMessage);
     }
   }
 }
