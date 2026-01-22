@@ -32,7 +32,11 @@ interface PythonScriptNodeProps {
 /**
  * PythonScriptNode Component
  */
-export const PythonScriptNode: React.FC<PythonScriptNodeProps> = ({ data, selected = false, id }) => {
+export const PythonScriptNode: React.FC<PythonScriptNodeProps> = ({
+  data,
+  selected = false,
+  id,
+}) => {
   const { label, status, scriptPath, args, error } = data;
 
   // Debug state management (Wave 9.4.6)
@@ -78,7 +82,9 @@ export const PythonScriptNode: React.FC<PythonScriptNodeProps> = ({ data, select
         nodeId={id}
         hasBreakpoint={hasBreakpoint(id)}
         enabled={isBreakpointEnabled(id)}
-        onToggle={toggleBreakpoint}
+        onToggle={(nodeId) => {
+          void toggleBreakpoint(nodeId);
+        }}
         debugMode={debugMode === 'ON'}
       />
 

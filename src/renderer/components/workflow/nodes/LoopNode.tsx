@@ -12,6 +12,7 @@
  * - Max iterations safety limit display
  * - Loop progress tracking (current iteration / total)
  * - Accessible keyboard navigation
+ * - Breakpoint indicator (Wave 9.4.6)
  *
  * Part of Wave 9.4.2: Loop Nodes
  */
@@ -20,6 +21,8 @@ import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Repeat, AlertCircle, CheckCircle, Loader, PlayCircle } from 'lucide-react';
 import type { BaseNodeData } from '@renderer/stores/workflow.store';
+import { BreakpointIndicator } from '../debug';
+import { useDebugState } from '@renderer/hooks/useDebugState';
 
 /**
  * Loop node execution status
@@ -50,12 +53,13 @@ export interface LoopNodeData extends BaseNodeData {
 interface LoopNodeProps {
   data: LoopNodeData;
   selected?: boolean;
+  id: string;
 }
 
 /**
  * LoopNode Component
  */
-export const LoopNode: React.FC<LoopNodeProps> = ({ data, selected = false }) => {
+export const LoopNode: React.FC<LoopNodeProps> = ({ data, selected = false, id }) => {
   const {
     label,
     status,
@@ -67,6 +71,9 @@ export const LoopNode: React.FC<LoopNodeProps> = ({ data, selected = false }) =>
     loopStatus = 'idle',
     error,
   } = data;
+
+  // Debug state management (Wave 9.4.6)
+  const { debugMode, hasBreakpoint, isBreakpointEnabled, toggleBreakpoint } = useDebugState();
 
   // Status icon rendering
   const renderStatusIcon = () => {
@@ -162,10 +169,21 @@ export const LoopNode: React.FC<LoopNodeProps> = ({ data, selected = false }) =>
 
   return (
     <div
-      className={`${getBackgroundColor()} border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[240px] max-w-[320px]`}
+      className={`${getBackgroundColor()} border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[240px] max-w-[320px] relative`}
       role="article"
       aria-label={`Loop node: ${label}`}
     >
+      {/* Breakpoint Indicator - Wave 9.4.6 */}
+      <BreakpointIndicator
+        nodeId={id}
+        hasBreakpoint={hasBreakpoint(id)}
+        enabled={isBreakpointEnabled(id)}
+        onToggle={(nodeId) => {
+          void toggleBreakpoint(nodeId);
+        }}
+        debugMode={debugMode === 'ON'}
+      />
+
       {/* Target handle (top) */}
       <Handle
         type="target"

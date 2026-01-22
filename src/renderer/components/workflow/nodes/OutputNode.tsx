@@ -9,12 +9,15 @@
  * - Status-based styling (idle, running, success, error)
  * - Output icon with format display
  * - Accessible keyboard navigation
+ * - Breakpoint indicator (Wave 9.4.6)
  */
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Upload, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import type { OutputNodeData } from '@renderer/stores/workflow.store';
+import { BreakpointIndicator } from '../debug';
+import { useDebugState } from '@renderer/hooks/useDebugState';
 
 /**
  * Props for OutputNode
@@ -22,13 +25,17 @@ import type { OutputNodeData } from '@renderer/stores/workflow.store';
 interface OutputNodeProps {
   data: OutputNodeData;
   selected?: boolean;
+  id: string;
 }
 
 /**
  * OutputNode Component
  */
-export const OutputNode: React.FC<OutputNodeProps> = ({ data, selected = false }) => {
+export const OutputNode: React.FC<OutputNodeProps> = ({ data, selected = false, id }) => {
   const { label, status, format, error } = data;
+
+  // Debug state management (Wave 9.4.6)
+  const { debugMode, hasBreakpoint, isBreakpointEnabled, toggleBreakpoint } = useDebugState();
 
   // Status icon rendering
   const renderStatusIcon = () => {
@@ -75,10 +82,21 @@ export const OutputNode: React.FC<OutputNodeProps> = ({ data, selected = false }
 
   return (
     <div
-      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[200px] max-w-[300px]`}
+      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[200px] max-w-[300px] relative`}
       role="article"
       aria-label={`Output node: ${label}`}
     >
+      {/* Breakpoint Indicator - Wave 9.4.6 */}
+      <BreakpointIndicator
+        nodeId={id}
+        hasBreakpoint={hasBreakpoint(id)}
+        enabled={isBreakpointEnabled(id)}
+        onToggle={(nodeId) => {
+          void toggleBreakpoint(nodeId);
+        }}
+        debugMode={debugMode === 'ON'}
+      />
+
       {/* Target handle (top) - no source handle for output nodes */}
       <Handle
         type="target"

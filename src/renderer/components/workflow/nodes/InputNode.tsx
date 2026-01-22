@@ -10,12 +10,15 @@
  * - Input icon with parameter display
  * - Default value display
  * - Accessible keyboard navigation
+ * - Breakpoint indicator (Wave 9.4.6)
  */
 
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { Download, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import type { InputNodeData } from '@renderer/stores/workflow.store';
+import { BreakpointIndicator } from '../debug';
+import { useDebugState } from '@renderer/hooks/useDebugState';
 
 /**
  * Props for InputNode
@@ -23,13 +26,17 @@ import type { InputNodeData } from '@renderer/stores/workflow.store';
 interface InputNodeProps {
   data: InputNodeData;
   selected?: boolean;
+  id: string;
 }
 
 /**
  * InputNode Component
  */
-export const InputNode: React.FC<InputNodeProps> = ({ data, selected = false }) => {
+export const InputNode: React.FC<InputNodeProps> = ({ data, selected = false, id }) => {
   const { label, status, paramName, defaultValue, error } = data;
+
+  // Debug state management (Wave 9.4.6)
+  const { debugMode, hasBreakpoint, isBreakpointEnabled, toggleBreakpoint } = useDebugState();
 
   // Status icon rendering
   const renderStatusIcon = () => {
@@ -62,10 +69,21 @@ export const InputNode: React.FC<InputNodeProps> = ({ data, selected = false }) 
 
   return (
     <div
-      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[200px] max-w-[300px]`}
+      className={`bg-vscode-panel border-2 ${getBorderColor()} rounded-lg shadow-lg min-w-[200px] max-w-[300px] relative`}
       role="article"
       aria-label={`Input node: ${label}`}
     >
+      {/* Breakpoint Indicator - Wave 9.4.6 */}
+      <BreakpointIndicator
+        nodeId={id}
+        hasBreakpoint={hasBreakpoint(id)}
+        enabled={isBreakpointEnabled(id)}
+        onToggle={(nodeId) => {
+          void toggleBreakpoint(nodeId);
+        }}
+        debugMode={debugMode === 'ON'}
+      />
+
       {/* Node header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-vscode-border bg-vscode-bg">
         <Download className="w-5 h-5 text-vscode-warning flex-shrink-0" aria-hidden="true" />

@@ -11,6 +11,7 @@
  * - Condition expression display
  * - True edge (green) and False edge (red) visual indicators
  * - Accessible keyboard navigation
+ * - Breakpoint indicator (Wave 9.4.6)
  *
  * Part of Wave 9.4.1: Conditional Branching
  */
@@ -19,6 +20,8 @@ import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { GitBranch, AlertCircle, CheckCircle, Loader, XCircle } from 'lucide-react';
 import type { BaseNodeData } from '@renderer/stores/workflow.store';
+import { BreakpointIndicator } from '../debug';
+import { useDebugState } from '@renderer/hooks/useDebugState';
 
 /**
  * Conditional node execution status
@@ -43,13 +46,17 @@ export interface ConditionalNodeData extends BaseNodeData {
 interface ConditionalNodeProps {
   data: ConditionalNodeData;
   selected?: boolean;
+  id: string;
 }
 
 /**
  * ConditionalNode Component
  */
-export const ConditionalNode: React.FC<ConditionalNodeProps> = ({ data, selected = false }) => {
+export const ConditionalNode: React.FC<ConditionalNodeProps> = ({ data, selected = false, id }) => {
   const { label, status, condition, conditionalStatus = 'idle', branchTaken, error } = data;
+
+  // Debug state management (Wave 9.4.6)
+  const { debugMode, hasBreakpoint, isBreakpointEnabled, toggleBreakpoint } = useDebugState();
 
   // Status icon rendering
   const renderStatusIcon = () => {
@@ -108,6 +115,17 @@ export const ConditionalNode: React.FC<ConditionalNodeProps> = ({ data, selected
       aria-label={`Conditional node: ${label}`}
       style={{ width: '280px', height: '280px' }}
     >
+      {/* Breakpoint Indicator - Wave 9.4.6 */}
+      <BreakpointIndicator
+        nodeId={id}
+        hasBreakpoint={hasBreakpoint(id)}
+        enabled={isBreakpointEnabled(id)}
+        onToggle={(nodeId) => {
+          void toggleBreakpoint(nodeId);
+        }}
+        debugMode={debugMode === 'ON'}
+      />
+
       {/* Target handle (top center) */}
       <Handle
         type="target"

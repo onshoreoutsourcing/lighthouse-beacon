@@ -82,7 +82,9 @@ export const ClaudeAPINode: React.FC<ClaudeAPINodeProps> = ({ data, selected = f
         nodeId={id}
         hasBreakpoint={hasBreakpoint(id)}
         enabled={isBreakpointEnabled(id)}
-        onToggle={toggleBreakpoint}
+        onToggle={(nodeId) => {
+          void toggleBreakpoint(nodeId);
+        }}
         debugMode={debugMode === 'ON'}
       />
 
