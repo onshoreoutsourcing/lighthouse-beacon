@@ -30,12 +30,14 @@ import { PythonExecutor } from './PythonExecutor';
 import { ExecutionEvents } from './ExecutionEvents';
 import { VariableResolver } from './VariableResolver';
 import { RetryPolicy } from './RetryPolicy';
+import { ConditionEvaluator } from './ConditionEvaluator';
 import type { AIService } from '../AIService';
 import type {
   Workflow,
   WorkflowStep,
   PythonStep,
   ClaudeStep,
+  ConditionalStep,
   VariableResolutionContext,
 } from '../../../shared/types';
 import { StepType } from '../../../shared/types';
@@ -91,6 +93,7 @@ export class WorkflowExecutor {
   private pythonExecutor: PythonExecutor;
   private executionEvents: ExecutionEvents;
   private variableResolver: VariableResolver;
+  private conditionEvaluator: ConditionEvaluator;
   private aiService: AIService | null = null;
   private projectRoot: string;
 
@@ -105,6 +108,7 @@ export class WorkflowExecutor {
     this.pythonExecutor = new PythonExecutor(this.projectRoot);
     this.executionEvents = ExecutionEvents.getInstance();
     this.variableResolver = new VariableResolver();
+    this.conditionEvaluator = new ConditionEvaluator();
     this.aiService = aiService || null;
 
     log.info('[WorkflowExecutor] Initialized', { projectRoot: this.projectRoot });
@@ -163,11 +167,41 @@ export class WorkflowExecutor {
         order: executionOrder.map((s) => s.id),
       });
 
-      // 2. Execute steps in order
+      // 2. Build conditional branch mapping (which steps are in which branches)
+      const conditionalBranches = this.buildConditionalBranchMap(workflow.steps);
+
+      // Track skipped steps (for dependency checking)
+      const skippedSteps = new Set<string>();
+
+      // 3. Execute steps in order
       for (let i = 0; i < executionOrder.length; i++) {
         const step = executionOrder[i];
 
         if (!step) continue;
+
+        // Check if step should be skipped due to conditional branching
+        const shouldSkip = this.shouldSkipStep(step.id, conditionalBranches, stepOutputs);
+        if (shouldSkip) {
+          log.debug('[WorkflowExecutor] Skipping step (conditional branch not taken)', {
+            workflowId,
+            stepId: step.id,
+            reason: shouldSkip,
+          });
+          skippedSteps.add(step.id);
+          continue;
+        }
+
+        // Check if step depends on skipped steps
+        if (step.depends_on && step.depends_on.some((depId) => skippedSteps.has(depId))) {
+          const skippedDeps = step.depends_on.filter((depId) => skippedSteps.has(depId));
+          log.debug('[WorkflowExecutor] Skipping step (depends on skipped steps)', {
+            workflowId,
+            stepId: step.id,
+            skippedDependencies: skippedDeps,
+          });
+          skippedSteps.add(step.id);
+          continue;
+        }
 
         // Build variable resolution context
         const context: VariableResolutionContext = {
@@ -372,7 +406,8 @@ export class WorkflowExecutor {
               step,
               resolvedInputs,
               workflowId,
-              startTime
+              startTime,
+              context
             );
 
             // If step failed, throw error to trigger retry
@@ -416,7 +451,13 @@ export class WorkflowExecutor {
         }
       } else {
         // No retry policy - execute normally
-        stepResult = await this.executeStepByType(step, resolvedInputs, workflowId, startTime);
+        stepResult = await this.executeStepByType(
+          step,
+          resolvedInputs,
+          workflowId,
+          startTime,
+          context
+        );
       }
 
       // Emit step completed or failed event
@@ -466,13 +507,15 @@ export class WorkflowExecutor {
    * @param resolvedInputs - Resolved step inputs
    * @param workflowId - Workflow ID for event tracking
    * @param startTime - Execution start timestamp
+   * @param context - Full variable resolution context (needed for conditional evaluation)
    * @returns Step execution result
    */
   private async executeStepByType(
     step: WorkflowStep,
     resolvedInputs: Record<string, unknown>,
     workflowId: string,
-    startTime: number
+    startTime: number,
+    context?: VariableResolutionContext
   ): Promise<StepExecutionResult> {
     switch (step.type) {
       case StepType.PYTHON:
@@ -484,6 +527,17 @@ export class WorkflowExecutor {
       case StepType.OUTPUT:
         // Output step - just log/display message
         return this.executeOutputStep(step, resolvedInputs);
+
+      case StepType.CONDITIONAL:
+        if (!context) {
+          return {
+            success: false,
+            outputs: {},
+            error: 'Context required for conditional step execution',
+            duration: Date.now() - startTime,
+          };
+        }
+        return this.executeConditionalStep(step, workflowId, context);
 
       default:
         return {
@@ -625,6 +679,189 @@ export class WorkflowExecutor {
       },
       duration: 0,
     };
+  }
+
+  /**
+   * Execute conditional step
+   *
+   * Evaluates condition expression and determines which branch to take.
+   * Returns branch information in outputs for downstream step filtering.
+   *
+   * @param step - Conditional step definition
+   * @param workflowId - Workflow ID for event tracking
+   * @param context - Variable resolution context
+   * @returns Step execution result with branch information
+   */
+  private executeConditionalStep(
+    step: ConditionalStep,
+    workflowId: string,
+    context: VariableResolutionContext
+  ): StepExecutionResult {
+    const startTime = Date.now();
+
+    log.debug('[WorkflowExecutor] Executing conditional step', {
+      workflowId,
+      stepId: step.id,
+      condition: step.condition,
+    });
+
+    try {
+      // Evaluate condition using ConditionEvaluator
+      const evaluationResult = this.conditionEvaluator.evaluate(step.condition, context);
+
+      const duration = Date.now() - startTime;
+
+      if (evaluationResult.error) {
+        // Condition evaluation failed
+        log.error('[WorkflowExecutor] Conditional evaluation failed', {
+          workflowId,
+          stepId: step.id,
+          condition: step.condition,
+          error: evaluationResult.error,
+        });
+
+        return {
+          success: false,
+          outputs: {},
+          error: `Condition evaluation failed: ${evaluationResult.error}`,
+          duration,
+        };
+      }
+
+      // Condition evaluated successfully
+      const branchTaken = evaluationResult.result;
+      const branchSteps = branchTaken ? step.then_steps : step.else_steps || [];
+
+      log.info('[WorkflowExecutor] Conditional step completed', {
+        workflowId,
+        stepId: step.id,
+        result: branchTaken,
+        branchTaken: branchTaken ? 'true' : 'false',
+        branchSteps,
+        resolvedCondition: evaluationResult.resolvedExpression,
+        duration,
+      });
+
+      // Return outputs with branch information
+      // This allows downstream logic to filter steps based on branch taken
+      return {
+        success: true,
+        outputs: {
+          result: branchTaken,
+          branch_taken: branchTaken ? 'true' : 'false',
+          resolved_condition: evaluationResult.resolvedExpression,
+          then_steps: step.then_steps,
+          else_steps: step.else_steps || [],
+          active_branch_steps: branchSteps,
+        },
+        duration,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error during condition evaluation';
+
+      log.error('[WorkflowExecutor] Conditional step failed', {
+        workflowId,
+        stepId: step.id,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        outputs: {},
+        error: errorMessage,
+        duration,
+      };
+    }
+  }
+
+  /**
+   * Build mapping of which steps are in which conditional branches
+   *
+   * Maps step IDs to their controlling conditional step and branch type.
+   * Used to determine which steps should be skipped based on runtime evaluation.
+   *
+   * @param steps - All workflow steps
+   * @returns Map of stepId -> { conditionalStepId, branch }
+   */
+  private buildConditionalBranchMap(
+    steps: WorkflowStep[]
+  ): Map<string, { conditionalStepId: string; branch: 'then' | 'else' }> {
+    const branchMap = new Map<string, { conditionalStepId: string; branch: 'then' | 'else' }>();
+
+    for (const step of steps) {
+      if (step.type === StepType.CONDITIONAL) {
+        const conditionalStep = step;
+
+        // Map then_steps
+        for (const stepId of conditionalStep.then_steps) {
+          branchMap.set(stepId, {
+            conditionalStepId: conditionalStep.id,
+            branch: 'then',
+          });
+        }
+
+        // Map else_steps
+        if (conditionalStep.else_steps) {
+          for (const stepId of conditionalStep.else_steps) {
+            branchMap.set(stepId, {
+              conditionalStepId: conditionalStep.id,
+              branch: 'else',
+            });
+          }
+        }
+      }
+    }
+
+    return branchMap;
+  }
+
+  /**
+   * Check if a step should be skipped due to conditional branching
+   *
+   * A step should be skipped if:
+   * 1. It's in a conditional branch (then or else)
+   * 2. The controlling conditional step has executed
+   * 3. The step is NOT in the branch that was taken
+   *
+   * @param stepId - Step ID to check
+   * @param conditionalBranches - Map of steps to their controlling conditionals
+   * @param stepOutputs - Executed step outputs (including conditional results)
+   * @returns Skip reason if should skip, null if should execute
+   */
+  private shouldSkipStep(
+    stepId: string,
+    conditionalBranches: Map<string, { conditionalStepId: string; branch: 'then' | 'else' }>,
+    stepOutputs: Record<string, Record<string, unknown>>
+  ): string | null {
+    // Check if step is in a conditional branch
+    const branchInfo = conditionalBranches.get(stepId);
+    if (!branchInfo) {
+      // Not in any conditional branch - should execute
+      return null;
+    }
+
+    // Check if controlling conditional has executed
+    const conditionalOutputs = stepOutputs[branchInfo.conditionalStepId];
+    if (!conditionalOutputs) {
+      // Conditional hasn't executed yet - should execute (will be caught by dependencies)
+      return null;
+    }
+
+    // Check if step is in the taken branch
+    const branchTaken = conditionalOutputs.branch_taken as string;
+    const isInTakenBranch =
+      (branchInfo.branch === 'then' && branchTaken === 'true') ||
+      (branchInfo.branch === 'else' && branchTaken === 'false');
+
+    if (isInTakenBranch) {
+      // Step is in the taken branch - should execute
+      return null;
+    }
+
+    // Step is in the non-taken branch - should skip
+    return `Step in ${branchInfo.branch} branch, but ${branchTaken} branch was taken`;
   }
 
   /**

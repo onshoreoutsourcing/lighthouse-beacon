@@ -29,7 +29,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { useWorkflowStore } from '@renderer/stores/workflow.store';
-import { PythonScriptNode, ClaudeAPINode, InputNode, OutputNode } from './nodes';
+import { PythonScriptNode, ClaudeAPINode, InputNode, OutputNode, ConditionalNode } from './nodes';
 
 /**
  * WorkflowCanvas Props
@@ -48,6 +48,7 @@ const nodeTypes: NodeTypes = {
   claude: ClaudeAPINode,
   input: InputNode,
   output: OutputNode,
+  conditional: ConditionalNode,
 } as NodeTypes;
 
 /**

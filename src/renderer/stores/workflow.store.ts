@@ -18,7 +18,7 @@ import type { Node, Edge, Connection } from '@xyflow/react';
 /**
  * Node types available in the workflow canvas
  */
-export type WorkflowNodeType = 'input' | 'output' | 'python' | 'claude';
+export type WorkflowNodeType = 'input' | 'output' | 'python' | 'claude' | 'conditional';
 
 /**
  * Node status for execution visualization
@@ -82,6 +82,18 @@ export interface OutputNodeData extends BaseNodeData {
 }
 
 /**
+ * Conditional node data
+ */
+export interface ConditionalNodeData extends BaseNodeData {
+  /** Condition expression to evaluate */
+  condition: string;
+  /** Conditional execution status */
+  conditionalStatus?: 'idle' | 'evaluating' | 'true-taken' | 'false-taken' | 'error';
+  /** Which branch was taken (true or false) */
+  branchTaken?: boolean;
+}
+
+/**
  * Union type for all node data types
  */
 export type WorkflowNodeData =
@@ -89,6 +101,7 @@ export type WorkflowNodeData =
   | ClaudeNodeData
   | InputNodeData
   | OutputNodeData
+  | ConditionalNodeData
   | BaseNodeData;
 
 /**
