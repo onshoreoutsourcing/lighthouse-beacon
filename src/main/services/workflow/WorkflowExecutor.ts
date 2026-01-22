@@ -33,6 +33,7 @@ import { RetryPolicy } from './RetryPolicy';
 import { ConditionEvaluator } from './ConditionEvaluator';
 import { DependencyGraphAnalyzer } from './DependencyGraphAnalyzer';
 import { DebugExecutor } from './DebugExecutor';
+import { DryRunExecutor } from './DryRunExecutor';
 import type { AIService } from '../AIService';
 import type {
   Workflow,
@@ -83,6 +84,8 @@ export interface WorkflowExecutionOptions {
   maxConcurrency?: number;
   /** Default error propagation strategy for all steps (default: 'fail-fast'). Wave 9.4.5 */
   errorPropagationStrategy?: 'fail-fast' | 'fail-silent' | 'fallback';
+  /** Enable dry run mode - mock all operations without real execution (default: false). Wave 9.5.3 */
+  dryRun?: boolean;
 }
 
 /**
@@ -105,8 +108,10 @@ export class WorkflowExecutor {
   private conditionEvaluator: ConditionEvaluator;
   private dependencyAnalyzer: DependencyGraphAnalyzer;
   private debugExecutor: DebugExecutor;
+  private dryRunExecutor: DryRunExecutor;
   private aiService: AIService | null = null;
   private projectRoot: string;
+  private isDryRun: boolean = false;
 
   /**
    * Create a new WorkflowExecutor
@@ -122,6 +127,7 @@ export class WorkflowExecutor {
     this.conditionEvaluator = new ConditionEvaluator();
     this.dependencyAnalyzer = new DependencyGraphAnalyzer();
     this.debugExecutor = DebugExecutor.getInstance();
+    this.dryRunExecutor = new DryRunExecutor();
     this.aiService = aiService || null;
 
     log.info('[WorkflowExecutor] Initialized', { projectRoot: this.projectRoot });
@@ -157,6 +163,9 @@ export class WorkflowExecutor {
     const workflowId = options.workflowId || workflow.workflow.name;
     const startTime = Date.now();
 
+    // Set dry run mode for this execution
+    this.isDryRun = options.dryRun || false;
+
     log.info('[WorkflowExecutor] Starting workflow execution', {
       workflowId,
       workflowName: workflow.workflow.name,
@@ -164,7 +173,13 @@ export class WorkflowExecutor {
       inputKeys: Object.keys(workflowInputs),
       parallelExecutionEnabled: options.enableParallelExecution,
       maxConcurrency: options.maxConcurrency,
+      dryRun: this.isDryRun,
     });
+
+    // Log dry run mode status
+    if (this.isDryRun) {
+      log.warn('[WorkflowExecutor] 🧪 DRY RUN MODE ACTIVE - No real operations will be performed');
+    }
 
     // Reset debug state for new workflow execution (Wave 9.4.6)
     this.debugExecutor.reset();
@@ -818,8 +833,24 @@ export class WorkflowExecutor {
       workflowId,
       stepId: step.id,
       script: step.script,
+      dryRun: this.isDryRun,
     });
 
+    // Check if dry run mode is enabled (Wave 9.5.3)
+    if (this.isDryRun) {
+      const dryRunResult = this.dryRunExecutor.mockPythonExecution(step, inputs);
+      log.info('[WorkflowExecutor] Python step executed in dry run mode', {
+        stepId: step.id,
+        mockDuration: dryRunResult.duration,
+      });
+      return {
+        success: dryRunResult.success,
+        outputs: dryRunResult.outputs,
+        duration: dryRunResult.duration,
+      };
+    }
+
+    // Real execution
     const result = await this.pythonExecutor.executeScript(step.script, inputs, {
       timeoutMs: step.timeout,
       pythonPath: step.interpreter,
@@ -860,7 +891,22 @@ export class WorkflowExecutor {
       workflowId,
       stepId: step.id,
       model: step.model,
+      dryRun: this.isDryRun,
     });
+
+    // Check if dry run mode is enabled (Wave 9.5.3)
+    if (this.isDryRun) {
+      const dryRunResult = this.dryRunExecutor.mockClaudeExecution(step, _inputs);
+      log.info('[WorkflowExecutor] Claude step executed in dry run mode', {
+        stepId: step.id,
+        mockDuration: dryRunResult.duration,
+      });
+      return {
+        success: dryRunResult.success,
+        outputs: dryRunResult.outputs,
+        duration: dryRunResult.duration,
+      };
+    }
 
     if (!this.aiService) {
       return {
