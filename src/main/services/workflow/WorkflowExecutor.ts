@@ -31,6 +31,7 @@ import { ExecutionEvents } from './ExecutionEvents';
 import { VariableResolver } from './VariableResolver';
 import { RetryPolicy } from './RetryPolicy';
 import { ConditionEvaluator } from './ConditionEvaluator';
+import { DependencyGraphAnalyzer } from './DependencyGraphAnalyzer';
 import type { AIService } from '../AIService';
 import type {
   Workflow,
@@ -75,6 +76,10 @@ export interface WorkflowExecutionOptions {
   workflowId?: string;
   /** Timeout for entire workflow in milliseconds (default: 300000 = 5 minutes) */
   timeoutMs?: number;
+  /** Enable parallel execution of independent steps (default: false) */
+  enableParallelExecution?: boolean;
+  /** Maximum number of steps to run concurrently (default: 4, range: 1-8) */
+  maxConcurrency?: number;
 }
 
 /**
@@ -95,6 +100,7 @@ export class WorkflowExecutor {
   private executionEvents: ExecutionEvents;
   private variableResolver: VariableResolver;
   private conditionEvaluator: ConditionEvaluator;
+  private dependencyAnalyzer: DependencyGraphAnalyzer;
   private aiService: AIService | null = null;
   private projectRoot: string;
 
@@ -110,6 +116,7 @@ export class WorkflowExecutor {
     this.executionEvents = ExecutionEvents.getInstance();
     this.variableResolver = new VariableResolver();
     this.conditionEvaluator = new ConditionEvaluator();
+    this.dependencyAnalyzer = new DependencyGraphAnalyzer();
     this.aiService = aiService || null;
 
     log.info('[WorkflowExecutor] Initialized', { projectRoot: this.projectRoot });
@@ -161,6 +168,12 @@ export class WorkflowExecutor {
     let failureCount = 0;
 
     try {
+      // Check if parallel execution is enabled
+      if (options.enableParallelExecution) {
+        // Use parallel execution
+        return await this.executeParallel(workflow, workflowInputs, workflowId, startTime, options);
+      }
+
       // 1. Sort steps by dependency order (topological sort)
       const executionOrder = this.topologicalSort(workflow.steps);
 
@@ -1193,5 +1206,331 @@ export class WorkflowExecutor {
     }
 
     return sorted;
+  }
+
+  /**
+   * Execute workflow with parallel execution of independent steps
+   *
+   * Uses DependencyGraphAnalyzer to identify execution levels.
+   * Steps within the same level can execute in parallel (no dependencies between them).
+   * Levels execute sequentially (level 1 waits for level 0 to complete).
+   *
+   * @param workflow - Workflow definition
+   * @param workflowInputs - Input values for workflow
+   * @param workflowId - Workflow ID for event tracking
+   * @param startTime - Execution start time
+   * @param options - Execution options (concurrency, timeout)
+   * @returns Execution result
+   */
+  private async executeParallel(
+    workflow: Workflow,
+    workflowInputs: Record<string, unknown>,
+    workflowId: string,
+    startTime: number,
+    options: WorkflowExecutionOptions
+  ): Promise<WorkflowExecutionResult> {
+    // Step 1: Analyze workflow dependencies
+    const analysis = this.dependencyAnalyzer.analyze(workflow.steps);
+
+    if (!analysis.valid) {
+      log.error('[WorkflowExecutor] Workflow analysis failed', {
+        workflowId,
+        error: analysis.error,
+      });
+
+      // Emit workflow completed event (with error)
+      const endTime = Date.now();
+      const totalDuration = endTime - startTime;
+      this.executionEvents.emitWorkflowCompleted(workflowId, totalDuration, {}, 0, 0);
+
+      return {
+        success: false,
+        outputs: {},
+        error: analysis.error || 'Workflow analysis failed',
+        totalDuration,
+        successCount: 0,
+        failureCount: 0,
+        startTime,
+        endTime,
+      };
+    }
+
+    log.info('[WorkflowExecutor] Executing workflow with parallel execution', {
+      workflowId,
+      levels: analysis.levels.length,
+      maxParallelism: analysis.maxParallelism,
+      totalSteps: analysis.totalSteps,
+    });
+
+    // Initialize execution context
+    const stepOutputs: Record<string, Record<string, unknown>> = {};
+    let successCount = 0;
+    let failureCount = 0;
+    const maxConcurrency = options.maxConcurrency || 4;
+
+    // Step 2: Build conditional branch mapping (for skipped steps)
+    const conditionalBranches = this.buildConditionalBranchMap(workflow.steps);
+    const skippedSteps = new Set<string>();
+
+    try {
+      // Step 3: Execute each level sequentially
+      for (const level of analysis.levels) {
+        log.debug('[WorkflowExecutor] Executing level', {
+          workflowId,
+          level: level.level,
+          stepCount: level.steps.length,
+          stepIds: level.stepIds,
+        });
+
+        // Filter out skipped steps
+        const stepsToExecute = level.steps.filter((step) => {
+          // Check if step should be skipped due to conditional branching
+          const shouldSkip = this.shouldSkipStep(step.id, conditionalBranches, stepOutputs);
+          if (shouldSkip) {
+            log.debug('[WorkflowExecutor] Skipping step in parallel execution', {
+              workflowId,
+              stepId: step.id,
+              reason: shouldSkip,
+            });
+            skippedSteps.add(step.id);
+            return false;
+          }
+
+          // Check if step depends on skipped steps
+          if (step.depends_on && step.depends_on.some((depId) => skippedSteps.has(depId))) {
+            const skippedDeps = step.depends_on.filter((depId) => skippedSteps.has(depId));
+            log.debug('[WorkflowExecutor] Skipping step (depends on skipped steps)', {
+              workflowId,
+              stepId: step.id,
+              skippedDependencies: skippedDeps,
+            });
+            skippedSteps.add(step.id);
+            return false;
+          }
+
+          return true;
+        });
+
+        if (stepsToExecute.length === 0) {
+          log.debug('[WorkflowExecutor] No steps to execute in level', {
+            workflowId,
+            level: level.level,
+          });
+          continue;
+        }
+
+        // Step 4: Execute steps in level with concurrency limiting
+        const levelResult = await this.executeLevelWithConcurrency(
+          stepsToExecute,
+          workflowInputs,
+          stepOutputs,
+          workflowId,
+          workflow,
+          maxConcurrency
+        );
+
+        // Step 5: Process level results
+        for (const result of levelResult.results) {
+          if (result.success) {
+            successCount++;
+            stepOutputs[result.stepId] = result.outputs;
+
+            log.info('[WorkflowExecutor] Step completed successfully (parallel)', {
+              workflowId,
+              stepId: result.stepId,
+              duration: result.duration,
+            });
+          } else {
+            failureCount++;
+
+            log.error('[WorkflowExecutor] Step failed (parallel)', {
+              workflowId,
+              stepId: result.stepId,
+              error: result.error,
+              duration: result.duration,
+            });
+
+            // Stop on first failure
+            const endTime = Date.now();
+            const totalDuration = endTime - startTime;
+
+            this.executionEvents.emitWorkflowCompleted(
+              workflowId,
+              totalDuration,
+              stepOutputs,
+              successCount,
+              failureCount
+            );
+
+            return {
+              success: false,
+              outputs: stepOutputs,
+              error: `Step "${result.stepId}" failed: ${result.error}`,
+              failedStepId: result.stepId,
+              totalDuration,
+              successCount,
+              failureCount,
+              startTime,
+              endTime,
+            };
+          }
+        }
+      }
+
+      // All levels completed successfully
+      const endTime = Date.now();
+      const totalDuration = endTime - startTime;
+
+      log.info('[WorkflowExecutor] Parallel workflow completed successfully', {
+        workflowId,
+        totalDuration,
+        successCount,
+        failureCount,
+        levels: analysis.levels.length,
+      });
+
+      this.executionEvents.emitWorkflowCompleted(
+        workflowId,
+        totalDuration,
+        stepOutputs,
+        successCount,
+        failureCount
+      );
+
+      return {
+        success: true,
+        outputs: stepOutputs,
+        totalDuration,
+        successCount,
+        failureCount,
+        startTime,
+        endTime,
+      };
+    } catch (error) {
+      const endTime = Date.now();
+      const totalDuration = endTime - startTime;
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error during parallel execution';
+
+      log.error('[WorkflowExecutor] Parallel workflow execution failed', {
+        workflowId,
+        error: errorMessage,
+        totalDuration,
+      });
+
+      this.executionEvents.emitWorkflowCompleted(
+        workflowId,
+        totalDuration,
+        stepOutputs,
+        successCount,
+        failureCount
+      );
+
+      return {
+        success: false,
+        outputs: stepOutputs,
+        error: errorMessage,
+        totalDuration,
+        successCount,
+        failureCount,
+        startTime,
+        endTime,
+      };
+    }
+  }
+
+  /**
+   * Execute a level of steps with concurrency limiting
+   *
+   * Uses a pool-based approach to limit concurrent executions.
+   * Promise.allSettled provides failure isolation.
+   *
+   * @param steps - Steps to execute in parallel
+   * @param workflowInputs - Workflow inputs
+   * @param stepOutputs - Accumulated step outputs
+   * @param workflowId - Workflow ID
+   * @param workflow - Full workflow definition
+   * @param maxConcurrency - Maximum concurrent steps
+   * @returns Level execution results
+   */
+  private async executeLevelWithConcurrency(
+    steps: WorkflowStep[],
+    workflowInputs: Record<string, unknown>,
+    stepOutputs: Record<string, Record<string, unknown>>,
+    workflowId: string,
+    workflow: Workflow,
+    maxConcurrency: number
+  ): Promise<{
+    results: Array<{
+      stepId: string;
+      success: boolean;
+      outputs: Record<string, unknown>;
+      error?: string;
+      duration: number;
+    }>;
+  }> {
+    const results: Array<{
+      stepId: string;
+      success: boolean;
+      outputs: Record<string, unknown>;
+      error?: string;
+      duration: number;
+    }> = [];
+
+    // Execute steps with concurrency limiting using chunks
+    // Split steps into chunks of maxConcurrency size
+    const chunks: WorkflowStep[][] = [];
+    for (let i = 0; i < steps.length; i += maxConcurrency) {
+      chunks.push(steps.slice(i, i + maxConcurrency));
+    }
+
+    let stepIndex = 0;
+
+    // Execute each chunk sequentially, steps within chunk execute in parallel
+    for (const chunk of chunks) {
+      // Create promises for all steps in chunk
+      const chunkPromises = chunk.map(async (step) => {
+        const context: VariableResolutionContext = {
+          workflowInputs,
+          stepOutputs,
+        };
+
+        const currentIndex = stepIndex++;
+        const stepResult = await this.executeStep(
+          step,
+          context,
+          workflowId,
+          currentIndex,
+          workflow
+        );
+
+        return {
+          stepId: step.id,
+          success: stepResult.success,
+          outputs: stepResult.outputs,
+          error: stepResult.error,
+          duration: stepResult.duration,
+        };
+      });
+
+      // Wait for all steps in chunk to complete (using allSettled for failure isolation)
+      const chunkResults = await Promise.allSettled(chunkPromises);
+
+      // Extract results from settled promises
+      for (const settled of chunkResults) {
+        if (settled.status === 'fulfilled') {
+          results.push(settled.value);
+        } else {
+          // Promise rejection (shouldn't happen since executeStep catches errors internally)
+          log.error('[WorkflowExecutor] Unexpected promise rejection in parallel execution', {
+            workflowId,
+            error: settled.reason as unknown,
+          });
+        }
+      }
+    }
+
+    return { results };
   }
 }
