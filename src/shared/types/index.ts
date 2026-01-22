@@ -332,7 +332,7 @@ export const WORKFLOW_EXECUTION_CHANNELS = {
 } as const;
 
 /**
- * Export Workflow types (Feature 9.1 - Wave 9.1.2)
+ * Export Workflow types (Feature 9.1 - Wave 9.1.2, Wave 9.4.5 Error Propagation + Enhanced Retry)
  */
 export type {
   Workflow,
@@ -346,6 +346,7 @@ export type {
   FileOperationStep,
   ConditionalStep,
   LoopStep,
+  FallbackStep,
   InputStep,
   OutputStep,
   UIMetadata,
@@ -359,6 +360,10 @@ export type {
   YAMLParseOptions,
   YAMLParseResult,
   YAMLSerializeOptions,
+  ErrorPropagationStrategy,
+  RetryPolicyConfig,
+  RetryDelayStrategy,
+  CircuitBreakerConfig,
 } from './workflow.types';
 
 export { StepType } from './workflow.types';

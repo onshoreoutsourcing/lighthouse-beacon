@@ -24,6 +24,8 @@ export enum StepType {
   INPUT = 'input',
   /** Output/display result */
   OUTPUT = 'output',
+  /** Fallback handler (Wave 9.4.5) */
+  FALLBACK = 'fallback',
 }
 
 /**
@@ -58,8 +60,33 @@ export interface WorkflowInput {
 }
 
 /**
+ * Delay strategy for retry policy
+ * Wave 9.4.5: Enhanced Retry Policies
+ */
+export type RetryDelayStrategy =
+  /** Fixed delay between retries */
+  | 'fixed'
+  /** Exponential backoff (delay doubles each time) */
+  | 'exponential'
+  /** Exponential with jitter (adds randomness to prevent thundering herd) */
+  | 'jittered';
+
+/**
+ * Circuit breaker configuration
+ * Wave 9.4.5: Enhanced Retry Policies
+ */
+export interface CircuitBreakerConfig {
+  /** Enable circuit breaker pattern. Default: false */
+  enabled?: boolean;
+  /** Number of consecutive failures before opening circuit. Default: 5 */
+  failure_threshold?: number;
+  /** Cooldown period in milliseconds before trying HALF_OPEN. Default: 60000ms (60s) */
+  cooldown_ms?: number;
+}
+
+/**
  * Retry policy configuration for step execution
- * Implements Wave 9.2.3 exponential backoff retry logic
+ * Implements Wave 9.2.3 exponential backoff + Wave 9.4.5 enhancements
  */
 export interface RetryPolicyConfig {
   /** Maximum number of attempts (including initial attempt). Default: 1 (no retry) */
@@ -72,7 +99,25 @@ export interface RetryPolicyConfig {
   max_delay_ms?: number;
   /** Error types/patterns to retry on (case-insensitive substring match). If empty, retries all errors. */
   retry_on_errors?: string[];
+  /** Error types/patterns to NOT retry on (takes precedence over retry_on_errors). Wave 9.4.5 */
+  dont_retry_on_errors?: string[];
+  /** Delay strategy: fixed, exponential, or jittered. Default: 'exponential'. Wave 9.4.5 */
+  delay_strategy?: RetryDelayStrategy;
+  /** Circuit breaker configuration. Wave 9.4.5 */
+  circuit_breaker?: CircuitBreakerConfig;
 }
+
+/**
+ * Error propagation strategy
+ * Wave 9.4.5: Advanced Error Handling
+ */
+export type ErrorPropagationStrategy =
+  /** Stop workflow immediately on error (default) */
+  | 'fail-fast'
+  /** Log error and continue execution (ignore failure) */
+  | 'fail-silent'
+  /** Execute fallback step if primary fails */
+  | 'fallback';
 
 /**
  * Base interface for all workflow steps
@@ -94,6 +139,10 @@ export interface WorkflowStepBase {
   outputs?: string[];
   /** Retry policy for step execution (Wave 9.2.3) */
   retry_policy?: RetryPolicyConfig;
+  /** Error propagation strategy (Wave 9.4.5). Default: 'fail-fast' */
+  error_propagation?: ErrorPropagationStrategy;
+  /** Fallback step ID to execute if this step fails (for 'fallback' strategy) */
+  fallback_step?: string;
 }
 
 /**
@@ -162,6 +211,20 @@ export interface LoopStep extends WorkflowStepBase {
 }
 
 /**
+ * Fallback handler step (Wave 9.4.5)
+ * Provides primary/fallback execution pattern
+ */
+export interface FallbackStep extends WorkflowStepBase {
+  type: StepType.FALLBACK;
+  /** Primary step to execute first */
+  primary_step: string;
+  /** Fallback step to execute if primary fails */
+  fallback_steps: string[];
+  /** Whether to pass error context to fallback (default: true) */
+  pass_error_context?: boolean;
+}
+
+/**
  * Input collection step
  */
 export interface InputStep extends WorkflowStepBase {
@@ -194,6 +257,7 @@ export type WorkflowStep =
   | FileOperationStep
   | ConditionalStep
   | LoopStep
+  | FallbackStep
   | InputStep
   | OutputStep;
 

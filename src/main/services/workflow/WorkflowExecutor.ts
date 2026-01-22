@@ -80,6 +80,8 @@ export interface WorkflowExecutionOptions {
   enableParallelExecution?: boolean;
   /** Maximum number of steps to run concurrently (default: 4, range: 1-8) */
   maxConcurrency?: number;
+  /** Default error propagation strategy for all steps (default: 'fail-fast'). Wave 9.4.5 */
+  errorPropagationStrategy?: 'fail-fast' | 'fail-silent' | 'fallback';
 }
 
 /**
@@ -188,12 +190,23 @@ export class WorkflowExecutor {
 
       // Track skipped steps (for dependency checking)
       const skippedSteps = new Set<string>();
+      // Track steps executed as fallbacks (to prevent double execution)
+      const fallbackExecutedSteps = new Set<string>();
 
       // 3. Execute steps in order
       for (let i = 0; i < executionOrder.length; i++) {
         const step = executionOrder[i];
 
         if (!step) continue;
+
+        // Check if step was already executed as a fallback
+        if (fallbackExecutedSteps.has(step.id)) {
+          log.debug('[WorkflowExecutor] Skipping step (already executed as fallback)', {
+            workflowId,
+            stepId: step.id,
+          });
+          continue;
+        }
 
         // Check if step should be skipped due to conditional branching
         const shouldSkip = this.shouldSkipStep(step.id, conditionalBranches, stepOutputs);
@@ -243,37 +256,218 @@ export class WorkflowExecutor {
         } else {
           failureCount++;
 
-          const endTime = Date.now();
-          const totalDuration = endTime - startTime;
+          // Determine error propagation strategy (step-level overrides workflow-level default)
+          const errorStrategy =
+            step.error_propagation || options.errorPropagationStrategy || 'fail-fast';
 
-          log.error('[WorkflowExecutor] Step failed - stopping workflow', {
+          log.error('[WorkflowExecutor] Step failed', {
             workflowId,
             stepId: step.id,
             stepType: step.type,
             error: stepResult.error,
             duration: stepResult.duration,
+            errorStrategy,
           });
 
-          // Emit workflow completed event (with failure)
-          this.executionEvents.emitWorkflowCompleted(
-            workflowId,
-            totalDuration,
-            stepOutputs,
-            successCount,
-            failureCount
-          );
+          // Apply error propagation strategy
+          if (errorStrategy === 'fail-fast') {
+            // Stop workflow immediately (default behavior)
+            const endTime = Date.now();
+            const totalDuration = endTime - startTime;
 
-          return {
-            success: false,
-            outputs: stepOutputs,
-            error: `Step "${step.id}" failed: ${stepResult.error}`,
-            failedStepId: step.id,
-            totalDuration,
-            successCount,
-            failureCount,
-            startTime,
-            endTime,
-          };
+            log.error('[WorkflowExecutor] Fail-fast: Stopping workflow', {
+              workflowId,
+              stepId: step.id,
+            });
+
+            // Emit workflow completed event (with failure)
+            this.executionEvents.emitWorkflowCompleted(
+              workflowId,
+              totalDuration,
+              stepOutputs,
+              successCount,
+              failureCount
+            );
+
+            return {
+              success: false,
+              outputs: stepOutputs,
+              error: `Step "${step.id}" failed: ${stepResult.error}`,
+              failedStepId: step.id,
+              totalDuration,
+              successCount,
+              failureCount,
+              startTime,
+              endTime,
+            };
+          } else if (errorStrategy === 'fail-silent') {
+            // Log error and continue (ignore failure)
+            log.warn('[WorkflowExecutor] Fail-silent: Continuing execution despite error', {
+              workflowId,
+              stepId: step.id,
+              error: stepResult.error,
+            });
+
+            // Store empty outputs for failed step (so dependent steps don't break)
+            stepOutputs[step.id] = {
+              _failed: true,
+              _error: stepResult.error,
+            };
+
+            // Continue to next step
+          } else if (errorStrategy === 'fallback') {
+            // Execute fallback step if defined
+            if (step.fallback_step) {
+              log.info('[WorkflowExecutor] Fallback: Executing fallback step', {
+                workflowId,
+                failedStepId: step.id,
+                fallbackStepId: step.fallback_step,
+                originalError: stepResult.error,
+              });
+
+              // Find fallback step in workflow
+              const fallbackStep = workflow.steps.find((s) => s.id === step.fallback_step);
+              if (fallbackStep) {
+                // Build context with error information from failed step
+                const fallbackContext: VariableResolutionContext = {
+                  workflowInputs,
+                  stepOutputs: {
+                    ...stepOutputs,
+                    [step.id]: {
+                      _failed: true,
+                      _error: stepResult.error,
+                    },
+                  },
+                };
+
+                // Execute fallback step
+                const fallbackResult = await this.executeStep(
+                  fallbackStep,
+                  fallbackContext,
+                  workflowId,
+                  i,
+                  workflow
+                );
+
+                if (fallbackResult.success) {
+                  log.info('[WorkflowExecutor] Fallback step succeeded', {
+                    workflowId,
+                    failedStepId: step.id,
+                    fallbackStepId: step.fallback_step,
+                  });
+
+                  // Use fallback outputs for the original step
+                  stepOutputs[step.id] = {
+                    _fallback_used: true,
+                    _primary_error: stepResult.error,
+                    ...fallbackResult.outputs,
+                  };
+
+                  // Mark fallback step as executed (prevent double execution)
+                  fallbackExecutedSteps.add(step.fallback_step);
+
+                  // Don't increment failureCount - fallback recovered
+                  failureCount--;
+                  successCount++;
+
+                  // Continue execution
+                } else {
+                  log.error('[WorkflowExecutor] Fallback step also failed', {
+                    workflowId,
+                    failedStepId: step.id,
+                    fallbackStepId: step.fallback_step,
+                    fallbackError: fallbackResult.error,
+                  });
+
+                  // Fallback failed - stop workflow
+                  const endTime = Date.now();
+                  const totalDuration = endTime - startTime;
+
+                  this.executionEvents.emitWorkflowCompleted(
+                    workflowId,
+                    totalDuration,
+                    stepOutputs,
+                    successCount,
+                    failureCount
+                  );
+
+                  return {
+                    success: false,
+                    outputs: stepOutputs,
+                    error: `Step "${step.id}" and fallback "${step.fallback_step}" both failed. Primary: ${stepResult.error}, Fallback: ${fallbackResult.error}`,
+                    failedStepId: step.id,
+                    totalDuration,
+                    successCount,
+                    failureCount,
+                    startTime,
+                    endTime,
+                  };
+                }
+              } else {
+                log.warn('[WorkflowExecutor] Fallback step not found', {
+                  workflowId,
+                  failedStepId: step.id,
+                  fallbackStepId: step.fallback_step,
+                });
+
+                // Fallback step not found - treat as fail-fast
+                const endTime = Date.now();
+                const totalDuration = endTime - startTime;
+
+                this.executionEvents.emitWorkflowCompleted(
+                  workflowId,
+                  totalDuration,
+                  stepOutputs,
+                  successCount,
+                  failureCount
+                );
+
+                return {
+                  success: false,
+                  outputs: stepOutputs,
+                  error: `Step "${step.id}" failed and fallback step "${step.fallback_step}" not found: ${stepResult.error}`,
+                  failedStepId: step.id,
+                  totalDuration,
+                  successCount,
+                  failureCount,
+                  startTime,
+                  endTime,
+                };
+              }
+            } else {
+              log.warn(
+                '[WorkflowExecutor] Fallback strategy configured but no fallback_step defined',
+                {
+                  workflowId,
+                  stepId: step.id,
+                }
+              );
+
+              // No fallback step defined - treat as fail-fast
+              const endTime = Date.now();
+              const totalDuration = endTime - startTime;
+
+              this.executionEvents.emitWorkflowCompleted(
+                workflowId,
+                totalDuration,
+                stepOutputs,
+                successCount,
+                failureCount
+              );
+
+              return {
+                success: false,
+                outputs: stepOutputs,
+                error: `Step "${step.id}" failed and no fallback_step defined: ${stepResult.error}`,
+                failedStepId: step.id,
+                totalDuration,
+                successCount,
+                failureCount,
+                startTime,
+                endTime,
+              };
+            }
+          }
         }
       }
 
@@ -1366,36 +1560,119 @@ export class WorkflowExecutor {
           } else {
             failureCount++;
 
+            // Find the step to get error propagation strategy
+            const failedStep = workflow.steps.find((s) => s.id === result.stepId);
+            const errorStrategy =
+              failedStep?.error_propagation || options.errorPropagationStrategy || 'fail-fast';
+
             log.error('[WorkflowExecutor] Step failed (parallel)', {
               workflowId,
               stepId: result.stepId,
               error: result.error,
               duration: result.duration,
+              errorStrategy,
             });
 
-            // Stop on first failure
-            const endTime = Date.now();
-            const totalDuration = endTime - startTime;
+            // Apply error propagation strategy
+            if (errorStrategy === 'fail-fast') {
+              // Stop on first failure (default)
+              log.error('[WorkflowExecutor] Fail-fast: Stopping parallel workflow', {
+                workflowId,
+                stepId: result.stepId,
+              });
 
-            this.executionEvents.emitWorkflowCompleted(
-              workflowId,
-              totalDuration,
-              stepOutputs,
-              successCount,
-              failureCount
-            );
+              const endTime = Date.now();
+              const totalDuration = endTime - startTime;
 
-            return {
-              success: false,
-              outputs: stepOutputs,
-              error: `Step "${result.stepId}" failed: ${result.error}`,
-              failedStepId: result.stepId,
-              totalDuration,
-              successCount,
-              failureCount,
-              startTime,
-              endTime,
-            };
+              this.executionEvents.emitWorkflowCompleted(
+                workflowId,
+                totalDuration,
+                stepOutputs,
+                successCount,
+                failureCount
+              );
+
+              return {
+                success: false,
+                outputs: stepOutputs,
+                error: `Step "${result.stepId}" failed: ${result.error}`,
+                failedStepId: result.stepId,
+                totalDuration,
+                successCount,
+                failureCount,
+                startTime,
+                endTime,
+              };
+            } else if (errorStrategy === 'fail-silent') {
+              // Log and continue
+              log.warn(
+                '[WorkflowExecutor] Fail-silent: Continuing parallel execution despite error',
+                {
+                  workflowId,
+                  stepId: result.stepId,
+                  error: result.error,
+                }
+              );
+
+              // Store error information
+              stepOutputs[result.stepId] = {
+                _failed: true,
+                _error: result.error,
+              };
+
+              // Continue processing remaining results
+            } else if (errorStrategy === 'fallback') {
+              // Execute fallback step if defined
+              if (failedStep?.fallback_step) {
+                log.info('[WorkflowExecutor] Fallback: Will execute fallback step (parallel)', {
+                  workflowId,
+                  failedStepId: result.stepId,
+                  fallbackStepId: failedStep.fallback_step,
+                });
+
+                // Store failed step outputs for fallback context
+                stepOutputs[result.stepId] = {
+                  _failed: true,
+                  _error: result.error,
+                };
+
+                // Note: Fallback execution in parallel mode is deferred to next level
+                // The fallback step should be defined with depends_on: [failed_step]
+                // This ensures it runs in a subsequent level with proper context
+              } else {
+                log.warn(
+                  '[WorkflowExecutor] Fallback strategy but no fallback_step defined (parallel)',
+                  {
+                    workflowId,
+                    stepId: result.stepId,
+                  }
+                );
+
+                // No fallback - treat as fail-fast
+                const endTime = Date.now();
+                const totalDuration = endTime - startTime;
+
+                this.executionEvents.emitWorkflowCompleted(
+                  workflowId,
+                  totalDuration,
+                  stepOutputs,
+                  successCount,
+                  failureCount
+                );
+
+                return {
+                  success: false,
+                  outputs: stepOutputs,
+                  error: `Step "${result.stepId}" failed and no fallback_step defined: ${result.error}`,
+                  failedStepId: result.stepId,
+                  totalDuration,
+                  successCount,
+                  failureCount,
+                  startTime,
+                  endTime,
+                };
+              }
+            }
           }
         }
       }
