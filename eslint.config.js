@@ -34,6 +34,8 @@ export default [
         NodeJS: 'readonly',
         document: 'readonly',
         window: 'readonly',
+        localStorage: 'readonly',
+        performance: 'readonly',
       },
     },
     plugins: {

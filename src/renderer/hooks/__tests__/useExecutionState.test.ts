@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, cleanup, waitFor } from '@testing-library/react';
 import { useExecutionState } from '../useExecutionState';
 import type {
   WorkflowStartedEvent,
@@ -35,6 +35,9 @@ const mockUnsubscribe = vi.fn();
 
 describe('useExecutionState', () => {
   beforeEach(() => {
+    // Clean up any mounted React components
+    cleanup();
+
     vi.clearAllMocks();
     mockSubscribe.mockResolvedValue({ success: true, data: { subscribed: true } });
     mockUnsubscribe.mockResolvedValue({ success: true, data: { unsubscribed: true } });
@@ -103,6 +106,8 @@ describe('useExecutionState', () => {
   });
 
   afterEach(() => {
+    // Clean up React state after each test
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -140,10 +145,13 @@ describe('useExecutionState', () => {
   });
 
   describe('Workflow Lifecycle Events', () => {
-    it('should update state on workflow_started event', () => {
+    it('should update state on workflow_started event', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(workflowStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowStartedListener).not.toBeNull();
+      });
 
       act(() => {
         workflowStartedListener!({
@@ -153,16 +161,21 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.workflowId).toBe('workflow-1');
-      expect(result.current.isExecuting).toBe(true);
-      expect(result.current.progress.total).toBe(5);
-      expect(result.current.progress.completed).toBe(0);
+      await waitFor(() => {
+        expect(result.current.workflowId).toBe('workflow-1');
+        expect(result.current.isExecuting).toBe(true);
+        expect(result.current.progress.total).toBe(5);
+        expect(result.current.progress.completed).toBe(0);
+      });
     });
 
-    it('should handle workflow_started without totalSteps', () => {
+    it('should handle workflow_started without totalSteps', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(workflowStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowStartedListener).not.toBeNull();
+      });
 
       act(() => {
         workflowStartedListener!({
@@ -171,15 +184,20 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.workflowId).toBe('workflow-1');
-      expect(result.current.isExecuting).toBe(true);
-      expect(result.current.progress.total).toBe(0);
+      await waitFor(() => {
+        expect(result.current.workflowId).toBe('workflow-1');
+        expect(result.current.isExecuting).toBe(true);
+        expect(result.current.progress.total).toBe(0);
+      });
     });
 
-    it('should update state on workflow_completed event', () => {
+    it('should update state on workflow_completed event', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(workflowCompletedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowCompletedListener).not.toBeNull();
+      });
 
       // Start workflow first
       act(() => {
@@ -202,16 +220,21 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.isExecuting).toBe(false);
-      expect(result.current.progress.estimatedTimeRemaining).toBeNull();
+      await waitFor(() => {
+        expect(result.current.isExecuting).toBe(false);
+        expect(result.current.progress.estimatedTimeRemaining).toBeNull();
+      });
     });
   });
 
   describe('Step Status Updates', () => {
-    it('should update step status to running on step_started', () => {
+    it('should update step status to running on step_started', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(stepStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(stepStartedListener).not.toBeNull();
+      });
 
       // Start workflow
       act(() => {
@@ -232,13 +255,18 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.stepStatuses['step-1']).toBe('running');
+      await waitFor(() => {
+        expect(result.current.stepStatuses['step-1']).toBe('running');
+      });
     });
 
-    it('should update step status to success on step_completed', () => {
+    it('should update step status to success on step_completed', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(stepCompletedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(stepCompletedListener).not.toBeNull();
+      });
 
       // Start workflow
       act(() => {
@@ -269,14 +297,19 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.stepStatuses['step-1']).toBe('success');
-      expect(result.current.progress.completed).toBe(1);
+      await waitFor(() => {
+        expect(result.current.stepStatuses['step-1']).toBe('success');
+        expect(result.current.progress.completed).toBe(1);
+      });
     });
 
-    it('should update step status to error on step_failed', () => {
+    it('should update step status to error on step_failed', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(stepFailedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(stepFailedListener).not.toBeNull();
+      });
 
       // Start workflow
       act(() => {
@@ -307,16 +340,21 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.stepStatuses['step-1']).toBe('error');
-      expect(result.current.progress.completed).toBe(1);
+      await waitFor(() => {
+        expect(result.current.stepStatuses['step-1']).toBe('error');
+        expect(result.current.progress.completed).toBe(1);
+      });
     });
   });
 
   describe('Progress Tracking', () => {
-    it('should calculate progress correctly', () => {
+    it('should calculate progress correctly', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(workflowStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowStartedListener).not.toBeNull();
+      });
 
       // Start workflow with 3 steps
       act(() => {
@@ -327,10 +365,12 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.progress).toEqual({
-        completed: 0,
-        total: 3,
-        estimatedTimeRemaining: null,
+      await waitFor(() => {
+        expect(result.current.progress).toEqual({
+          completed: 0,
+          total: 3,
+          estimatedTimeRemaining: null,
+        });
       });
 
       // Complete first step
@@ -344,14 +384,19 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.progress.completed).toBe(1);
-      expect(result.current.progress.total).toBe(3);
+      await waitFor(() => {
+        expect(result.current.progress.completed).toBe(1);
+        expect(result.current.progress.total).toBe(3);
+      });
     });
 
-    it('should estimate time remaining based on average step duration', () => {
+    it('should estimate time remaining based on average step duration', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(workflowStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowStartedListener).not.toBeNull();
+      });
 
       const startTime = Date.now();
 
@@ -376,13 +421,18 @@ describe('useExecutionState', () => {
       });
 
       // Should estimate 2 steps remaining * 1000ms average = 2000ms
-      expect(result.current.progress.estimatedTimeRemaining).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(result.current.progress.estimatedTimeRemaining).toBeGreaterThan(0);
+      });
     });
 
-    it('should reset estimate when workflow completes', () => {
+    it('should reset estimate when workflow completes', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(workflowCompletedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowCompletedListener).not.toBeNull();
+      });
 
       // Start and complete workflow
       act(() => {
@@ -404,7 +454,9 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.progress.estimatedTimeRemaining).toBeNull();
+      await waitFor(() => {
+        expect(result.current.progress.estimatedTimeRemaining).toBeNull();
+      });
     });
   });
 
@@ -413,36 +465,46 @@ describe('useExecutionState', () => {
       const { unmount } = renderHook(() => useExecutionState());
 
       // Wait for subscription
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockSubscribe).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(mockSubscribe).toHaveBeenCalledTimes(1);
+      });
 
       unmount();
 
       // Wait for unsubscription
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+      });
     });
 
-    it('should remove all event listeners on unmount', () => {
+    it('should remove all event listeners on unmount', async () => {
       const { unmount } = renderHook(() => useExecutionState());
 
-      expect(workflowStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowStartedListener).not.toBeNull();
+      });
 
       unmount();
 
-      expect(workflowStartedListener).toBeNull();
-      expect(stepStartedListener).toBeNull();
-      expect(stepCompletedListener).toBeNull();
-      expect(stepFailedListener).toBeNull();
-      expect(workflowCompletedListener).toBeNull();
+      await waitFor(() => {
+        expect(workflowStartedListener).toBeNull();
+        expect(stepStartedListener).toBeNull();
+        expect(stepCompletedListener).toBeNull();
+        expect(stepFailedListener).toBeNull();
+        expect(workflowCompletedListener).toBeNull();
+      });
     });
   });
 
   describe('Edge Cases', () => {
-    it('should handle events for different workflow IDs when filtered', () => {
+    it('should handle events for different workflow IDs when filtered', async () => {
       const { result } = renderHook(() => useExecutionState('workflow-1'));
 
-      expect(workflowStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(workflowStartedListener).not.toBeNull();
+      });
 
       // Event for different workflow (should be ignored if backend filters)
       act(() => {
@@ -453,15 +515,20 @@ describe('useExecutionState', () => {
         });
       });
 
-      // This test assumes backend filtering, so we expect no state change
-      // If the hook needs to filter, we should add workflowId checking
-      expect(result.current.workflowId).not.toBe('workflow-1');
+      await waitFor(() => {
+        // This test assumes backend filtering, so we expect no state change
+        // If the hook needs to filter, we should add workflowId checking
+        expect(result.current.workflowId).not.toBe('workflow-1');
+      });
     });
 
-    it('should handle rapid sequential events', () => {
+    it('should handle rapid sequential events', async () => {
       const { result } = renderHook(() => useExecutionState());
 
-      expect(stepStartedListener).not.toBeNull();
+      // Wait for listeners to be registered
+      await waitFor(() => {
+        expect(stepStartedListener).not.toBeNull();
+      });
 
       // Start workflow
       act(() => {
@@ -493,9 +560,11 @@ describe('useExecutionState', () => {
         });
       });
 
-      expect(result.current.stepStatuses['step-1']).toBe('success');
-      expect(result.current.stepStatuses['step-2']).toBe('running');
-      expect(result.current.progress.completed).toBe(1);
+      await waitFor(() => {
+        expect(result.current.stepStatuses['step-1']).toBe('success');
+        expect(result.current.stepStatuses['step-2']).toBe('running');
+        expect(result.current.progress.completed).toBe(1);
+      });
     });
 
     it('should handle subscription failure gracefully', async () => {
@@ -507,12 +576,15 @@ describe('useExecutionState', () => {
       const { result } = renderHook(() => useExecutionState());
 
       // Wait for subscription attempt
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockSubscribe).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockSubscribe).toHaveBeenCalled();
+      });
 
       // Should still have initial state
-      expect(result.current.workflowId).toBeNull();
-      expect(result.current.isExecuting).toBe(false);
+      await waitFor(() => {
+        expect(result.current.workflowId).toBeNull();
+        expect(result.current.isExecuting).toBe(false);
+      });
     });
   });
 });

@@ -58,6 +58,23 @@ export interface WorkflowInput {
 }
 
 /**
+ * Retry policy configuration for step execution
+ * Implements Wave 9.2.3 exponential backoff retry logic
+ */
+export interface RetryPolicyConfig {
+  /** Maximum number of attempts (including initial attempt). Default: 1 (no retry) */
+  max_attempts?: number;
+  /** Initial delay in milliseconds before first retry. Default: 1000ms */
+  initial_delay_ms?: number;
+  /** Backoff multiplier for exponential delay. Default: 2 */
+  backoff_multiplier?: number;
+  /** Maximum delay cap in milliseconds. Default: 30000ms (30s) */
+  max_delay_ms?: number;
+  /** Error types/patterns to retry on (case-insensitive substring match). If empty, retries all errors. */
+  retry_on_errors?: string[];
+}
+
+/**
  * Base interface for all workflow steps
  */
 export interface WorkflowStepBase {
@@ -75,6 +92,8 @@ export interface WorkflowStepBase {
   inputs?: Record<string, unknown>;
   /** Output variable names this step produces */
   outputs?: string[];
+  /** Retry policy for step execution (Wave 9.2.3) */
+  retry_policy?: RetryPolicyConfig;
 }
 
 /**

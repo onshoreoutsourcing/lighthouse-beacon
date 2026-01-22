@@ -29,6 +29,7 @@ import log from 'electron-log';
 import { PythonExecutor } from './PythonExecutor';
 import { ExecutionEvents } from './ExecutionEvents';
 import { VariableResolver } from './VariableResolver';
+import { RetryPolicy } from './RetryPolicy';
 import type { AIService } from '../AIService';
 import type {
   Workflow,
@@ -350,30 +351,72 @@ export class WorkflowExecutor {
         resolvedInputs = resolution.value as Record<string, unknown>;
       }
 
-      // Execute step based on type
+      // Execute step based on type (with retry if configured)
       let stepResult: StepExecutionResult;
 
-      switch (step.type) {
-        case StepType.PYTHON:
-          stepResult = await this.executePythonStep(step, resolvedInputs, workflowId);
-          break;
+      // Check if retry policy is configured for this step
+      if (step.retry_policy) {
+        // Execute with retry logic
+        const retryPolicy = new RetryPolicy(step.retry_policy);
 
-        case StepType.CLAUDE:
-          stepResult = await this.executeClaudeStep(step, resolvedInputs, workflowId);
-          break;
+        log.debug('[WorkflowExecutor] Executing step with retry policy', {
+          workflowId,
+          stepId: step.id,
+          retryConfig: step.retry_policy,
+        });
 
-        case StepType.OUTPUT:
-          // Output step - just log/display message
-          stepResult = this.executeOutputStep(step, resolvedInputs);
-          break;
+        const retryResult = await retryPolicy.executeWithRetry(
+          async () => {
+            // Execute the actual step
+            const result = await this.executeStepByType(
+              step,
+              resolvedInputs,
+              workflowId,
+              startTime
+            );
 
-        default:
+            // If step failed, throw error to trigger retry
+            if (!result.success) {
+              throw new Error(result.error || 'Step execution failed');
+            }
+
+            return result;
+          },
+          { workflowId, stepId: step.id }
+        );
+
+        // Convert retry result to step result
+        if (retryResult.success && retryResult.value) {
+          stepResult = retryResult.value;
+
+          // Log retry attempts if more than 1
+          if (retryResult.attempts > 1) {
+            log.info('[WorkflowExecutor] Step succeeded after retries', {
+              workflowId,
+              stepId: step.id,
+              attempts: retryResult.attempts,
+              totalDuration: retryResult.totalDuration,
+            });
+          }
+        } else {
+          // All retries failed
           stepResult = {
             success: false,
             outputs: {},
-            error: `Unsupported step type: ${step.type}`,
-            duration: Date.now() - startTime,
+            error: retryResult.error?.message || 'Step execution failed after all retry attempts',
+            duration: retryResult.totalDuration,
           };
+
+          log.error('[WorkflowExecutor] Step failed after all retry attempts', {
+            workflowId,
+            stepId: step.id,
+            attempts: retryResult.attempts,
+            error: stepResult.error,
+          });
+        }
+      } else {
+        // No retry policy - execute normally
+        stepResult = await this.executeStepByType(step, resolvedInputs, workflowId, startTime);
       }
 
       // Emit step completed or failed event
@@ -414,6 +457,45 @@ export class WorkflowExecutor {
   }
 
   /**
+   * Execute step by type (Python, Claude, Output, etc.)
+   *
+   * This method contains the actual step execution logic and can be
+   * wrapped by RetryPolicy for automatic retry with exponential backoff.
+   *
+   * @param step - Step to execute
+   * @param resolvedInputs - Resolved step inputs
+   * @param workflowId - Workflow ID for event tracking
+   * @param startTime - Execution start timestamp
+   * @returns Step execution result
+   */
+  private async executeStepByType(
+    step: WorkflowStep,
+    resolvedInputs: Record<string, unknown>,
+    workflowId: string,
+    startTime: number
+  ): Promise<StepExecutionResult> {
+    switch (step.type) {
+      case StepType.PYTHON:
+        return await this.executePythonStep(step, resolvedInputs, workflowId);
+
+      case StepType.CLAUDE:
+        return await this.executeClaudeStep(step, resolvedInputs, workflowId);
+
+      case StepType.OUTPUT:
+        // Output step - just log/display message
+        return this.executeOutputStep(step, resolvedInputs);
+
+      default:
+        return {
+          success: false,
+          outputs: {},
+          error: `Unsupported step type: ${step.type}`,
+          duration: Date.now() - startTime,
+        };
+    }
+  }
+
+  /**
    * Execute Python step
    *
    * @param step - Python step definition
@@ -435,8 +517,8 @@ export class WorkflowExecutor {
     const result = await this.pythonExecutor.executeScript(step.script, inputs, {
       timeoutMs: step.timeout,
       pythonPath: step.interpreter,
-      workflowId,
-      stepId: step.id,
+      // NOTE: Do not pass workflowId/stepId here - WorkflowExecutor handles all event emission
+      // to avoid double-emission when retry logic is used
     });
 
     if (result.success && result.output) {
