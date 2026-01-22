@@ -331,8 +331,14 @@ export interface VariableResolutionContext {
   stepOutputs: Record<string, Record<string, unknown>>;
   /** Current loop context (for loop steps) */
   loopContext?: {
+    /** Current item (for array iteration) */
     item: unknown;
+    /** Current iteration index (0-based) */
     index: number;
+    /** Current key (for object iteration) */
+    key?: string;
+    /** Current value (for object iteration) */
+    value?: unknown;
   };
 }
 

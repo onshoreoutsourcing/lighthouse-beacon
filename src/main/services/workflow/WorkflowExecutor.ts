@@ -38,6 +38,7 @@ import type {
   PythonStep,
   ClaudeStep,
   ConditionalStep,
+  LoopStep,
   VariableResolutionContext,
 } from '../../../shared/types';
 import { StepType } from '../../../shared/types';
@@ -210,7 +211,7 @@ export class WorkflowExecutor {
         };
 
         // Execute step
-        const stepResult = await this.executeStep(step, context, workflowId, i);
+        const stepResult = await this.executeStep(step, context, workflowId, i, workflow);
 
         // Check result
         if (stepResult.success) {
@@ -332,13 +333,15 @@ export class WorkflowExecutor {
    * @param context - Variable resolution context
    * @param workflowId - Workflow ID for event tracking
    * @param stepIndex - Step index in execution order
+   * @param workflow - Full workflow definition
    * @returns Step execution result
    */
   private async executeStep(
     step: WorkflowStep,
     context: VariableResolutionContext,
     workflowId: string,
-    stepIndex: number
+    stepIndex: number,
+    workflow: Workflow
   ): Promise<StepExecutionResult> {
     const startTime = Date.now();
 
@@ -407,7 +410,8 @@ export class WorkflowExecutor {
               resolvedInputs,
               workflowId,
               startTime,
-              context
+              context,
+              workflow
             );
 
             // If step failed, throw error to trigger retry
@@ -456,7 +460,8 @@ export class WorkflowExecutor {
           resolvedInputs,
           workflowId,
           startTime,
-          context
+          context,
+          workflow
         );
       }
 
@@ -507,7 +512,8 @@ export class WorkflowExecutor {
    * @param resolvedInputs - Resolved step inputs
    * @param workflowId - Workflow ID for event tracking
    * @param startTime - Execution start timestamp
-   * @param context - Full variable resolution context (needed for conditional evaluation)
+   * @param context - Full variable resolution context (needed for conditional/loop evaluation)
+   * @param workflow - Full workflow definition (needed for loop step execution)
    * @returns Step execution result
    */
   private async executeStepByType(
@@ -515,7 +521,8 @@ export class WorkflowExecutor {
     resolvedInputs: Record<string, unknown>,
     workflowId: string,
     startTime: number,
-    context?: VariableResolutionContext
+    context?: VariableResolutionContext,
+    workflow?: Workflow
   ): Promise<StepExecutionResult> {
     switch (step.type) {
       case StepType.PYTHON:
@@ -538,6 +545,17 @@ export class WorkflowExecutor {
           };
         }
         return this.executeConditionalStep(step, workflowId, context);
+
+      case StepType.LOOP:
+        if (!context || !workflow) {
+          return {
+            success: false,
+            outputs: {},
+            error: 'Context and workflow required for loop step execution',
+            duration: Date.now() - startTime,
+          };
+        }
+        return await this.executeLoopStep(step, workflowId, context, workflow);
 
       default:
         return {
@@ -762,6 +780,236 @@ export class WorkflowExecutor {
         error instanceof Error ? error.message : 'Unknown error during condition evaluation';
 
       log.error('[WorkflowExecutor] Conditional step failed', {
+        workflowId,
+        stepId: step.id,
+        error: errorMessage,
+      });
+
+      return {
+        success: false,
+        outputs: {},
+        error: errorMessage,
+        duration,
+      };
+    }
+  }
+
+  /**
+   * Execute loop step
+   *
+   * Iterates over a collection (array or object) and executes loop_steps for each item.
+   * Enforces max iterations for safety and provides loop context variables.
+   *
+   * @param step - Loop step definition
+   * @param workflowId - Workflow ID for event tracking
+   * @param context - Variable resolution context
+   * @param workflow - Full workflow definition
+   * @returns Step execution result with iteration results
+   */
+  private async executeLoopStep(
+    step: LoopStep,
+    workflowId: string,
+    context: VariableResolutionContext,
+    workflow: Workflow
+  ): Promise<StepExecutionResult> {
+    const startTime = Date.now();
+    const maxIterations = step.max_iterations || 100;
+
+    log.debug('[WorkflowExecutor] Executing loop step', {
+      workflowId,
+      stepId: step.id,
+      maxIterations,
+    });
+
+    try {
+      // Step 1: Resolve items to iterate over
+      const itemsResolution = this.variableResolver.resolve(step.items, context, 'loop.items');
+
+      if (!itemsResolution.success) {
+        const errorMessages =
+          itemsResolution.errors?.map((e) => e.message).join('; ') || 'Items resolution failed';
+        return {
+          success: false,
+          outputs: {},
+          error: `Loop items resolution failed: ${errorMessages}`,
+          duration: Date.now() - startTime,
+        };
+      }
+
+      const items = itemsResolution.value;
+
+      // Step 2: Convert items to iterable array
+      let iterableItems: Array<{ item: unknown; key?: string; value?: unknown }> = [];
+
+      if (Array.isArray(items)) {
+        // Array iteration
+        iterableItems = items.map((item: unknown) => ({ item }));
+      } else if (typeof items === 'object' && items !== null) {
+        // Object iteration - iterate over key-value pairs
+        iterableItems = Object.entries(items as Record<string, unknown>).map(([key, value]) => ({
+          item: value,
+          key,
+          value: value,
+        }));
+      } else if (typeof items === 'string') {
+        // Check if it's a range expression like "range(0, 10)"
+        const rangeMatch = items.match(/^range\((\d+),\s*(\d+)\)$/);
+        if (rangeMatch && rangeMatch[1] !== undefined && rangeMatch[2] !== undefined) {
+          const start = parseInt(rangeMatch[1], 10);
+          const end = parseInt(rangeMatch[2], 10);
+          if (!isNaN(start) && !isNaN(end) && end > start) {
+            iterableItems = Array.from({ length: end - start }, (_, i) => ({ item: start + i }));
+          } else {
+            return {
+              success: false,
+              outputs: {},
+              error: `Invalid range expression: ${items}`,
+              duration: Date.now() - startTime,
+            };
+          }
+        } else {
+          return {
+            success: false,
+            outputs: {},
+            error: `Loop items must be an array, object, or range expression, got: ${typeof items}`,
+            duration: Date.now() - startTime,
+          };
+        }
+      } else {
+        return {
+          success: false,
+          outputs: {},
+          error: `Loop items must be an array, object, or range expression, got: ${typeof items}`,
+          duration: Date.now() - startTime,
+        };
+      }
+
+      // Step 3: Enforce max iterations
+      if (iterableItems.length > maxIterations) {
+        return {
+          success: false,
+          outputs: {},
+          error: `Loop exceeds max iterations: ${iterableItems.length} > ${maxIterations}`,
+          duration: Date.now() - startTime,
+        };
+      }
+
+      // Step 4: Find the steps to execute in loop
+      const loopStepsMap = new Map(workflow.steps.map((s) => [s.id, s]));
+      const stepsToExecute = step.loop_steps
+        .map((stepId) => loopStepsMap.get(stepId))
+        .filter((s): s is WorkflowStep => s !== undefined);
+
+      if (stepsToExecute.length === 0) {
+        log.warn('[WorkflowExecutor] No valid loop steps found', {
+          workflowId,
+          stepId: step.id,
+          loop_steps: step.loop_steps,
+        });
+      }
+
+      // Step 5: Iterate and execute
+      const iterationOutputs: Array<Record<string, unknown>> = [];
+      let iterationCount = 0;
+
+      for (const { item, key, value } of iterableItems) {
+        // Create loop context
+        const loopContext = {
+          item,
+          index: iterationCount,
+          key,
+          value,
+        };
+
+        // Create iteration-specific context
+        const iterationContext: VariableResolutionContext = {
+          ...context,
+          loopContext,
+        };
+
+        // Execute each loop step with loop context
+        const iterationStepOutputs: Record<string, unknown> = {};
+
+        for (const loopStepToExecute of stepsToExecute) {
+          log.debug('[WorkflowExecutor] Executing loop iteration step', {
+            workflowId,
+            loopStepId: step.id,
+            iteration: iterationCount,
+            stepId: loopStepToExecute.id,
+          });
+
+          // Resolve step inputs with loop context
+          let resolvedInputs: Record<string, unknown> = {};
+          if (loopStepToExecute.inputs) {
+            const resolution = this.variableResolver.resolve(
+              loopStepToExecute.inputs,
+              iterationContext,
+              `loop[${iterationCount}].${loopStepToExecute.id}.inputs`
+            );
+
+            if (!resolution.success) {
+              const errorMessages =
+                resolution.errors?.map((e) => e.message).join('; ') || 'Variable resolution failed';
+              return {
+                success: false,
+                outputs: {},
+                error: `Loop iteration ${iterationCount} failed: ${errorMessages}`,
+                duration: Date.now() - startTime,
+              };
+            }
+
+            resolvedInputs = resolution.value as Record<string, unknown>;
+          }
+
+          // Execute the step
+          const stepResult = await this.executeStepByType(
+            loopStepToExecute,
+            resolvedInputs,
+            workflowId,
+            startTime,
+            iterationContext,
+            workflow
+          );
+
+          if (!stepResult.success) {
+            return {
+              success: false,
+              outputs: {},
+              error: `Loop iteration ${iterationCount} failed at step "${loopStepToExecute.id}": ${stepResult.error}`,
+              duration: Date.now() - startTime,
+            };
+          }
+
+          iterationStepOutputs[loopStepToExecute.id] = stepResult.outputs;
+        }
+
+        iterationOutputs.push(iterationStepOutputs);
+        iterationCount++;
+      }
+
+      const duration = Date.now() - startTime;
+
+      log.info('[WorkflowExecutor] Loop step completed', {
+        workflowId,
+        stepId: step.id,
+        iterations: iterationCount,
+        duration,
+      });
+
+      return {
+        success: true,
+        outputs: {
+          iterations: iterationCount,
+          results: iterationOutputs,
+        },
+        duration,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error during loop execution';
+
+      log.error('[WorkflowExecutor] Loop step failed', {
         workflowId,
         stepId: step.id,
         error: errorMessage,

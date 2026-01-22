@@ -126,8 +126,36 @@ export class VariableResolver {
 
     // Handle string values with variable references
     if (typeof value === 'string') {
-      let resolvedValue = value;
       const references = this.extractReferences(value, field, line);
+
+      // If entire string is a single variable reference, return original type
+      if (references.length === 1 && references[0]?.raw === value.trim()) {
+        const result = this.resolveReference(references[0], context);
+
+        if (!result.success) {
+          errors.push(
+            ...result.errors!.map((err) => ({
+              ...err,
+              field,
+              line,
+            }))
+          );
+          return {
+            success: false,
+            value,
+            errors,
+          };
+        }
+
+        // Return original value type (array, object, etc.) - not string representation
+        return {
+          success: true,
+          value: result.value,
+        };
+      }
+
+      // Handle string with embedded variable references
+      let resolvedValue = value;
 
       for (const ref of references) {
         const result = this.resolveReference(ref, context);
@@ -403,7 +431,7 @@ export class VariableResolver {
       };
     }
 
-    // Expected format: loop.item or loop.index
+    // Expected format: loop.item, loop.index, loop.key, or loop.value
     if (ref.path.length !== 1) {
       return {
         success: false,
@@ -414,7 +442,7 @@ export class VariableResolver {
             line: ref.line,
             message: `Invalid loop variable reference: ${ref.raw}`,
             severity: 'error',
-            suggestion: 'Use ${loop.item} or ${loop.index}',
+            suggestion: 'Use ${loop.item}, ${loop.index}, ${loop.key}, or ${loop.value}',
           },
         ],
       };
@@ -425,6 +453,10 @@ export class VariableResolver {
       return { success: true, value: context.loopContext.item };
     } else if (loopVar === 'index') {
       return { success: true, value: context.loopContext.index };
+    } else if (loopVar === 'key') {
+      return { success: true, value: context.loopContext.key };
+    } else if (loopVar === 'value') {
+      return { success: true, value: context.loopContext.value };
     } else {
       return {
         success: false,
@@ -435,7 +467,7 @@ export class VariableResolver {
             line: ref.line,
             message: `Unknown loop variable: ${loopVar}`,
             severity: 'error',
-            suggestion: 'Use ${loop.item} or ${loop.index}',
+            suggestion: 'Use ${loop.item}, ${loop.index}, ${loop.key}, or ${loop.value}',
           },
         ],
       };

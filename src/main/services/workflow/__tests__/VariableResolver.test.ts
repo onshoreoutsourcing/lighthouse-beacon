@@ -197,7 +197,25 @@ describe('VariableResolver', () => {
       const result = resolver.resolve('${steps.step1.outputs.data}', context, 'test.field');
 
       expect(result.success).toBe(true);
-      expect(result.value).toBe('{"nested":{"value":"test"}}');
+      // When entire expression is a variable reference, preserve original type
+      expect(result.value).toEqual({ nested: { value: 'test' } });
+    });
+
+    it('should stringify complex values when embedded in strings', () => {
+      const context: VariableResolutionContext = {
+        workflowInputs: {},
+        stepOutputs: {
+          step1: {
+            data: { nested: { value: 'test' } },
+          },
+        },
+      };
+
+      const result = resolver.resolve('Data: ${steps.step1.outputs.data}', context, 'test.field');
+
+      expect(result.success).toBe(true);
+      // When variable is embedded in string, it gets stringified
+      expect(result.value).toBe('Data: {"nested":{"value":"test"}}');
     });
   });
 

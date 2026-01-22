@@ -18,7 +18,7 @@ import type { Node, Edge, Connection } from '@xyflow/react';
 /**
  * Node types available in the workflow canvas
  */
-export type WorkflowNodeType = 'input' | 'output' | 'python' | 'claude' | 'conditional';
+export type WorkflowNodeType = 'input' | 'output' | 'python' | 'claude' | 'conditional' | 'loop';
 
 /**
  * Node status for execution visualization
@@ -94,6 +94,24 @@ export interface ConditionalNodeData extends BaseNodeData {
 }
 
 /**
+ * Loop node data
+ */
+export interface LoopNodeData extends BaseNodeData {
+  /** Items to iterate over (array, object, or range expression) */
+  items: string | unknown[];
+  /** Maximum iterations allowed (default: 100) */
+  maxIterations?: number;
+  /** Step IDs to execute for each iteration */
+  loopSteps?: string[];
+  /** Current iteration number (0-based, for progress tracking) */
+  currentIteration?: number;
+  /** Total number of iterations */
+  totalIterations?: number;
+  /** Loop execution status */
+  loopStatus?: 'idle' | 'running' | 'completed' | 'error';
+}
+
+/**
  * Union type for all node data types
  */
 export type WorkflowNodeData =
@@ -102,6 +120,7 @@ export type WorkflowNodeData =
   | InputNodeData
   | OutputNodeData
   | ConditionalNodeData
+  | LoopNodeData
   | BaseNodeData;
 
 /**
