@@ -749,13 +749,201 @@ Lighthouse Chat IDE Root (Default Layout)
 - **Panel Dividers**: 1px solid border
 - **Icon Size**: 16px or 20px (consistent throughout)
 
+## Visual Workflow Generator UX (Epic 9 - Added 2026-01-23)
+
+### Workflow Canvas Interface
+
+The Visual Workflow Generator adds a fourth major interface panel (can replace or coexist with chat panel):
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Lighthouse Chat IDE - Workflow Editor                                    │
+├──────────────────┬────────────────────────────────────────┬─────────────┤
+│ Workflow         │                                        │ Properties  │
+│ Explorer         │    ┌──────┐                            │             │
+│                  │    │Start │                            │ Node:       │
+│ 📁 workflows/    │    └───┬──┘                            │ Python      │
+│   📄 doc-gen     │        │                               │ Script      │
+│   📄 review      │    ┌───▼──┐     ┌──────┐              │             │
+│   📄 deploy      │    │Python│────►│Claude│              │ Script:     │
+│                  │    │Script│     │ API  │              │ ./analyze.py│
+│ ─────────────    │    └──────┘     └───┬──┘              │             │
+│ Templates        │                     │                  │ Inputs:     │
+│   📄 Basic       │    ┌────────────────▼─────┐           │ - repo_path │
+│   📄 Code Review │    │ Conditional (score>80)│           │             │
+│                  │    └─────┬────────┬───────┘           │ Outputs:    │
+│ [+ New Workflow] │     true │        │ false             │ - structure │
+│                  │    ┌─────▼──┐  ┌──▼─────┐             │             │
+│                  │    │Success │  │Retry   │             │             │
+│                  │    └────────┘  └────────┘             │             │
+├──────────────────┴────────────────────────────────────────┴─────────────┤
+│ [Run] [Pause] [Stop]  |  Status: Ready  |  Zoom: 100%                   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Node Types and Visual States
+
+**Node Components**:
+
+| Node Type | Icon | Color | Purpose |
+|-----------|------|-------|---------|
+| Python Script | snake | Blue (#3B82F6) | Execute Python scripts |
+| Claude API | robot | Purple (#8B5CF6) | AI model calls |
+| Conditional | diamond | Orange (#F59E0B) | If/else branching |
+| Loop | arrows | Green (#10B981) | Iterate over collections |
+| File Operation | file | Gray (#6B7280) | Read/write files |
+| Start | play | Green (#10B981) | Workflow entry point |
+| End | stop | Red (#EF4444) | Workflow completion |
+
+**Execution States**:
+
+| State | Visual Indicator | Description |
+|-------|------------------|-------------|
+| Pending | Gray border | Not yet executed |
+| Running | Blue pulsing border, spinner | Currently executing |
+| Success | Green check badge | Completed successfully |
+| Error | Red X badge, red border | Failed with error |
+| Paused | Yellow pause badge | Stopped at breakpoint |
+
+### Workflow Creation Workflow
+
+**Pattern**: User selects node type -> Drags to canvas -> Connects edges -> Configures properties
+
+**Example Flow**:
+```
+1. USER clicks "Python Script" in node palette
+2. USER drags node to canvas (ghost preview during drag)
+3. Node placed at drop location with default name "Python Step 1"
+4. USER clicks node to select it
+5. Properties panel shows configuration options:
+   - Name (editable)
+   - Script path (file browser or text input)
+   - Inputs (key-value pairs with variable interpolation)
+   - Outputs (list of output names)
+6. USER drags edge from node output handle to another node's input handle
+7. Edge connection validates (compatible types) and snaps into place
+8. [Repeat for additional nodes]
+```
+
+### Execution Visualization Workflow
+
+**Pattern**: User clicks Run -> Canvas shows real-time execution state -> Results display on completion
+
+**Example Flow**:
+```
+1. USER clicks [Run] button
+2. All nodes show "pending" state (gray)
+3. Start node activates, shows "running" state (blue pulse)
+4. Start node completes, shows "success" state (green check)
+5. Edge from Start to first node animates (particles/flow indicator)
+6. First node activates, shows "running" state
+7. Properties panel shows live outputs as they stream in
+8. Node completes, either:
+   - Success: Green check badge, outputs displayed
+   - Error: Red X badge, error message in properties panel
+9. Execution continues through graph until End node or error
+10. Status bar shows: "Workflow completed successfully in 12.3s"
+```
+
+### Debugging UX (Epic 9 Phase 2)
+
+**Breakpoint Interaction**:
+- Click on node's left border to toggle breakpoint (red dot indicator)
+- Node with breakpoint pauses execution before running
+- Properties panel shows "Paused at breakpoint" message
+- Debug controls appear: [Step Over] [Resume] [Stop]
+- Variable inspector shows current workflow state
+
+**Step-Through Execution**:
+```
+1. USER sets breakpoint on "Conditional" node
+2. USER clicks [Run]
+3. Execution pauses before Conditional node (yellow pause state)
+4. Properties panel shows:
+   - Current inputs to node
+   - Condition expression being evaluated
+   - Variable values from previous steps
+5. USER clicks [Step Over]
+6. Conditional evaluates, takes appropriate branch
+7. Execution pauses at next node
+8. USER clicks [Resume] to continue without pausing
+```
+
+### AI Workflow Generation UX
+
+**Natural Language to Workflow Pattern**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ AI Workflow Generator                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Describe your automation:                                        │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Create a workflow that analyzes a GitHub repository,        │ │
+│ │ generates documentation for all Python files, and creates   │ │
+│ │ a pull request with the generated docs.                     │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│                                                                  │
+│ Context (optional):                                              │
+│   Project type: [ Python library    ▼]                          │
+│   Language:     [ Python            ▼]                          │
+│                                                                  │
+│ [Generate Workflow]                                              │
+├─────────────────────────────────────────────────────────────────┤
+│ Claude is generating your workflow...                            │
+│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░ 45%                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Generation Result Display**:
+- Generated YAML shown in preview panel
+- "Load into Canvas" button to visualize
+- "Claude's Reasoning" expandable section explains design decisions
+- Validation status: "Valid workflow" or "Validation errors (click to view)"
+
+### Workflow Testing UX
+
+**Mock Input Editor**:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Test Workflow: documentation-generator                   │
+├─────────────────────────────────────────────────────────┤
+│ Workflow Inputs                                          │
+│                                                          │
+│ repo_path: [ /Users/dev/my-project    ]                 │
+│ output_dir: [ ./docs                   ]                │
+│ dry_run:   [✓] (skip actual file writes)               │
+│                                                          │
+│ [Run Test] [Dry Run Only]                               │
+├─────────────────────────────────────────────────────────┤
+│ Test Results                                             │
+│                                                          │
+│ ✓ Step 1: analyze_repo - Completed (2.3s)              │
+│   Output: { "files": 42, "loc": 15234 }                │
+│                                                          │
+│ ✓ Step 2: generate_docs - Completed (8.1s)             │
+│   Output: { "docs_generated": 12 }                      │
+│                                                          │
+│ Total time: 10.4s                                        │
+│ All steps passed                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
 ## Document Information
 
 - **Created By**: Claude (AI Assistant) + Roy Love
 - **Creation Date**: January 19, 2026
-- **Last Updated**: January 19, 2026
-- **Version**: 1.0 (Lighthouse IDF Artifact)
-- **Next Review Date**: After Phase 1 implementation (validate UX in working application)
-- **Approval Status**: Draft - Awaiting Review
-- **Source Documents**: PRODUCT-SUMMARY.md, REQUIREMENTS.md
+- **Last Updated**: January 23, 2026
+- **Version**: 1.2 (Updated for Epic 9 - Visual Workflow Generator)
+- **Next Review Date**: After Epic 9 completion
+- **Approval Status**: Active
+- **Source Documents**: PRODUCT-SUMMARY.md, REQUIREMENTS.md, epic-9-workflow-generator-master-plan.md
 - **Related Documents**: 01-Product-Vision.md, 02-Product-Plan.md, 03-Business-Requirements.md, 04-Architecture.md
+- **Related ADRs**: ADR-015-react-flow-for-visual-workflows.md, ADR-016-python-script-execution-security.md, ADR-017-workflow-yaml-schema-design.md
+
+### Change History
+
+| Version | Date | Changes | Author |
+|---------|------|---------|--------|
+| 1.0 | 2026-01-19 | Initial UX document | Claude + Roy Love |
+| 1.1 | 2026-01-20 | Added Epic 1-7 UX patterns | Claude |
+| 1.2 | 2026-01-23 | Added Epic 9 Visual Workflow Generator UX patterns | Claude |

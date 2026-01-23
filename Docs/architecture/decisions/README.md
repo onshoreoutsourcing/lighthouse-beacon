@@ -32,10 +32,11 @@ information on how to write ADRs, see
 | 015   | React Flow for Visual Workflows                | Accepted | 2026-01-21 | Epic-9, ADR-002, ADR-003    |
 | 016   | Python Script Execution Security Strategy      | Accepted | 2026-01-21 | Epic-9, ADR-011, ADR-012, ADR-008 |
 | 017   | Workflow YAML Schema Design                    | Accepted | 2026-01-21 | Epic-9, Feature-9.1, ADR-015 |
+| 018   | RAG Knowledge Base Architecture                | Proposed | 2026-01-23 | Epic-10, ADR-006, ADR-003, ADR-011 |
 
 ## Next ADR Number
 
-**Next Available: ADR-018**
+**Next Available: ADR-019**
 
 ## Creating a New ADR
 

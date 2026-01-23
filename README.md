@@ -13,6 +13,13 @@ Beacon provides a visual IDE experience where developers interact with their cod
 - **Natural Language File Operations** - Read, create, edit, and delete files using plain English
 - **Visual Interface** - VS Code-style file explorer and integrated editor with real-time updates
 - **Multi-Provider AI** - Works with Claude, GPT, Gemini, and local models
+- **Visual Workflow Generator** - Create AI-powered automation workflows with drag-and-drop canvas (Added 2026-01-23)
+  - React Flow-based visual editor for workflow creation
+  - YAML workflow definitions with variable interpolation
+  - Secure Python script execution with timeout enforcement
+  - Conditional branching, loops, and parallel execution
+  - AI-assisted workflow generation from natural language
+  - Step-by-step debugging with breakpoints
 - **Dual Deployment** - Desktop application and web-based versions
 - **Lighthouse Integration** - Built-in SOC traceability and compliance scanning
 
@@ -143,25 +150,32 @@ import type { AppConfig } from '@shared/types';
 
 ## Development Status
 
-**Current Wave:** Wave 1.1.2 - Project Structure and Configuration (COMPLETE)
-**Epic:** Epic 1 - Desktop Foundation with Basic UI
-**Feature:** Feature 1.1 - Development Environment Setup
+**Current Epic:** Epic 9 - Visual Workflow Generator (90% Complete)
+**Current Branch:** epic-9-visual-workflow-generator
 
-Completed:
-- ✅ Modern build tooling (Vite + electron-vite)
-- ✅ Package management (pnpm v8+)
-- ✅ TypeScript strict mode configuration with path aliases
-- ✅ Separate TypeScript configs for Node.js and browser environments
-- ✅ ESLint with TypeScript and React rules
-- ✅ Prettier code formatting
-- ✅ Pre-commit hooks (Husky + lint-staged)
-- ✅ VS Code workspace configuration
-- ✅ SOLID project structure with service directories
-- ✅ Shared types for cross-process communication
-- ✅ Hot Module Replacement (HMR) < 1 second
-- ✅ Debug configurations for main and renderer processes
+### Completed Epics:
+- ✅ **Epic 1** - Desktop Foundation with Basic UI (14 waves)
+- ✅ **Epic 7** - Infrastructure & Operations (Logging)
+- ✅ **Epic 9** (90%) - Visual Workflow Generator
 
-Next Wave: Feature 1.2 - Basic Window and UI Shell
+### Epic 9 Progress:
+- ✅ Feature 9.1 - Workflow Canvas Foundation (React Flow canvas, YAML parser)
+- ✅ Feature 9.2 - Workflow Execution Engine (Python execution, real-time visualization)
+- ✅ Feature 9.3 - Workflow Management (CRUD, import/export)
+- ✅ Feature 9.4 - Advanced Control Flow (conditionals, loops, parallel execution, variables)
+- ⏳ Feature 9.5 - UX Polish & Templates (AI generation, testing UI, prompt editor - partial)
+
+### Key Technologies Added (Epic 9):
+- React Flow (@xyflow/react v12+) for visual workflow canvas
+- js-yaml for YAML workflow parsing
+- Secure Python execution with path validation and timeouts
+
+### Architecture Decision Records:
+- ADR-015: React Flow for Visual Workflows
+- ADR-016: Python Script Execution Security Strategy
+- ADR-017: Workflow YAML Schema Design
+
+See `/Docs/architecture/decisions/` for detailed ADRs.
 
 ---
 
