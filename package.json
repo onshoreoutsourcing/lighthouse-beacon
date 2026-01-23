@@ -49,6 +49,7 @@
     "react-syntax-highlighter": "^16.1.0",
     "remark-gfm": "^4.0.1",
     "uuid": "^13.0.0",
+    "vectra": "^0.12.3",
     "zustand": "^5.0.10"
   },
   "devDependencies": {

@@ -33,6 +33,11 @@ import type {
   StepMode,
   Breakpoint,
   DebugContext,
+  DocumentInput,
+  SearchResult,
+  SearchOptions,
+  VectorIndexStats,
+  BatchAddResult,
 } from '@shared/types';
 import {
   IPC_CHANNELS,
@@ -40,6 +45,7 @@ import {
   FILE_OPERATION_CHANNELS,
   WORKFLOW_EXECUTION_CHANNELS,
   WORKFLOW_DEBUG_CHANNELS,
+  VECTOR_CHANNELS,
 } from '@shared/types';
 
 /**
@@ -790,6 +796,64 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.VARIABLE_CHANGED, listener);
         return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.VARIABLE_CHANGED, listener);
       },
+    },
+  },
+
+  /**
+   * Vector Search Operations (Feature 10.1 - Wave 10.1.1)
+   */
+  vector: {
+    /**
+     * Add a single document to the vector index
+     * @param document - Document to add (id, content, optional metadata, optional embedding)
+     * @returns Add result
+     */
+    add: (document: DocumentInput): Promise<Result<void>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_ADD, document);
+    },
+
+    /**
+     * Add multiple documents in batch
+     * @param documents - Array of documents to add
+     * @returns Batch add result with success/failure counts
+     */
+    addBatch: (documents: DocumentInput[]): Promise<Result<BatchAddResult>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_ADD_BATCH, documents);
+    },
+
+    /**
+     * Search for documents by semantic similarity
+     * @param query - Search query text
+     * @param options - Search options (topK, threshold, filter)
+     * @returns Search results with relevance scores
+     */
+    search: (query: string, options?: SearchOptions): Promise<Result<SearchResult[]>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_SEARCH, query, options);
+    },
+
+    /**
+     * Remove a document from the vector index
+     * @param documentId - ID of document to remove
+     * @returns Remove result
+     */
+    remove: (documentId: string): Promise<Result<void>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_REMOVE, documentId);
+    },
+
+    /**
+     * Clear all documents from the index
+     * @returns Clear result
+     */
+    clear: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_CLEAR);
+    },
+
+    /**
+     * Get vector index statistics
+     * @returns Index statistics (document count, dimension, size)
+     */
+    getStats: (): Promise<Result<VectorIndexStats>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_STATS);
     },
   },
 

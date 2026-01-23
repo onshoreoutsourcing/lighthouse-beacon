@@ -422,3 +422,16 @@ export const WORKFLOW_DEBUG_CHANNELS = {
   MODE_CHANGED: 'workflow:debug:mode-changed',
   VARIABLE_CHANGED: 'workflow:debug:variable-changed',
 } as const;
+
+/**
+ * Export Vector Search types (Feature 10.1 - Wave 10.1.1)
+ */
+export type {
+  DocumentInput,
+  SearchResult,
+  SearchOptions,
+  VectorIndexStats,
+  BatchAddResult,
+} from './vector.types';
+
+export { VECTOR_CHANNELS } from './vector.types';
