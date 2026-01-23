@@ -19,8 +19,28 @@ import type {
   PermissionResponse,
   FileOperationEvent,
   LogEntry,
+  WorkflowStartedEvent,
+  StepStartedEvent,
+  StepCompletedEvent,
+  StepFailedEvent,
+  WorkflowCompletedEvent,
+  Workflow,
+  WorkflowMetadata,
+  WorkflowExecutionResult,
+  ValidationResult,
+  DebugMode,
+  DebugState,
+  StepMode,
+  Breakpoint,
+  DebugContext,
 } from '@shared/types';
-import { IPC_CHANNELS, CONVERSATION_CHANNELS, FILE_OPERATION_CHANNELS } from '@shared/types';
+import {
+  IPC_CHANNELS,
+  CONVERSATION_CHANNELS,
+  FILE_OPERATION_CHANNELS,
+  WORKFLOW_EXECUTION_CHANNELS,
+  WORKFLOW_DEBUG_CHANNELS,
+} from '@shared/types';
 
 /**
  * Preload Script - Secure IPC Bridge
@@ -391,6 +411,385 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     clear: (): Promise<Result<void>> => {
       return ipcRenderer.invoke(IPC_CHANNELS.LOGS_CLEAR);
+    },
+  },
+
+  /**
+   * Workflow Operations (Feature 9.1 - Wave 9.1.3)
+   */
+  workflow: {
+    /**
+     * Load workflow from file
+     * @param filePath - Workflow file path or name
+     * @returns Load result with workflow or error
+     */
+    load: (filePath: string): Promise<Result<{ workflow: Workflow }>> => {
+      return ipcRenderer.invoke('workflow:load', filePath);
+    },
+
+    /**
+     * Save workflow to file
+     * @param workflow - Workflow definition
+     * @param fileName - Optional custom file name
+     * @returns Save result with file path or error
+     */
+    save: (workflow: Workflow, fileName?: string): Promise<Result<{ filePath: string }>> => {
+      return ipcRenderer.invoke('workflow:save', workflow, fileName);
+    },
+
+    /**
+     * Execute workflow with inputs
+     * @param request - Execution request (workflow and inputs)
+     * @returns Execution result
+     */
+    execute: (request: {
+      workflow: Workflow | string;
+      inputs: Record<string, unknown>;
+      workflowId?: string;
+      dryRun?: boolean;
+    }): Promise<Result<WorkflowExecutionResult>> => {
+      return ipcRenderer.invoke('workflow:execute', request);
+    },
+
+    /**
+     * Validate workflow without saving
+     * @param workflow - Workflow definition
+     * @returns Validation result
+     */
+    validate: (workflow: Workflow): Promise<ValidationResult> => {
+      return ipcRenderer.invoke('workflow:validate', workflow);
+    },
+
+    /**
+     * List all saved workflows
+     * @returns Array of workflow metadata
+     */
+    list: (): Promise<Result<{ workflows: WorkflowMetadata[] }>> => {
+      return ipcRenderer.invoke('workflow:list');
+    },
+
+    /**
+     * Delete workflow file
+     * @param filePath - Workflow file path or name
+     * @returns Whether deletion was successful
+     */
+    delete: (filePath: string): Promise<boolean> => {
+      return ipcRenderer.invoke('workflow:delete', filePath);
+    },
+
+    /**
+     * Import workflow from YAML file
+     * @param filePath - Path to YAML file to import
+     * @returns Import result with workflow or validation error
+     */
+    import: (filePath: string): Promise<Result<{ workflow: Workflow }>> => {
+      return ipcRenderer.invoke('workflow:import', filePath);
+    },
+
+    /**
+     * Export workflow to YAML file
+     * @param workflow - Workflow to export
+     * @param filePath - Absolute path where to save the workflow
+     * @returns Export result with file path or error
+     */
+    export: (workflow: Workflow, filePath: string): Promise<Result<{ filePath: string }>> => {
+      return ipcRenderer.invoke('workflow:export', workflow, filePath);
+    },
+
+    /**
+     * Generate workflow from natural language description using AI
+     * Wave 9.5.2: AI-Assisted Workflow Generation
+     * @param params - Generation parameters
+     * @param params.description - Natural language description of desired workflow
+     * @param params.projectType - Optional project type (e.g., "web", "cli", "api")
+     * @param params.language - Optional programming language (e.g., "python", "typescript")
+     * @param params.model - Optional AI model override
+     * @returns Generation result with workflow or error
+     */
+    generate: (params: {
+      description: string;
+      projectType?: string;
+      language?: string;
+      model?: string;
+    }): Promise<{
+      success: boolean;
+      workflow?: Workflow;
+      yaml?: string;
+      error?: {
+        type: 'claude_api' | 'yaml_parse' | 'schema_validation' | 'unknown';
+        message: string;
+        details?: string;
+        validationErrors?: unknown[];
+      };
+      metadata?: {
+        modelUsed: string;
+        tokensUsed?: number;
+        durationMs: number;
+      };
+    }> => {
+      return ipcRenderer.invoke('workflow:generate', params);
+    },
+
+    /**
+     * Workflow Execution Events (Feature 9.2 - Wave 9.2.2)
+     */
+    execution: {
+      /**
+       * Subscribe to workflow execution events
+       * @param workflowId - Optional workflow ID to filter events
+       * @returns Subscription result
+       */
+      subscribe: (workflowId?: string): Promise<Result<{ subscribed: boolean }>> => {
+        return ipcRenderer.invoke(WORKFLOW_EXECUTION_CHANNELS.SUBSCRIBE, workflowId);
+      },
+
+      /**
+       * Unsubscribe from workflow execution events
+       * @returns Unsubscription result
+       */
+      unsubscribe: (): Promise<Result<{ unsubscribed: boolean }>> => {
+        return ipcRenderer.invoke(WORKFLOW_EXECUTION_CHANNELS.UNSUBSCRIBE);
+      },
+
+      /**
+       * Subscribe to workflow started events
+       * @param callback - Callback to receive workflow started events
+       * @returns Cleanup function to remove listener
+       */
+      onWorkflowStarted: (callback: (event: WorkflowStartedEvent) => void): (() => void) => {
+        const listener = (_event: unknown, data: WorkflowStartedEvent) => callback(data);
+        ipcRenderer.on(WORKFLOW_EXECUTION_CHANNELS.WORKFLOW_STARTED, listener);
+        return () =>
+          ipcRenderer.removeListener(WORKFLOW_EXECUTION_CHANNELS.WORKFLOW_STARTED, listener);
+      },
+
+      /**
+       * Subscribe to step started events
+       * @param callback - Callback to receive step started events
+       * @returns Cleanup function to remove listener
+       */
+      onStepStarted: (callback: (event: StepStartedEvent) => void): (() => void) => {
+        const listener = (_event: unknown, data: StepStartedEvent) => callback(data);
+        ipcRenderer.on(WORKFLOW_EXECUTION_CHANNELS.STEP_STARTED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_EXECUTION_CHANNELS.STEP_STARTED, listener);
+      },
+
+      /**
+       * Subscribe to step completed events
+       * @param callback - Callback to receive step completed events
+       * @returns Cleanup function to remove listener
+       */
+      onStepCompleted: (callback: (event: StepCompletedEvent) => void): (() => void) => {
+        const listener = (_event: unknown, data: StepCompletedEvent) => callback(data);
+        ipcRenderer.on(WORKFLOW_EXECUTION_CHANNELS.STEP_COMPLETED, listener);
+        return () =>
+          ipcRenderer.removeListener(WORKFLOW_EXECUTION_CHANNELS.STEP_COMPLETED, listener);
+      },
+
+      /**
+       * Subscribe to step failed events
+       * @param callback - Callback to receive step failed events
+       * @returns Cleanup function to remove listener
+       */
+      onStepFailed: (callback: (event: StepFailedEvent) => void): (() => void) => {
+        const listener = (_event: unknown, data: StepFailedEvent) => callback(data);
+        ipcRenderer.on(WORKFLOW_EXECUTION_CHANNELS.STEP_FAILED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_EXECUTION_CHANNELS.STEP_FAILED, listener);
+      },
+
+      /**
+       * Subscribe to workflow completed events
+       * @param callback - Callback to receive workflow completed events
+       * @returns Cleanup function to remove listener
+       */
+      onWorkflowCompleted: (callback: (event: WorkflowCompletedEvent) => void): (() => void) => {
+        const listener = (_event: unknown, data: WorkflowCompletedEvent) => callback(data);
+        ipcRenderer.on(WORKFLOW_EXECUTION_CHANNELS.WORKFLOW_COMPLETED, listener);
+        return () =>
+          ipcRenderer.removeListener(WORKFLOW_EXECUTION_CHANNELS.WORKFLOW_COMPLETED, listener);
+      },
+    },
+  },
+
+  /**
+   * Workflow Debug API (Wave 9.4.6: Step-by-Step Debugging)
+   */
+  workflowDebug: {
+    /**
+     * Set debug mode (ON/OFF)
+     */
+    setMode: (mode: DebugMode): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.SET_MODE, mode);
+    },
+
+    /**
+     * Get current debug mode
+     */
+    getMode: (): Promise<Result<DebugMode>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_MODE);
+    },
+
+    /**
+     * Get current debug state
+     */
+    getState: (): Promise<Result<{ state: DebugState; stepMode: StepMode }>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_STATE);
+    },
+
+    /**
+     * Add breakpoint to node
+     */
+    addBreakpoint: (nodeId: string, enabled?: boolean): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.ADD_BREAKPOINT, nodeId, enabled);
+    },
+
+    /**
+     * Remove breakpoint from node
+     */
+    removeBreakpoint: (nodeId: string): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.REMOVE_BREAKPOINT, nodeId);
+    },
+
+    /**
+     * Toggle breakpoint enabled state
+     */
+    toggleBreakpoint: (nodeId: string): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.TOGGLE_BREAKPOINT, nodeId);
+    },
+
+    /**
+     * Get all breakpoints
+     */
+    getBreakpoints: (): Promise<Result<Breakpoint[]>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_BREAKPOINTS);
+    },
+
+    /**
+     * Clear all breakpoints
+     */
+    clearBreakpoints: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.CLEAR_BREAKPOINTS);
+    },
+
+    /**
+     * Pause execution (will pause at next node)
+     */
+    pause: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.PAUSE);
+    },
+
+    /**
+     * Resume execution
+     */
+    resume: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.RESUME);
+    },
+
+    /**
+     * Step over: execute current node and pause at next
+     */
+    stepOver: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.STEP_OVER);
+    },
+
+    /**
+     * Continue: resume until next breakpoint or completion
+     */
+    continue: (): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.CONTINUE);
+    },
+
+    /**
+     * Get current debug context (variables, stack)
+     */
+    getContext: (): Promise<Result<DebugContext | null>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.GET_CONTEXT);
+    },
+
+    /**
+     * Set variable value during pause (for testing/debugging)
+     */
+    setVariable: (path: string, value: unknown): Promise<Result<void>> => {
+      return ipcRenderer.invoke(WORKFLOW_DEBUG_CHANNELS.SET_VARIABLE, path, value);
+    },
+
+    /**
+     * Debug Events
+     */
+    events: {
+      /**
+       * Subscribe to paused events
+       */
+      onPaused: (callback: (context: DebugContext) => void): (() => void) => {
+        const listener = (_event: unknown, data: DebugContext) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.PAUSED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.PAUSED, listener);
+      },
+
+      /**
+       * Subscribe to resumed events
+       */
+      onResumed: (
+        callback: (data: { workflowId: string; nodeId: string }) => void
+      ): (() => void) => {
+        const listener = (_event: unknown, data: { workflowId: string; nodeId: string }) =>
+          callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.RESUMED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.RESUMED, listener);
+      },
+
+      /**
+       * Subscribe to breakpoint added events
+       */
+      onBreakpointAdded: (callback: (data: { nodeId: string }) => void): (() => void) => {
+        const listener = (_event: unknown, data: { nodeId: string }) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_ADDED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_ADDED, listener);
+      },
+
+      /**
+       * Subscribe to breakpoint removed events
+       */
+      onBreakpointRemoved: (callback: (data: { nodeId: string }) => void): (() => void) => {
+        const listener = (_event: unknown, data: { nodeId: string }) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_REMOVED, listener);
+        return () =>
+          ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_REMOVED, listener);
+      },
+
+      /**
+       * Subscribe to breakpoint toggled events
+       */
+      onBreakpointToggled: (
+        callback: (data: { nodeId: string; enabled: boolean }) => void
+      ): (() => void) => {
+        const listener = (_event: unknown, data: { nodeId: string; enabled: boolean }) =>
+          callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_TOGGLED, listener);
+        return () =>
+          ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.BREAKPOINT_TOGGLED, listener);
+      },
+
+      /**
+       * Subscribe to mode changed events
+       */
+      onModeChanged: (callback: (data: { mode: DebugMode }) => void): (() => void) => {
+        const listener = (_event: unknown, data: { mode: DebugMode }) => callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.MODE_CHANGED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.MODE_CHANGED, listener);
+      },
+
+      /**
+       * Subscribe to variable changed events
+       */
+      onVariableChanged: (
+        callback: (data: { path: string; value: unknown }) => void
+      ): (() => void) => {
+        const listener = (_event: unknown, data: { path: string; value: unknown }) =>
+          callback(data);
+        ipcRenderer.on(WORKFLOW_DEBUG_CHANNELS.VARIABLE_CHANGED, listener);
+        return () => ipcRenderer.removeListener(WORKFLOW_DEBUG_CHANNELS.VARIABLE_CHANGED, listener);
+      },
     },
   },
 

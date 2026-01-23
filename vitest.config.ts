@@ -4,15 +4,17 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
-    include: ['src/**/__tests__/**/*.test.ts'],
+    environment: 'happy-dom', // Changed to support renderer tests
+    include: ['src/**/__tests__/**/*.test.ts', 'src/**/__tests__/**/*.test.tsx'],
     exclude: ['node_modules', 'dist', 'dist-electron'],
+    setupFiles: ['./src/renderer/__tests__/setup.ts'], // Test setup file
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
       include: [
         'src/main/logger.ts',
         'src/main/utils/diskSpace.ts',
+        'src/main/services/workflow/PythonExecutor.ts',
       ],
       exclude: [
         'src/main/**/__tests__/**',
@@ -36,6 +38,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@main': path.resolve(__dirname, './src/main'),
       '@shared': path.resolve(__dirname, './src/shared'),
+      '@renderer': path.resolve(__dirname, './src/renderer'),
     },
   },
 });

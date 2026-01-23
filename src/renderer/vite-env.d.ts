@@ -22,6 +22,20 @@ import type {
   LogEntry,
   LogConfig,
   LogLevel,
+  WorkflowStartedEvent,
+  StepStartedEvent,
+  StepCompletedEvent,
+  StepFailedEvent,
+  WorkflowCompletedEvent,
+  Workflow,
+  WorkflowMetadata,
+  WorkflowExecutionResult,
+  ValidationResult,
+  DebugMode,
+  DebugState,
+  StepMode,
+  Breakpoint,
+  DebugContext,
 } from '@shared/types';
 
 /**
@@ -92,10 +106,84 @@ declare global {
         getDiskSpace: () => Promise<Result<number>>;
         openLogFolder: () => Promise<Result<void>>;
       };
+      workflow: {
+        load: (filePath: string) => Promise<Result<{ workflow: Workflow }>>;
+        save: (workflow: Workflow, fileName?: string) => Promise<Result<{ filePath: string }>>;
+        import: (filePath: string) => Promise<Result<{ workflow: Workflow }>>;
+        export: (workflow: Workflow, filePath: string) => Promise<Result<{ filePath: string }>>;
+        execute: (request: {
+          workflow: Workflow | string;
+          inputs: Record<string, unknown>;
+          workflowId?: string;
+          dryRun?: boolean;
+        }) => Promise<Result<WorkflowExecutionResult>>;
+        validate: (workflow: Workflow) => Promise<ValidationResult>;
+        list: () => Promise<Result<{ workflows: WorkflowMetadata[] }>>;
+        delete: (filePath: string) => Promise<boolean>;
+        generate: (params: {
+          description: string;
+          projectType?: string;
+          language?: string;
+          model?: string;
+        }) => Promise<{
+          success: boolean;
+          workflow?: Workflow;
+          yaml?: string;
+          error?: {
+            type: 'claude_api' | 'yaml_parse' | 'schema_validation' | 'unknown';
+            message: string;
+            details?: string;
+            validationErrors?: unknown[];
+          };
+          metadata?: {
+            modelUsed: string;
+            tokensUsed?: number;
+            durationMs: number;
+          };
+        }>;
+        execution: {
+          subscribe: (workflowId?: string) => Promise<Result<{ subscribed: boolean }>>;
+          unsubscribe: () => Promise<Result<{ unsubscribed: boolean }>>;
+          onWorkflowStarted: (callback: (event: WorkflowStartedEvent) => void) => () => void;
+          onStepStarted: (callback: (event: StepStartedEvent) => void) => () => void;
+          onStepCompleted: (callback: (event: StepCompletedEvent) => void) => () => void;
+          onStepFailed: (callback: (event: StepFailedEvent) => void) => () => void;
+          onWorkflowCompleted: (callback: (event: WorkflowCompletedEvent) => void) => () => void;
+        };
+      };
       versions: {
         node: () => string;
         chrome: () => string;
         electron: () => string;
+      };
+      workflowDebug: {
+        setMode: (mode: DebugMode) => Promise<Result<void>>;
+        getMode: () => Promise<Result<DebugMode>>;
+        getState: () => Promise<Result<{ state: DebugState; stepMode: StepMode }>>;
+        addBreakpoint: (nodeId: string, enabled?: boolean) => Promise<Result<void>>;
+        removeBreakpoint: (nodeId: string) => Promise<Result<void>>;
+        toggleBreakpoint: (nodeId: string) => Promise<Result<void>>;
+        getBreakpoints: () => Promise<Result<Breakpoint[]>>;
+        clearBreakpoints: () => Promise<Result<void>>;
+        pause: () => Promise<Result<void>>;
+        resume: () => Promise<Result<void>>;
+        stepOver: () => Promise<Result<void>>;
+        continue: () => Promise<Result<void>>;
+        getContext: () => Promise<Result<DebugContext | null>>;
+        setVariable: (path: string, value: unknown) => Promise<Result<void>>;
+        events: {
+          onModeChanged: (callback: (data: { mode: DebugMode }) => void) => () => void;
+          onPaused: (callback: (context: DebugContext) => void) => () => void;
+          onResumed: (callback: () => void) => () => void;
+          onBreakpointAdded: (callback: (data: { nodeId: string }) => void) => () => void;
+          onBreakpointRemoved: (callback: (data: { nodeId: string }) => void) => () => void;
+          onBreakpointToggled: (
+            callback: (data: { nodeId: string; enabled: boolean }) => void
+          ) => () => void;
+          onVariableChanged: (
+            callback: (data: { path: string; value: unknown }) => void
+          ) => () => void;
+        };
       };
     };
   }

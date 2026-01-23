@@ -34,6 +34,10 @@ export default [
         NodeJS: 'readonly',
         document: 'readonly',
         window: 'readonly',
+        localStorage: 'readonly',
+        performance: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
     plugins: {
@@ -87,13 +91,26 @@ export default [
         __filename: 'readonly',
         Buffer: 'readonly',
         require: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
   },
 
   // Test files specific rules
   {
-    files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    languageOptions: {
+      globals: {
+        global: 'readonly',
+        setTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        clearTimeout: 'readonly',
+      },
+    },
     rules: {
       // Disable rules that are false positives in test files
       '@typescript-eslint/unbound-method': 'off', // Mocked functions are intentionally unbound

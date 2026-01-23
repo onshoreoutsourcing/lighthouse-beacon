@@ -1,0 +1,130 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__serena__list_dir",
+      "Bash(find:*)",
+      "Skill(cross-documentation-verification)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git push:*)",
+      "Bash(wc:*)",
+      "Skill(git-agentic-branching-strategy)",
+      "Bash(ls:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git checkout:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(pnpm:*)",
+      "Bash(npm install:*)",
+      "Bash(chmod:*)",
+      "Bash(/Users/roylove/dev/lighthouse-beacon/verify-setup.sh)",
+      "Bash(test:*)",
+      "Bash(git merge:*)",
+      "Bash(gtimeout:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run build:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(VITE_DEV_SERVER_URL=http://localhost:5173 pnpm run dev:*)",
+      "Bash(screencapture:*)",
+      "Bash(tree:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git pull:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prettier:*)",
+      "Bash(for file in wave-1.1.2-project-structure-and-configuration.md wave-1.2.1-main-process-and-window-management.md wave-1.2.2-ipc-infrastructure-and-file-system-service.md wave-1.3.1-panel-structure-and-styling.md wave-1.3.2-panel-resizing-and-persistence.md wave-1.4.1-basic-file-tree-display.md wave-1.4.2-expand-collapse-and-lazy-loading.md wave-1.4.3-file-selection-and-performance.md wave-1.5.1-monaco-editor-integration.md wave-1.5.2-tab-management-system.md wave-1.5.3-editing-and-save-functionality.md wave-1.6.1-file-explorer-to-editor-bridge.md wave-1.6.2-bidirectional-sync-and-edge-cases.md)",
+      "Bash(do sed -i '' 's/^- \\\\[ \\\\]/- [x]/g' \"$file\")",
+      "Bash(done)",
+      "Bash(grep:*)",
+      "Skill(wave-coherence-validation)",
+      "Bash(git --version:*)",
+      "Bash(npm run lint:fix:*)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon branch:*)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon checkout epic-2-ai-integration)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon checkout -b feature-2.3-tool-framework)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log --oneline -10)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log --oneline --all --graph -20)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log feature-2.1-aichatsdk-integration --oneline -5)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log feature-2.2-chat-interface --oneline -5)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon checkout feature-2.2-chat-interface)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon checkout feature-2.1-aichatsdk-integration)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log --oneline -5)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log --oneline --graph -10)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log --oneline --all --graph -15)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon merge feature-2.1-aichatsdk-integration --no-edit)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon diff /Users/roylove/dev/lighthouse-beacon/src/preload/index.ts)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon show HEAD:src/preload/index.ts)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon show feature-2.1-aichatsdk-integration:src/preload/index.ts)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log --oneline -3)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon add -A)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon commit -m \"feat\\(wave-2.3.1\\): Implement Tool Framework Infrastructure\n\n- Add tool type system \\(ToolDefinition, ToolExecutor, ToolValidationError\\)\n- Implement ToolRegistry for tool management and schema retrieval\n- Create PermissionService with three-tier permission system\n  - ALWAYS_ALLOW for read operations\n  - PROMPT with session trust for write/edit\n  - ALWAYS_PROMPT for delete/bash\n- Implement ToolExecutionService with validation and error handling\n- Add IPC channels for tool execution and permissions\n- Register tool handlers in main process\n- Expose tool API in preload script\n- Update TypeScript declarations\n- Zero compilation errors\n\nWave 2.3.1 complete - Tool framework infrastructure ready for UI integration\")",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon commit -m \"feat\\(wave-2.3.2\\): Implement Permission UI and Integration\n\n- Create PermissionStore \\(Zustand\\) for permission state management\n  - Single pending request at a time\n  - Session trust tracking per tool type\n  - IPC integration for request/response flow\n- Implement PermissionModal component\n  - Risk level visualization \\(green/yellow/red\\)\n  - Operation details display with parameters\n  - Session trust checkbox for eligible operations\n  - Keyboard shortcuts \\(Enter=approve, Escape=deny\\)\n  - Auto-focus and accessibility support\n- Integrate PermissionModal into App\n- Initialize permission store event listeners\n- Complete end-to-end permission flow\n- Zero compilation errors\n\nWave 2.3.2 complete - Permission UI fully operational\")",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon log:*)",
+      "Bash(git -C /Users/roylove/dev/lighthouse-beacon status)",
+      "Bash(npm audit:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(git fetch:*)",
+      "Bash(git branch:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh api:*)",
+      "Bash(gh pr list:*)",
+      "Bash(git ls-remote:*)",
+      "Bash(node -e:*)",
+      "Skill(development-best-practices)",
+      "Skill(ucp-calculation-planned-work)",
+      "Bash(git show-branch:*)",
+      "Skill(architectural-conformance-validation)",
+      "Bash(git stash:*)",
+      "Bash(npm test:*)",
+      "Bash(osascript:*)",
+      "Bash(tee:*)",
+      "Bash(npm run test:coverage:*)",
+      "mcp__serena__create_text_file",
+      "Bash(echo:*)",
+      "Bash(npm run lint:*)",
+      "mcp__serena__replace_content",
+      "Bash(gh pr comment 4 --body \"$\\(cat <<''EOF''\n## PR Review Comments Addressed ✅\n\nFixed all 3 review comments:\n\n### 1. ✅ useSmartScroll.ts - Dependency Array Spreading\n\n**Comment:** Concern about spreading dependencies and React change detection.\n\n**Resolution:** \n- Added comprehensive documentation explaining the intentional design pattern\n- Explained why `useMemo` cannot solve this \\(creates circular dependency problem\\)\n- Documented that callers are responsible for providing stable dependency arrays\n- Kept `eslint-disable` with detailed justification of the design trade-off\n\nThis is a deliberate pattern for hook reusability - the alternative would be to hardcode specific dependencies, which would make the hook less flexible.\n\n### 2. ✅ diskSpace.ts - Node.js Version Compatibility\n\n**Comment:** `fs.statfs` requires Node.js 19.6.0+\n\n**Resolution:**\n- Added documentation at file level noting Node.js 19.6.0+ requirement\n- Added inline comment at `statfs` call site\n- **Added `engines` field to package.json requiring Node.js >=20.0.0**\n- This aligns with Electron 35''s embedded Node.js 22\n\n### 3. ✅ eslint.config.js - Monaco Editor Overrides\n\n**Comment:** Overrides may be too broad and possibly unnecessary.\n\n**Resolution:**\n- **Verified overrides ARE still necessary** by removing and testing\n- **Reduced scope:** Removed `no-unsafe-assignment`, kept only `no-unsafe-member-access`\n- Added detailed documentation explaining:\n  - Why it''s needed \\(monaco.KeyMod and monaco.KeyCode type resolution limitation\\)\n  - What was tested \\(verified by removal on 2026-01-21\\)\n  - That it''s a known @monaco-editor/react limitation with monaco-editor@0.55.1\n\nThe override is now more targeted and well-documented.\n\n---\n\n**Verification:**\n- ✅ All 72 tests passing\n- ✅ ESLint: No new errors introduced\n- ✅ Commit: `167a403`\nEOF\n\\)\")",
+      "Bash(kill:*)",
+      "WebSearch",
+      "Bash(claude tasks)",
+      "Skill(design-features)",
+      "mcp__serena__read_file",
+      "Bash(python3:*)",
+      "mcp__serena__find_symbol",
+      "Bash(npx vitest:*)",
+      "mcp__serena__find_file"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/lighthouse-hook.js"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/lighthouse-hook.js"
+          }
+        ]
+      }
+    ]
+  }
+}
