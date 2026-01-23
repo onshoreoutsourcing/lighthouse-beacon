@@ -2,9 +2,14 @@
  * VectorService Unit Tests
  * Feature 10.1 - Vector Service & Embedding Infrastructure
  * Wave 10.1.1 - Vector-lite Integration & Basic Search
+ * Wave 10.1.2 - Transformers.js Embedding Generation
  *
  * Tests vector search operations including add, search, remove, and batch operations.
+ * Now uses real embeddings from EmbeddingService (all-MiniLM-L6-v2 model).
  * Target coverage: >90%
+ *
+ * Note: These tests require internet connectivity on first run to download the model (~22MB).
+ * Subsequent runs use cached model and run offline.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';

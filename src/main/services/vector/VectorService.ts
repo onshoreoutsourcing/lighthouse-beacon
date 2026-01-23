@@ -2,10 +2,12 @@
  * VectorService - In-memory vector search with hybrid retrieval
  * Feature 10.1 - Vector Service & Embedding Infrastructure
  * Wave 10.1.1 - Vector-lite Integration & Basic Search
+ * Wave 10.1.2 - Transformers.js Embedding Generation
  *
  * Provides semantic search capabilities using Vectra's LocalIndex with:
  * - Hybrid search combining semantic (70%) and keyword (30%) scoring
  * - In-memory index for fast retrieval (<50ms for 1000 documents)
+ * - Local embedding generation using Transformers.js
  * - Document add/remove/search operations
  * - Index statistics and management
  */
@@ -14,6 +16,7 @@ import { LocalIndex, type IndexItem, type QueryResult } from 'vectra';
 import path from 'path';
 import { app } from 'electron';
 import { logger } from '../../logger';
+import { EmbeddingService } from './EmbeddingService';
 import type {
   DocumentInput,
   SearchResult,
@@ -33,8 +36,10 @@ import type {
 export class VectorService {
   private index: LocalIndex;
   private indexPath: string;
-  private readonly embeddingDimension = 384; // Default dimension for placeholder embeddings
+  private readonly embeddingDimension = 384; // all-MiniLM-L6-v2 produces 384-dim embeddings
   private isInitialized = false;
+  private embeddingService: EmbeddingService | null = null;
+  private isEmbeddingServiceReady = false;
 
   /**
    * Creates a new VectorService instance
@@ -57,6 +62,7 @@ export class VectorService {
    *
    * @remarks
    * Creates the index if it doesn't exist, or loads existing index.
+   * EmbeddingService is initialized lazily on first use for faster startup.
    * Must be called before any other operations.
    *
    * @returns Promise that resolves when initialization is complete
@@ -91,6 +97,32 @@ export class VectorService {
   }
 
   /**
+   * Ensure embedding service is initialized
+   *
+   * @remarks
+   * Lazy initialization - only loads model on first embedding request.
+   * Subsequent calls return immediately if already initialized.
+   *
+   * @returns Promise that resolves when embedding service is ready
+   */
+  private async ensureEmbeddingService(): Promise<void> {
+    if (this.isEmbeddingServiceReady && this.embeddingService) {
+      return;
+    }
+
+    if (!this.embeddingService) {
+      logger.info('[VectorService] Initializing EmbeddingService...');
+      this.embeddingService = new EmbeddingService();
+    }
+
+    if (!this.isEmbeddingServiceReady) {
+      await this.embeddingService.initialize();
+      this.isEmbeddingServiceReady = true;
+      logger.info('[VectorService] EmbeddingService ready');
+    }
+  }
+
+  /**
    * Add a document to the vector index
    *
    * @param document - Document to add (id, content, optional metadata, optional embedding)
@@ -103,9 +135,14 @@ export class VectorService {
     try {
       const startTime = Date.now();
 
-      // Generate placeholder embedding if not provided
-      // Note: Real embeddings will be added in Wave 10.1.2
-      const embedding = document.embedding || this.generatePlaceholderEmbedding(document.content);
+      // Generate real embedding if not provided (Wave 10.1.2)
+      let embedding: number[];
+      if (document.embedding) {
+        embedding = document.embedding;
+      } else {
+        await this.ensureEmbeddingService();
+        embedding = await this.embeddingService!.generateEmbedding(document.content);
+      }
 
       // Create Vectra index item
       const item: Partial<IndexItem> = {
@@ -155,15 +192,51 @@ export class VectorService {
     try {
       const startTime = Date.now();
 
-      // Prepare index items
-      const items: Partial<IndexItem>[] = documents.map((doc) => ({
-        id: doc.id,
-        vector: doc.embedding || this.generatePlaceholderEmbedding(doc.content),
-        metadata: {
-          content: doc.content,
-          ...(doc.metadata || {}),
-        },
-      }));
+      // Ensure embedding service is ready
+      await this.ensureEmbeddingService();
+
+      // Generate embeddings for documents that don't have them (Wave 10.1.2)
+      const textsToEmbed: string[] = [];
+      const textIndices: number[] = [];
+
+      documents.forEach((doc, index) => {
+        if (!doc.embedding) {
+          textsToEmbed.push(doc.content);
+          textIndices.push(index);
+        }
+      });
+
+      // Batch generate embeddings
+      let generatedEmbeddings: number[][] = [];
+      if (textsToEmbed.length > 0) {
+        generatedEmbeddings = await this.embeddingService!.generateBatchEmbeddings(textsToEmbed);
+      }
+
+      // Prepare index items with embeddings
+      const items: Partial<IndexItem>[] = documents.map((doc, index) => {
+        let embedding: number[];
+
+        if (doc.embedding) {
+          embedding = doc.embedding;
+        } else {
+          // Find the generated embedding for this document
+          const embeddingIndex = textIndices.indexOf(index);
+          const foundEmbedding = generatedEmbeddings[embeddingIndex];
+          if (!foundEmbedding) {
+            throw new Error(`Failed to generate embedding for document at index ${index}`);
+          }
+          embedding = foundEmbedding;
+        }
+
+        return {
+          id: doc.id,
+          vector: embedding,
+          metadata: {
+            content: doc.content,
+            ...(doc.metadata || {}),
+          },
+        };
+      });
 
       // Batch insert
       await this.index.batchInsertItems(items);
@@ -212,9 +285,9 @@ export class VectorService {
     try {
       const startTime = Date.now();
 
-      // Generate placeholder embedding for query
-      // Note: Real embeddings will be added in Wave 10.1.2
-      const queryEmbedding = this.generatePlaceholderEmbedding(query);
+      // Generate real embedding for query (Wave 10.1.2)
+      await this.ensureEmbeddingService();
+      const queryEmbedding = await this.embeddingService!.generateEmbedding(query);
 
       let results: QueryResult[] = [];
 
@@ -370,53 +443,12 @@ export class VectorService {
   }
 
   /**
-   * Generate placeholder embedding for testing
+   * Check if embedding service is ready
    *
-   * @remarks
-   * This generates a random normalized vector for testing purposes.
-   * Real embeddings will be generated in Wave 10.1.2 using an embedding model.
-   *
-   * @param content - Content to generate embedding for
-   * @returns Normalized embedding vector
+   * @returns True if embedding service is initialized and ready
    */
-  private generatePlaceholderEmbedding(content: string): number[] {
-    // Use content hash as seed for reproducibility
-    const seed = this.hashString(content);
-    const random = this.seededRandom(seed);
-
-    // Generate random vector
-    const vector: number[] = [];
-    for (let i = 0; i < this.embeddingDimension; i++) {
-      vector.push(random() * 2 - 1); // Values between -1 and 1
-    }
-
-    // Normalize vector (L2 normalization)
-    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-    return vector.map((val) => val / magnitude);
-  }
-
-  /**
-   * Simple string hash function for seeding
-   */
-  private hashString(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash);
-  }
-
-  /**
-   * Seeded random number generator for reproducible embeddings
-   */
-  private seededRandom(seed: number): () => number {
-    let state = seed;
-    return () => {
-      state = (state * 1664525 + 1013904223) % 4294967296;
-      return state / 4294967296;
-    };
+  isEmbeddingReady(): boolean {
+    return this.isEmbeddingServiceReady && this.embeddingService !== null;
   }
 
   /**
