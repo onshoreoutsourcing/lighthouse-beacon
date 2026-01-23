@@ -31,6 +31,11 @@ import type {
   WorkflowMetadata,
   WorkflowExecutionResult,
   ValidationResult,
+  DebugMode,
+  DebugState,
+  StepMode,
+  Breakpoint,
+  DebugContext,
 } from '@shared/types';
 
 /**
@@ -150,6 +155,35 @@ declare global {
         node: () => string;
         chrome: () => string;
         electron: () => string;
+      };
+      workflowDebug: {
+        setMode: (mode: DebugMode) => Promise<Result<void>>;
+        getMode: () => Promise<Result<DebugMode>>;
+        getState: () => Promise<Result<{ state: DebugState; stepMode: StepMode }>>;
+        addBreakpoint: (nodeId: string, enabled?: boolean) => Promise<Result<void>>;
+        removeBreakpoint: (nodeId: string) => Promise<Result<void>>;
+        toggleBreakpoint: (nodeId: string) => Promise<Result<void>>;
+        getBreakpoints: () => Promise<Result<Breakpoint[]>>;
+        clearBreakpoints: () => Promise<Result<void>>;
+        pause: () => Promise<Result<void>>;
+        resume: () => Promise<Result<void>>;
+        stepOver: () => Promise<Result<void>>;
+        continue: () => Promise<Result<void>>;
+        getContext: () => Promise<Result<DebugContext | null>>;
+        setVariable: (path: string, value: unknown) => Promise<Result<void>>;
+        events: {
+          onModeChanged: (callback: (data: { mode: DebugMode }) => void) => () => void;
+          onPaused: (callback: (context: DebugContext) => void) => () => void;
+          onResumed: (callback: () => void) => () => void;
+          onBreakpointAdded: (callback: (data: { nodeId: string }) => void) => () => void;
+          onBreakpointRemoved: (callback: (data: { nodeId: string }) => void) => () => void;
+          onBreakpointToggled: (
+            callback: (data: { nodeId: string; enabled: boolean }) => void
+          ) => () => void;
+          onVariableChanged: (
+            callback: (data: { path: string; value: unknown }) => void
+          ) => () => void;
+        };
       };
     };
   }

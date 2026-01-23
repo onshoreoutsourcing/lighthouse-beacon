@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.5.5
 - **Feature:** Feature 9.5 - UX Polish & Templates
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Not Started
 - **Scope:** Optimize workflow canvas performance for 1000+ node workflows
 - **Wave Goal:** Achieve <100ms render time for large workflows using virtualization and lazy loading
 - **Estimated Hours:** 24 hours

@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.5.4
 - **Feature:** Feature 9.5 - UX Polish & Templates
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Add Monaco-based prompt template editor with syntax highlighting and variable autocomplete
 - **Wave Goal:** Provide rich editing experience for Claude prompts with variable suggestions and preview
 - **Estimated Hours:** 16 hours
@@ -26,13 +26,13 @@
 **So that** I can write complex prompts with syntax highlighting and formatting
 
 **Acceptance Criteria:**
-- [ ] PromptEditor component integrates Monaco Editor
-- [ ] Editor configured for prompt template language (markdown-like)
-- [ ] Syntax highlighting for: text, variables (`${...}`), markdown formatting
-- [ ] Line numbers displayed
-- [ ] Word wrap enabled for readability
-- [ ] Dark/light theme support
-- [ ] Unit test coverage ≥90%
+- [x] PromptEditor component integrates Monaco Editor
+- [x] Editor configured for prompt template language (markdown-like)
+- [x] Syntax highlighting for: text, variables (`${...}`), markdown formatting
+- [x] Line numbers displayed
+- [x] Word wrap enabled for readability
+- [x] Dark/light theme support
+- [x] Unit test coverage ≥90%
 
 **Priority:** High
 
@@ -49,13 +49,13 @@
 **So that** I can easily reference variables without memorizing syntax
 
 **Acceptance Criteria:**
-- [ ] Typing `${` triggers autocomplete dropdown
-- [ ] Autocomplete suggests: `workflow.inputs.*`, `steps.*.outputs.*`, `env.*`, `loop.*`
-- [ ] Suggestions filtered by typed text
-- [ ] Suggestions include type information and descriptions
-- [ ] Tab or Enter inserts selected suggestion
-- [ ] Performance: Autocomplete appears <50ms
-- [ ] Unit test coverage ≥90%
+- [x] Typing `${` triggers autocomplete dropdown
+- [x] Autocomplete suggests: `workflow.inputs.*`, `steps.*.outputs.*`, `env.*`, `loop.*`
+- [x] Suggestions filtered by typed text
+- [x] Suggestions include type information and descriptions
+- [x] Tab or Enter inserts selected suggestion
+- [x] Performance: Autocomplete appears <50ms
+- [x] Unit test coverage ≥90%
 
 **Priority:** High
 
@@ -72,12 +72,12 @@
 **So that** I can verify the final prompt Claude will receive
 
 **Acceptance Criteria:**
-- [ ] "Preview" button shows prompt with variables resolved
-- [ ] Preview uses mock data if workflow not executed
-- [ ] Preview uses actual data if workflow executed previously
-- [ ] Variables highlighted with different color in preview
-- [ ] Undefined variables shown in red with error message
-- [ ] Unit test coverage ≥90%
+- [x] "Preview" button shows prompt with variables resolved
+- [x] Preview uses mock data if workflow not executed
+- [x] Preview uses actual data if workflow executed previously
+- [x] Variables highlighted with different color in preview
+- [x] Undefined variables shown in red with error message
+- [x] Unit test coverage ≥90%
 
 **Priority:** Medium
 
@@ -89,14 +89,14 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] Integration tests validate prompt editor
-- [ ] No TypeScript/linter errors
-- [ ] Autocomplete responsive (<50ms)
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (prompt editor guide, variable reference)
-- [ ] Demo: Edit prompt, use autocomplete, preview result
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] Integration tests validate prompt editor
+- [x] No TypeScript/linter errors
+- [x] Autocomplete responsive (<50ms)
+- [x] Code reviewed and approved
+- [x] Documentation updated (prompt editor guide, variable reference)
+- [x] Demo: Edit prompt, use autocomplete, preview result
 
 ## Notes
 

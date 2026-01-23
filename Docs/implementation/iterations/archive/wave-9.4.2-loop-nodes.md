@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.4.2
 - **Feature:** Feature 9.4 - Advanced Control Flow
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Add loop nodes to iterate over collections (arrays, objects, ranges)
 - **Wave Goal:** Enable workflows to process multiple items systematically with loop constructs
 - **Estimated Hours:** 20 hours
@@ -26,12 +26,12 @@
 **So that** I can process collections of items systematically
 
 **Acceptance Criteria:**
-- [ ] LoopNode component displays on canvas with distinct visual style
-- [ ] Node configuration panel allows selecting iteration source (e.g., `${workflow.inputs.file_list}`)
-- [ ] Max iterations configurable (default: 100, max: 1000)
-- [ ] Loop body accepts child steps (nested workflow)
-- [ ] Loop context variables documented (`${loop.item}`, `${loop.index}`)
-- [ ] Unit test coverage ≥90%
+- [x] LoopNode component displays on canvas with distinct visual style
+- [x] Node configuration panel allows selecting iteration source (e.g., `${workflow.inputs.file_list}`)
+- [x] Max iterations configurable (default: 100, max: 1000)
+- [x] Loop body accepts child steps (nested workflow)
+- [x] Loop context variables documented (`${loop.item}`, `${loop.index}`)
+- [x] Unit test coverage ≥90%
 
 **Priority:** High
 
@@ -48,13 +48,13 @@
 **So that** infinite loops cannot hang the system
 
 **Acceptance Criteria:**
-- [ ] LoopExecutor iterates over arrays, objects, and number ranges
-- [ ] Loop context provides `${loop.item}` (current item) and `${loop.index}` (0-based index)
-- [ ] Max iterations enforced (default: 100, configurable per loop)
-- [ ] Loop exceeding max iterations fails workflow with clear error
-- [ ] Break condition supported (early termination)
-- [ ] Performance: Loop overhead <5ms per iteration
-- [ ] Unit tests for 15+ loop scenarios (≥90% coverage)
+- [x] LoopExecutor iterates over arrays, objects, and number ranges
+- [x] Loop context provides `${loop.item}` (current item) and `${loop.index}` (0-based index)
+- [x] Max iterations enforced (default: 100, configurable per loop)
+- [x] Loop exceeding max iterations fails workflow with clear error
+- [x] Break condition supported (early termination)
+- [x] Performance: Loop overhead <5ms per iteration
+- [x] Unit tests for 15+ loop scenarios (≥90% coverage)
 
 **Priority:** High
 
@@ -71,12 +71,12 @@
 **So that** I understand how far along the loop processing is
 
 **Acceptance Criteria:**
-- [ ] Loop node shows progress during execution (e.g., "Item 5 of 20")
-- [ ] Execution visualization highlights current loop iteration
-- [ ] ExecutionHistory records loop iterations for debugging
-- [ ] Loop failures show which iteration failed
-- [ ] Performance: Progress updates <50ms
-- [ ] Unit test coverage ≥90%
+- [x] Loop node shows progress during execution (e.g., "Item 5 of 20")
+- [x] Execution visualization highlights current loop iteration
+- [x] ExecutionHistory records loop iterations for debugging
+- [x] Loop failures show which iteration failed
+- [x] Performance: Progress updates <50ms
+- [x] Unit test coverage ≥90%
 
 **Priority:** Medium
 
@@ -88,15 +88,15 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] Integration tests validate loop execution
-- [ ] No TypeScript/linter errors
-- [ ] Performance: Loop overhead <5ms per iteration
-- [ ] Max iterations enforced (safety verified)
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (loop node guide, iteration syntax reference)
-- [ ] Demo: Workflow with loop processing multiple items
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] Integration tests validate loop execution
+- [x] No TypeScript/linter errors
+- [x] Performance: Loop overhead <5ms per iteration
+- [x] Max iterations enforced (safety verified)
+- [x] Code reviewed and approved
+- [x] Documentation updated (loop node guide, iteration syntax reference)
+- [x] Demo: Workflow with loop processing multiple items
 
 ## Notes
 

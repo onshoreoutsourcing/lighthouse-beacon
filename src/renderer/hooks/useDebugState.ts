@@ -57,51 +57,76 @@ export const useDebugState = (): UseDebugStateReturn => {
 
   // Initialize state from backend
   const refreshState = useCallback(async () => {
+    // Safety check: ensure workflowDebug API is available
+    if (!window.electronAPI?.workflowDebug) {
+      console.warn('[useDebugState] workflowDebug API not available, skipping refresh');
+      return;
+    }
+
     try {
       // Get debug mode
-      const modeResult = await window.electron.workflowDebug.getMode();
+      const modeResult = await window.electronAPI.workflowDebug.getMode();
       if (modeResult.success && modeResult.data) {
-        setDebugModeState(modeResult.data as DebugMode);
+        setDebugModeState(modeResult.data);
       }
 
       // Get debug state and step mode
-      const stateResult = await window.electron.workflowDebug.getState();
+      const stateResult = await window.electronAPI.workflowDebug.getState();
       if (stateResult.success && stateResult.data) {
-        const data = stateResult.data as { state: DebugState; stepMode: StepMode };
+        const data = stateResult.data;
         setDebugState(data.state);
         setStepMode(data.stepMode);
       }
 
       // Get breakpoints
-      const breakpointsResult = await window.electron.workflowDebug.getBreakpoints();
+      const breakpointsResult = await window.electronAPI.workflowDebug.getBreakpoints();
       if (breakpointsResult.success && breakpointsResult.data) {
-        setBreakpoints(breakpointsResult.data as Breakpoint[]);
+        setBreakpoints(breakpointsResult.data);
       }
 
       // Get current context
-      const contextResult = await window.electron.workflowDebug.getContext();
+      const contextResult = await window.electronAPI.workflowDebug.getContext();
       if (contextResult.success) {
-        setCurrentContext((contextResult.data as DebugContext) || null);
+        setCurrentContext(contextResult.data || null);
       }
     } catch (error) {
       console.error('[useDebugState] Failed to refresh state:', error);
     }
   }, []);
 
+  // Load initial state on mount
+  useEffect(() => {
+    // Safety check: ensure workflowDebug API is available
+    if (!window.electronAPI?.workflowDebug) {
+      console.warn('[useDebugState] workflowDebug API not available yet');
+      return;
+    }
+
+    void refreshState();
+    // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Subscribe to debug events
   useEffect(() => {
+    // Safety check: ensure workflowDebug API is available
+    if (!window.electronAPI?.workflowDebug) {
+      console.warn('[useDebugState] workflowDebug API not available yet');
+      return;
+    }
+
     const unsubscribers: (() => void)[] = [];
 
     // Mode changed
     unsubscribers.push(
-      window.electron.workflowDebug.events.onModeChanged((data: { mode: DebugMode }) => {
+      window.electronAPI.workflowDebug.events.onModeChanged((data: { mode: DebugMode }) => {
         setDebugModeState(data.mode);
       })
     );
 
     // Paused
     unsubscribers.push(
-      window.electron.workflowDebug.events.onPaused((context) => {
+      window.electronAPI.workflowDebug.events.onPaused((context) => {
         setDebugState('PAUSED');
         setCurrentContext(context);
       })
@@ -109,7 +134,7 @@ export const useDebugState = (): UseDebugStateReturn => {
 
     // Resumed
     unsubscribers.push(
-      window.electron.workflowDebug.events.onResumed(() => {
+      window.electronAPI.workflowDebug.events.onResumed(() => {
         setDebugState('RUNNING');
         setCurrentContext(null);
       })
@@ -117,7 +142,7 @@ export const useDebugState = (): UseDebugStateReturn => {
 
     // Breakpoint added
     unsubscribers.push(
-      window.electron.workflowDebug.events.onBreakpointAdded((data: { nodeId: string }) => {
+      window.electronAPI.workflowDebug.events.onBreakpointAdded((data: { nodeId: string }) => {
         setBreakpoints((prev) => [
           ...prev.filter((bp) => bp.nodeId !== data.nodeId),
           { nodeId: data.nodeId, enabled: true },
@@ -127,14 +152,14 @@ export const useDebugState = (): UseDebugStateReturn => {
 
     // Breakpoint removed
     unsubscribers.push(
-      window.electron.workflowDebug.events.onBreakpointRemoved((data: { nodeId: string }) => {
+      window.electronAPI.workflowDebug.events.onBreakpointRemoved((data: { nodeId: string }) => {
         setBreakpoints((prev) => prev.filter((bp) => bp.nodeId !== data.nodeId));
       })
     );
 
     // Breakpoint toggled
     unsubscribers.push(
-      window.electron.workflowDebug.events.onBreakpointToggled(
+      window.electronAPI.workflowDebug.events.onBreakpointToggled(
         (data: { nodeId: string; enabled: boolean }) => {
           setBreakpoints((prev) =>
             prev.map((bp) => (bp.nodeId === data.nodeId ? { ...bp, enabled: data.enabled } : bp))
@@ -145,31 +170,28 @@ export const useDebugState = (): UseDebugStateReturn => {
 
     // Variable changed
     unsubscribers.push(
-      window.electron.workflowDebug.events.onVariableChanged(
+      window.electronAPI.workflowDebug.events.onVariableChanged(
         (data: { path: string; value: unknown }) => {
           // Update current context with new variable value
           if (currentContext) {
             // Note: This is a simplified update. Full implementation would properly
             // update nested paths in the context.
-            console.log('[useDebugState] Variable changed:', data);
+            console.warn('[useDebugState] Variable changed:', data);
           }
         }
       )
     );
 
-    // Initial state refresh
-    refreshState();
-
     // Cleanup subscriptions
     return () => {
       unsubscribers.forEach((unsub) => unsub());
     };
-  }, [refreshState]);
+  }, [currentContext]);
 
   // Set debug mode
   const setDebugMode = useCallback(async (mode: DebugMode) => {
     try {
-      const result = await window.electron.workflowDebug.setMode(mode);
+      const result = await window.electronAPI.workflowDebug.setMode(mode);
       if (!result.success) {
         console.error('[useDebugState] Failed to set debug mode:', result.error);
       }
@@ -181,7 +203,7 @@ export const useDebugState = (): UseDebugStateReturn => {
   // Add breakpoint
   const addBreakpoint = useCallback(async (nodeId: string, enabled = true) => {
     try {
-      const result = await window.electron.workflowDebug.addBreakpoint(nodeId, enabled);
+      const result = await window.electronAPI.workflowDebug.addBreakpoint(nodeId, enabled);
       if (!result.success) {
         console.error('[useDebugState] Failed to add breakpoint:', result.error);
       }
@@ -193,7 +215,7 @@ export const useDebugState = (): UseDebugStateReturn => {
   // Remove breakpoint
   const removeBreakpoint = useCallback(async (nodeId: string) => {
     try {
-      const result = await window.electron.workflowDebug.removeBreakpoint(nodeId);
+      const result = await window.electronAPI.workflowDebug.removeBreakpoint(nodeId);
       if (!result.success) {
         console.error('[useDebugState] Failed to remove breakpoint:', result.error);
       }
@@ -203,35 +225,38 @@ export const useDebugState = (): UseDebugStateReturn => {
   }, []);
 
   // Toggle breakpoint
-  const toggleBreakpoint = useCallback(async (nodeId: string) => {
-    const existingBreakpoint = breakpoints.find((bp) => bp.nodeId === nodeId);
+  const toggleBreakpoint = useCallback(
+    async (nodeId: string) => {
+      const existingBreakpoint = breakpoints.find((bp) => bp.nodeId === nodeId);
 
-    if (existingBreakpoint) {
-      // Toggle or remove
-      if (existingBreakpoint.enabled) {
-        // If enabled, disable it (toggle)
-        try {
-          const result = await window.electron.workflowDebug.toggleBreakpoint(nodeId);
-          if (!result.success) {
-            console.error('[useDebugState] Failed to toggle breakpoint:', result.error);
+      if (existingBreakpoint) {
+        // Toggle or remove
+        if (existingBreakpoint.enabled) {
+          // If enabled, disable it (toggle)
+          try {
+            const result = await window.electronAPI.workflowDebug.toggleBreakpoint(nodeId);
+            if (!result.success) {
+              console.error('[useDebugState] Failed to toggle breakpoint:', result.error);
+            }
+          } catch (error) {
+            console.error('[useDebugState] Failed to toggle breakpoint:', error);
           }
-        } catch (error) {
-          console.error('[useDebugState] Failed to toggle breakpoint:', error);
+        } else {
+          // If disabled, remove it
+          await removeBreakpoint(nodeId);
         }
       } else {
-        // If disabled, remove it
-        await removeBreakpoint(nodeId);
+        // Add new breakpoint
+        await addBreakpoint(nodeId);
       }
-    } else {
-      // Add new breakpoint
-      await addBreakpoint(nodeId);
-    }
-  }, [breakpoints, addBreakpoint, removeBreakpoint]);
+    },
+    [breakpoints, addBreakpoint, removeBreakpoint]
+  );
 
   // Clear all breakpoints
   const clearAllBreakpoints = useCallback(async () => {
     try {
-      const result = await window.electron.workflowDebug.clearBreakpoints();
+      const result = await window.electronAPI.workflowDebug.clearBreakpoints();
       if (!result.success) {
         console.error('[useDebugState] Failed to clear breakpoints:', result.error);
       }
@@ -243,7 +268,7 @@ export const useDebugState = (): UseDebugStateReturn => {
   // Pause execution
   const pause = useCallback(async () => {
     try {
-      const result = await window.electron.workflowDebug.pause();
+      const result = await window.electronAPI.workflowDebug.pause();
       if (!result.success) {
         console.error('[useDebugState] Failed to pause:', result.error);
       }
@@ -255,7 +280,7 @@ export const useDebugState = (): UseDebugStateReturn => {
   // Resume execution
   const resume = useCallback(async () => {
     try {
-      const result = await window.electron.workflowDebug.resume();
+      const result = await window.electronAPI.workflowDebug.resume();
       if (!result.success) {
         console.error('[useDebugState] Failed to resume:', result.error);
       }
@@ -267,7 +292,7 @@ export const useDebugState = (): UseDebugStateReturn => {
   // Step over
   const stepOver = useCallback(async () => {
     try {
-      const result = await window.electron.workflowDebug.stepOver();
+      const result = await window.electronAPI.workflowDebug.stepOver();
       if (!result.success) {
         console.error('[useDebugState] Failed to step over:', result.error);
       }
@@ -279,7 +304,7 @@ export const useDebugState = (): UseDebugStateReturn => {
   // Continue
   const continueExecution = useCallback(async () => {
     try {
-      const result = await window.electron.workflowDebug.continue();
+      const result = await window.electronAPI.workflowDebug.continue();
       if (!result.success) {
         console.error('[useDebugState] Failed to continue:', result.error);
       }
@@ -291,7 +316,7 @@ export const useDebugState = (): UseDebugStateReturn => {
   // Set variable
   const setVariable = useCallback(async (path: string, value: unknown) => {
     try {
-      const result = await window.electron.workflowDebug.setVariable(path, value);
+      const result = await window.electronAPI.workflowDebug.setVariable(path, value);
       if (!result.success) {
         console.error('[useDebugState] Failed to set variable:', result.error);
       }

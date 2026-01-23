@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.5.2
 - **Feature:** Feature 9.5 - UX Polish & Templates
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Add AI-assisted workflow generation using Claude to create workflows from natural language descriptions
 - **Wave Goal:** Enable users to generate workflows by describing what they want in plain English
 - **Estimated Hours:** 20 hours
@@ -26,13 +26,13 @@
 **So that** Claude can generate the workflow for me automatically
 
 **Acceptance Criteria:**
-- [ ] AIWorkflowGenerator component displays text input area
-- [ ] Input area accepts multi-line natural language descriptions
-- [ ] "Generate Workflow" button triggers Claude API call
-- [ ] Loading indicator shows while Claude generates workflow
-- [ ] Generated workflow preview shown before saving
-- [ ] Option to regenerate if result unsatisfactory
-- [ ] Unit test coverage ≥90%
+- [x] AIWorkflowGenerator component displays text input area
+- [x] Input area accepts multi-line natural language descriptions
+- [x] "Generate Workflow" button triggers Claude API call
+- [x] Loading indicator shows while Claude generates workflow
+- [x] Generated workflow preview shown before saving
+- [x] Option to regenerate if result unsatisfactory
+- [x] Unit test coverage ≥90%
 
 **Priority:** High
 
@@ -49,14 +49,14 @@
 **So that** users can create complex workflows without manual YAML editing
 
 **Acceptance Criteria:**
-- [ ] AIWorkflowGenerator service integrates with AIService (Claude API)
-- [ ] Prompt engineering optimized for workflow generation (include examples, schema)
-- [ ] Claude generates valid YAML following Lighthouse workflow schema
-- [ ] Generated workflows include: steps, inputs, UI metadata (node positions)
-- [ ] Success rate ≥80% for common use cases (documentation, testing, deployment)
-- [ ] Performance: Generation completes in <10 seconds
-- [ ] Unit tests for prompt construction (≥90% coverage)
-- [ ] Integration tests validate end-to-end generation
+- [x] AIWorkflowGenerator service integrates with AIService (Claude API)
+- [x] Prompt engineering optimized for workflow generation (include examples, schema)
+- [x] Claude generates valid YAML following Lighthouse workflow schema
+- [x] Generated workflows include: steps, inputs, UI metadata (node positions)
+- [x] Success rate ≥80% for common use cases (documentation, testing, deployment)
+- [x] Performance: Generation completes in <10 seconds
+- [x] Unit tests for prompt construction (≥90% coverage)
+- [x] Integration tests validate end-to-end generation
 
 **Priority:** High
 
@@ -73,13 +73,13 @@
 **So that** I understand what went wrong and can try again
 
 **Acceptance Criteria:**
-- [ ] YAML parsing errors show line number and error message
-- [ ] Schema validation errors highlight invalid fields
-- [ ] Claude API errors handled gracefully (rate limits, timeout)
-- [ ] "Try Again" button allows regeneration with same input
-- [ ] "Edit Manually" option allows fixing generated YAML
-- [ ] Error messages actionable (e.g., "Add missing 'inputs' field")
-- [ ] Unit test coverage ≥90%
+- [x] YAML parsing errors show line number and error message
+- [x] Schema validation errors highlight invalid fields
+- [x] Claude API errors handled gracefully (rate limits, timeout)
+- [x] "Try Again" button allows regeneration with same input
+- [x] "Edit Manually" option allows fixing generated YAML
+- [x] Error messages actionable (e.g., "Add missing 'inputs' field")
+- [x] Unit test coverage ≥90%
 
 **Priority:** Medium
 
@@ -91,15 +91,15 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] Integration tests validate AI generation
-- [ ] No TypeScript/linter errors
-- [ ] Success rate ≥80% for common use cases
-- [ ] Performance: Generation <10 seconds
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (AI generation guide, prompt engineering notes)
-- [ ] Demo: Generate workflow from description successfully
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] Integration tests validate AI generation
+- [x] No TypeScript/linter errors
+- [x] Success rate ≥80% for common use cases
+- [x] Performance: Generation <10 seconds
+- [x] Code reviewed and approved
+- [x] Documentation updated (AI generation guide, prompt engineering notes)
+- [x] Demo: Generate workflow from description successfully
 
 ## Notes
 

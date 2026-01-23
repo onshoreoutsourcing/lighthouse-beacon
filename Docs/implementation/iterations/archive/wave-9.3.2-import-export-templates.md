@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.3.2
 - **Feature:** Feature 9.3 - Workflow Management
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Enable workflow import/export and provide pre-built workflow templates
 - **Wave Goal:** Allow users to share workflows and quickly start from templates
 - **Estimated Hours:** 18 hours
@@ -26,15 +26,15 @@
 **So that** I can share workflows with others and back up my work
 
 **Acceptance Criteria:**
-- [ ] "Import" button opens file picker (filters: .yaml, .yml)
-- [ ] Import validates YAML syntax and schema
-- [ ] Import errors show line numbers and actionable messages
-- [ ] "Export" button saves workflow to user-selected location
-- [ ] Export preserves all workflow data (steps, inputs, UI metadata)
-- [ ] Exported YAML is human-readable and editable
-- [ ] ImportExportDialog component handles both operations
-- [ ] Unit test coverage ≥90%
-- [ ] Integration tests validate round-trip (export → import → verify)
+- [x] "Import" button opens file picker (filters: .yaml, .yml)
+- [x] Import validates YAML syntax and schema
+- [x] Import errors show line numbers and actionable messages
+- [x] "Export" button saves workflow to user-selected location
+- [x] Export preserves all workflow data (steps, inputs, UI metadata)
+- [x] Exported YAML is human-readable and editable
+- [x] ImportExportDialog component handles both operations
+- [x] Unit test coverage ≥90%
+- [x] Integration tests validate round-trip (export → import → verify)
 
 **Priority:** High
 
@@ -51,14 +51,14 @@
 **So that** I don't have to build workflows from scratch
 
 **Acceptance Criteria:**
-- [ ] 3+ templates provided: Documentation Generator, Code Review Automation, Batch File Processing
-- [ ] Templates stored in `workflow-templates/` directory
-- [ ] Templates include: workflow definition, README with usage instructions
-- [ ] "New from Template" button shows template gallery
-- [ ] Template selection creates new workflow (copy of template)
-- [ ] Templates demonstrate best practices (variable usage, error handling)
-- [ ] Templates fully functional (can execute without modification)
-- [ ] Unit test coverage ≥90%
+- [x] 3+ templates provided: Documentation Generator, Code Review Automation, Batch File Processing
+- [x] Templates stored in `workflow-templates/` directory
+- [x] Templates include: workflow definition, README with usage instructions
+- [x] "New from Template" button shows template gallery
+- [x] Template selection creates new workflow (copy of template)
+- [x] Templates demonstrate best practices (variable usage, error handling)
+- [x] Templates fully functional (can execute without modification)
+- [x] Unit test coverage ≥90%
 
 **Priority:** High
 
@@ -75,13 +75,13 @@
 **So that** I can quickly understand what each template does
 
 **Acceptance Criteria:**
-- [ ] Template gallery shows cards with: name, description, preview image, tags
-- [ ] Cards display complexity indicator (beginner/intermediate/advanced)
-- [ ] Clicking card shows template details modal
-- [ ] "Use Template" button creates workflow from template
-- [ ] Gallery searchable by name or tags
-- [ ] Templates sorted by popularity (static for MVP, dynamic later)
-- [ ] Unit test coverage ≥90%
+- [x] Template gallery shows cards with: name, description, preview image, tags
+- [x] Cards display complexity indicator (beginner/intermediate/advanced)
+- [x] Clicking card shows template details modal
+- [x] "Use Template" button creates workflow from template
+- [x] Gallery searchable by name or tags
+- [x] Templates sorted by popularity (static for MVP, dynamic later)
+- [x] Unit test coverage ≥90%
 
 **Priority:** Medium
 
@@ -93,14 +93,14 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] Integration tests validate import/export round-trip
-- [ ] No TypeScript/linter errors
-- [ ] 3+ templates created and tested
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (import/export guide, template authoring guide)
-- [ ] Demo: Import workflow, export workflow, create from template
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] Integration tests validate import/export round-trip
+- [x] No TypeScript/linter errors
+- [x] 3+ templates created and tested
+- [x] Code reviewed and approved
+- [x] Documentation updated (import/export guide, template authoring guide)
+- [x] Demo: Import workflow, export workflow, create from template
 
 ## Notes
 

@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.2.1
 - **Feature:** Feature 9.2 - Workflow Execution Engine
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Implement production-ready Python script execution with path validation, timeout enforcement, and process isolation
 - **Wave Goal:** Replace PythonExecutorStub from Wave 9.1.3 with secure PythonExecutor following ADR-016
 - **Estimated Hours:** 26 hours
@@ -26,16 +26,16 @@
 **So that** malicious or misbehaving scripts cannot compromise my system
 
 **Acceptance Criteria:**
-- [ ] PythonExecutor validates all script paths via PathValidator (ADR-011)
-- [ ] Scripts outside project directory rejected with clear error
-- [ ] 30-second timeout enforced per script execution
-- [ ] Scripts terminated with SIGTERM if timeout exceeded
-- [ ] Timeout configurable per-step via YAML
-- [ ] Scripts run in isolated child process (process crashes don't affect main app)
-- [ ] Unit tests for path validation (≥90% coverage)
-- [ ] Unit tests for timeout enforcement (≥90% coverage)
-- [ ] Integration tests with actual Python scripts
-- [ ] Performance: Script startup latency <500ms
+- [x] PythonExecutor validates all script paths via PathValidator (ADR-011)
+- [x] Scripts outside project directory rejected with clear error
+- [x] 30-second timeout enforced per script execution
+- [x] Scripts terminated with SIGTERM if timeout exceeded
+- [x] Timeout configurable per-step via YAML
+- [x] Scripts run in isolated child process (process crashes don't affect main app)
+- [x] Unit tests for path validation (≥90% coverage)
+- [x] Unit tests for timeout enforcement (≥90% coverage)
+- [x] Integration tests with actual Python scripts
+- [x] Performance: Script startup latency <500ms
 
 **Priority:** High
 
@@ -52,16 +52,16 @@
 **So that** data flows seamlessly between workflow steps
 
 **Acceptance Criteria:**
-- [ ] Scripts receive JSON inputs via stdin
-- [ ] Scripts return JSON outputs via stdout
-- [ ] Input validation before sending to script
-- [ ] Output parsing with error handling
-- [ ] File paths in inputs validated via PathValidator
-- [ ] JSON parsing errors handled gracefully
-- [ ] Unit tests for JSON serialization/deserialization (≥90% coverage)
-- [ ] Integration tests validate stdin/stdout contract
-- [ ] Example Python script template provided
-- [ ] Documentation: Python script authoring guide
+- [x] Scripts receive JSON inputs via stdin
+- [x] Scripts return JSON outputs via stdout
+- [x] Input validation before sending to script
+- [x] Output parsing with error handling
+- [x] File paths in inputs validated via PathValidator
+- [x] JSON parsing errors handled gracefully
+- [x] Unit tests for JSON serialization/deserialization (≥90% coverage)
+- [x] Integration tests validate stdin/stdout contract
+- [x] Example Python script template provided
+- [x] Documentation: Python script authoring guide
 
 **Priority:** High
 
@@ -78,14 +78,14 @@
 **So that** I can debug issues quickly
 
 **Acceptance Criteria:**
-- [ ] Script execution errors captured with exit code
-- [ ] stderr output captured and logged
-- [ ] Error context includes script path, inputs, exit code
-- [ ] Timeout errors clearly distinguished from script errors
-- [ ] Process spawn errors handled (Python not installed, script not found)
-- [ ] Errors don't crash main application
-- [ ] Unit tests for all error scenarios (≥90% coverage)
-- [ ] Integration tests validate error handling
+- [x] Script execution errors captured with exit code
+- [x] stderr output captured and logged
+- [x] Error context includes script path, inputs, exit code
+- [x] Timeout errors clearly distinguished from script errors
+- [x] Process spawn errors handled (Python not installed, script not found)
+- [x] Errors don't crash main application
+- [x] Unit tests for all error scenarios (≥90% coverage)
+- [x] Integration tests validate error handling
 
 **Priority:** High
 
@@ -97,15 +97,15 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] Integration tests with real Python scripts passing
-- [ ] No TypeScript/linter errors
-- [ ] Performance: Script startup <500ms
-- [ ] Security scan passed (path validation, process isolation)
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (PythonExecutor API, script authoring guide)
-- [ ] Demo: Execute Python script with inputs, show output and errors
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] Integration tests with real Python scripts passing
+- [x] No TypeScript/linter errors
+- [x] Performance: Script startup <500ms
+- [x] Security scan passed (path validation, process isolation)
+- [x] Code reviewed and approved
+- [x] Documentation updated (PythonExecutor API, script authoring guide)
+- [x] Demo: Execute Python script with inputs, show output and errors
 
 ## Notes
 

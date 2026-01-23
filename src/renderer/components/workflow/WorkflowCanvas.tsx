@@ -37,7 +37,7 @@ import type {
   ClaudeNodeData,
 } from '@renderer/stores/workflow.store';
 import { PythonScriptNode, ClaudeAPINode, InputNode, OutputNode, ConditionalNode } from './nodes';
-import { DebugToolbar, VariableInspector } from './debug';
+import { VariableInspector } from './debug';
 import { useDebugState } from '@renderer/hooks/useDebugState';
 import { NodeContextMenu, createNodeContextMenuOptions } from './NodeContextMenu';
 import { TestNodeDialog } from './TestNodeDialog';
@@ -70,21 +70,11 @@ const nodeTypes: NodeTypes = {
  */
 export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }) => {
   // Get workflow state from Zustand store
-  const { nodes, edges, addEdge, updateNodePosition, updateNode } = useWorkflowStore();
+  const { nodes, edges, addEdge, addNode, updateNodePosition, updateNode } = useWorkflowStore();
 
   // Debug state management (Wave 9.4.6)
-  const {
-    debugMode,
-    debugState,
-    breakpoints,
-    currentContext,
-    setDebugMode,
-    pause,
-    resume,
-    stepOver,
-    continue: continueExecution,
-    setVariable,
-  } = useDebugState();
+  // Getting debug state for Variable Inspector visibility and state
+  const { debugMode, debugState, currentContext, setVariable } = useDebugState();
 
   // Variable inspector panel visibility
   const [showVariableInspector, setShowVariableInspector] = useState(false);
@@ -102,9 +92,6 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
     nodeId: string;
     step: ClaudeStep;
   } | null>(null);
-
-  // Check if workflow is currently executing (simplified - would need execution state from store)
-  const isExecuting = false; // TODO: Get from execution state when available
 
   /**
    * Handle node position changes
@@ -282,34 +269,59 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
   );
 
   /**
-   * Debug toolbar handlers (Wave 9.4.6)
+   * Variable change handler for VariableInspector
    */
-  const handleToggleDebugMode = useCallback(() => {
-    void setDebugMode(debugMode === 'ON' ? 'OFF' : 'ON');
-  }, [debugMode, setDebugMode]);
-
-  const handlePause = useCallback(() => {
-    void pause();
-  }, [pause]);
-
-  const handleResume = useCallback(() => {
-    void resume();
-  }, [resume]);
-
-  const handleStepOver = useCallback(() => {
-    void stepOver();
-  }, [stepOver]);
-
-  const handleContinue = useCallback(() => {
-    void continueExecution();
-  }, [continueExecution]);
-
   const handleVariableChange = useCallback(
     (path: string, value: unknown) => {
       void setVariable(path, value);
     },
     [setVariable]
   );
+
+  /**
+   * Add test nodes for manual testing
+   * Wave 9.5.4: Temporary helper for testing Prompt Editor
+   */
+  const handleAddTestNodes = useCallback(() => {
+    // Add a Claude node for testing prompt editor
+    addNode({
+      id: 'claude-1',
+      type: 'claude',
+      position: { x: 250, y: 100 },
+      data: {
+        label: 'Code Review Claude',
+        status: 'idle',
+        model: 'claude-sonnet-4',
+        prompt: 'Review the following code for best practices and security issues.',
+      },
+    });
+
+    // Add a Python node
+    addNode({
+      id: 'python-1',
+      type: 'python',
+      position: { x: 250, y: 250 },
+      data: {
+        label: 'Analyze Code',
+        status: 'idle',
+        scriptPath: 'analyze.py',
+        args: [],
+      },
+    });
+
+    // Add an input node
+    addNode({
+      id: 'input-1',
+      type: 'input',
+      position: { x: 50, y: 150 },
+      data: {
+        label: 'Repo Path',
+        status: 'idle',
+        paramName: 'repo_path',
+        defaultValue: '/path/to/repo',
+      },
+    });
+  }, [addNode]);
 
   /**
    * Minimap node color based on node type
@@ -356,25 +368,38 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ className = '' }
 
   return (
     <div
-      className={`workflow-canvas ${className} flex flex-col`}
-      style={{ width: '100%', height: '100%' }}
+      className={`workflow-canvas ${className} flex flex-col bg-vscode-bg`}
+      style={{ width: '100%', height: '100%', backgroundColor: '#1e1e1e' }}
       role="region"
       aria-label="Workflow canvas"
     >
-      {/* Debug Toolbar - Wave 9.4.6 */}
-      <div className="p-3 border-b border-vscode-border bg-vscode-bg">
-        <DebugToolbar
-          debugMode={debugMode}
-          debugState={debugState}
-          currentNodeId={currentContext?.nodeId}
-          breakpointCount={breakpoints.length}
-          onToggleDebugMode={handleToggleDebugMode}
-          onPause={handlePause}
-          onResume={handleResume}
-          onStepOver={handleStepOver}
-          onContinue={handleContinue}
-          isExecuting={isExecuting}
-        />
+      {/* Toolbar - Wave 9.4.6 */}
+      <div
+        className="p-4 border-b border-vscode-border bg-vscode-panel flex items-center gap-4"
+        style={{
+          backgroundColor: '#252526',
+          borderBottom: '1px solid #454545',
+          color: '#cccccc',
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-vscode-text font-semibold" style={{ color: '#ffffff' }}>
+            Workflow Canvas
+          </span>
+          <span className="text-vscode-text-muted text-sm" style={{ color: '#cccccc' }}>
+            ({nodes.length} nodes)
+          </span>
+        </div>
+        {/* Temporary: Add test nodes button for manual testing */}
+        {nodes.length === 0 && (
+          <button
+            onClick={handleAddTestNodes}
+            className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors font-medium"
+            title="Add test nodes to canvas"
+          >
+            Add Test Nodes
+          </button>
+        )}
       </div>
 
       {/* Canvas and Variable Inspector Container */}

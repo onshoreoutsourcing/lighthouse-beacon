@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.1.3
 - **Feature:** Feature 9.1 - Workflow Canvas Foundation
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Implement sequential workflow execution engine, workflow save/load operations, and IPC handlers
 - **Wave Goal:** Enable end-to-end workflow execution: create workflow visually, save to file, load from file, execute with real Python/Claude integration
 - **Estimated Hours:** 30 hours
@@ -28,17 +28,17 @@
 **So that** I can automate multi-step processes
 
 **Acceptance Criteria:**
-- [ ] WorkflowExecutor executes steps in dependency order
-- [ ] Step outputs accessible to subsequent steps via variable resolution
-- [ ] Execution stops on first step failure
-- [ ] Execution result includes success/failure, outputs, timing
-- [ ] Python scripts receive inputs via stdin (JSON format)
-- [ ] Python scripts return outputs via stdout (JSON format)
-- [ ] Claude AI nodes use AIService.sendMessage()
-- [ ] Execution events logged (workflow start, step start/complete, workflow complete)
-- [ ] Unit tests for executor (≥90% coverage)
-- [ ] Integration tests validate multi-step workflows
-- [ ] Performance: Workflow startup overhead <2s
+- [x] WorkflowExecutor executes steps in dependency order
+- [x] Step outputs accessible to subsequent steps via variable resolution
+- [x] Execution stops on first step failure
+- [x] Execution result includes success/failure, outputs, timing
+- [x] Python scripts receive inputs via stdin (JSON format)
+- [x] Python scripts return outputs via stdout (JSON format)
+- [x] Claude AI nodes use AIService.sendMessage()
+- [x] Execution events logged (workflow start, step start/complete, workflow complete)
+- [x] Unit tests for executor (≥90% coverage)
+- [x] Integration tests validate multi-step workflows
+- [x] Performance: Workflow startup overhead <2s
 
 **Priority:** High
 
@@ -55,17 +55,17 @@
 **So that** my workflows persist across application restarts
 
 **Acceptance Criteria:**
-- [ ] Workflows save to `~/Documents/Lighthouse/workflows/` directory
-- [ ] Workflow files use `.yaml` extension
-- [ ] Save operation validates workflow before writing
-- [ ] Save failures show clear error messages
-- [ ] Load operation parses and validates YAML
-- [ ] Load failures show actionable error messages
-- [ ] Path validation prevents directory traversal (ADR-011)
-- [ ] WorkflowService manages save/load operations
-- [ ] Auto-save every 30 seconds when workflow modified
-- [ ] Unit tests for save/load (≥90% coverage)
-- [ ] Integration tests validate file operations
+- [x] Workflows save to `~/Documents/Lighthouse/workflows/` directory
+- [x] Workflow files use `.yaml` extension
+- [x] Save operation validates workflow before writing
+- [x] Save failures show clear error messages
+- [x] Load operation parses and validates YAML
+- [x] Load failures show actionable error messages
+- [x] Path validation prevents directory traversal (ADR-011)
+- [x] WorkflowService manages save/load operations
+- [x] Auto-save every 30 seconds when workflow modified
+- [x] Unit tests for save/load (≥90% coverage)
+- [x] Integration tests validate file operations
 
 **Priority:** High
 
@@ -82,16 +82,16 @@
 **So that** I can trigger workflow operations from the UI
 
 **Acceptance Criteria:**
-- [ ] IPC handler: `workflow:load` (loads workflow by ID)
-- [ ] IPC handler: `workflow:save` (saves workflow to file)
-- [ ] IPC handler: `workflow:execute` (executes workflow with inputs)
-- [ ] IPC handler: `workflow:validate` (validates YAML without saving)
-- [ ] IPC handler: `workflow:list` (lists all saved workflows)
-- [ ] Preload API exposes workflow methods to renderer
-- [ ] All handlers validate inputs before processing
-- [ ] Execution requires permission prompt (ADR-008)
-- [ ] Unit tests for all IPC handlers (≥90% coverage)
-- [ ] Integration tests validate IPC communication
+- [x] IPC handler: `workflow:load` (loads workflow by ID)
+- [x] IPC handler: `workflow:save` (saves workflow to file)
+- [x] IPC handler: `workflow:execute` (executes workflow with inputs)
+- [x] IPC handler: `workflow:validate` (validates YAML without saving)
+- [x] IPC handler: `workflow:list` (lists all saved workflows)
+- [x] Preload API exposes workflow methods to renderer
+- [x] All handlers validate inputs before processing
+- [x] Execution requires permission prompt (ADR-008)
+- [x] Unit tests for all IPC handlers (≥90% coverage)
+- [x] Integration tests validate IPC communication
 
 **Priority:** High
 
@@ -103,15 +103,15 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] End-to-end test: Create workflow visually → Save → Load → Execute
-- [ ] No TypeScript/linter errors
-- [ ] Performance: Workflow execution startup <2s
-- [ ] Security scan passed (path validation, no code injection)
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (IPC API, workflow execution flow)
-- [ ] Demo: Complete workflow lifecycle (create, save, load, execute)
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] End-to-end test: Create workflow visually → Save → Load → Execute
+- [x] No TypeScript/linter errors
+- [x] Performance: Workflow execution startup <2s
+- [x] Security scan passed (path validation, no code injection)
+- [x] Code reviewed and approved
+- [x] Documentation updated (IPC API, workflow execution flow)
+- [x] Demo: Complete workflow lifecycle (create, save, load, execute)
 
 ## Notes
 

@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.4.6
 - **Feature:** Feature 9.4 - Advanced Control Flow
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Add step-by-step debugging with breakpoints, step-through execution, and variable inspection
 - **Wave Goal:** Enable workflows to be debugged interactively with breakpoints and step controls
 - **Estimated Hours:** 22 hours
@@ -26,12 +26,12 @@
 **So that** I can pause execution and inspect state at specific points
 
 **Acceptance Criteria:**
-- [ ] Click node to toggle breakpoint (visual indicator: red dot)
-- [ ] Breakpoints persist across workflow sessions
-- [ ] Execution pauses before executing node with breakpoint
-- [ ] DebugMode UI shows breakpoint list (view, enable/disable, remove)
-- [ ] Performance: Breakpoint check adds <10ms overhead per node
-- [ ] Unit test coverage ≥90%
+- [x] Click node to toggle breakpoint (visual indicator: red dot)
+- [x] Breakpoints persist across workflow sessions
+- [x] Execution pauses before executing node with breakpoint
+- [x] DebugMode UI shows breakpoint list (view, enable/disable, remove)
+- [x] Performance: Breakpoint check adds <10ms overhead per node
+- [x] Unit test coverage ≥90%
 
 **Priority:** High
 
@@ -48,14 +48,14 @@
 **So that** I can observe how data flows through the workflow
 
 **Acceptance Criteria:**
-- [ ] Debug toolbar provides: Pause, Resume, Step Over, Continue buttons
-- [ ] Step Over executes current node and pauses at next node
-- [ ] Continue resumes execution until next breakpoint or completion
-- [ ] Execution state persists during pause (no timeout)
-- [ ] Current node highlighted during debugging
-- [ ] Performance: Pause/resume instant (<100ms)
-- [ ] Unit tests for debug controls (≥90% coverage)
-- [ ] Integration tests validate step-through behavior
+- [x] Debug toolbar provides: Pause, Resume, Step Over, Continue buttons
+- [x] Step Over executes current node and pauses at next node
+- [x] Continue resumes execution until next breakpoint or completion
+- [x] Execution state persists during pause (no timeout)
+- [x] Current node highlighted during debugging
+- [x] Performance: Pause/resume instant (<100ms)
+- [x] Unit tests for debug controls (≥90% coverage)
+- [x] Integration tests validate step-through behavior
 
 **Priority:** High
 
@@ -72,12 +72,12 @@
 **So that** I can verify data is correct at each step
 
 **Acceptance Criteria:**
-- [ ] Variable inspector panel shows workflow inputs, step outputs, environment variables
-- [ ] Inspector updates when execution pauses at breakpoint
-- [ ] Nested objects expandable (JSON tree view)
-- [ ] Variable values editable during pause (for testing)
-- [ ] Changes applied when resuming execution
-- [ ] Unit test coverage ≥90%
+- [x] Variable inspector panel shows workflow inputs, step outputs, environment variables
+- [x] Inspector updates when execution pauses at breakpoint
+- [x] Nested objects expandable (JSON tree view)
+- [x] Variable values editable during pause (for testing)
+- [x] Changes applied when resuming execution
+- [x] Unit test coverage ≥90%
 
 **Priority:** Medium
 
@@ -89,14 +89,14 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] Integration tests validate debugging workflow
-- [ ] No TypeScript/linter errors
-- [ ] Performance: Breakpoint overhead <10ms, pause/resume <100ms
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (debugging guide, breakpoint reference)
-- [ ] Demo: Workflow debugged with breakpoints and step-through
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] Integration tests validate debugging workflow
+- [x] No TypeScript/linter errors
+- [x] Performance: Breakpoint overhead <10ms, pause/resume <100ms
+- [x] Code reviewed and approved
+- [x] Documentation updated (debugging guide, breakpoint reference)
+- [x] Demo: Workflow debugged with breakpoints and step-through
 
 ## Notes
 

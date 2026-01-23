@@ -4,7 +4,7 @@
 - **Wave ID:** Wave-9.4.1
 - **Feature:** Feature 9.4 - Advanced Control Flow
 - **Epic:** Epic 9 - Visual Workflow Generator
-- **Status:** Planning
+- **Status:** Complete
 - **Scope:** Add conditional branching (if/else nodes) to workflow execution engine
 - **Wave Goal:** Enable workflows to branch based on step outputs (if/else logic)
 - **Estimated Hours:** 22 hours
@@ -26,12 +26,12 @@
 **So that** my workflow can branch based on step results
 
 **Acceptance Criteria:**
-- [ ] ConditionalNode component displays on canvas with distinct visual style
-- [ ] Node configuration panel allows entering JavaScript conditions (e.g., `${steps.foo.outputs.score > 80}`)
-- [ ] Node has two output edges: "true" (green) and "false" (red)
-- [ ] Condition syntax validated before workflow execution
-- [ ] Example conditions shown in help text
-- [ ] Unit test coverage ≥90%
+- [x] ConditionalNode component displays on canvas with distinct visual style
+- [x] Node configuration panel allows entering JavaScript conditions (e.g., `${steps.foo.outputs.score > 80}`)
+- [x] Node has two output edges: "true" (green) and "false" (red)
+- [x] Condition syntax validated before workflow execution
+- [x] Example conditions shown in help text
+- [x] Unit test coverage ≥90%
 
 **Priority:** High
 
@@ -48,13 +48,13 @@
 **So that** malicious workflows cannot compromise the system
 
 **Acceptance Criteria:**
-- [ ] ConditionEvaluator service uses safe expression evaluator (no `eval()`)
-- [ ] Supports comparison operators: `>`, `<`, `>=`, `<=`, `==`, `!=`
-- [ ] Supports logical operators: `&&`, `||`, `!`
-- [ ] Variable resolution integrated (`${steps.foo.outputs.bar}`)
-- [ ] Evaluation errors return clear messages (e.g., "Variable not found: steps.foo")
-- [ ] Performance: Evaluation <10ms per condition
-- [ ] Unit tests for 20+ condition scenarios (≥90% coverage)
+- [x] ConditionEvaluator service uses safe expression evaluator (no `eval()`)
+- [x] Supports comparison operators: `>`, `<`, `>=`, `<=`, `==`, `!=`
+- [x] Supports logical operators: `&&`, `||`, `!`
+- [x] Variable resolution integrated (`${steps.foo.outputs.bar}`)
+- [x] Evaluation errors return clear messages (e.g., "Variable not found: steps.foo")
+- [x] Performance: Evaluation <10ms per condition
+- [x] Unit tests for 20+ condition scenarios (≥90% coverage)
 
 **Priority:** High
 
@@ -71,14 +71,14 @@
 **So that** I can create dynamic workflows that adapt to data
 
 **Acceptance Criteria:**
-- [ ] WorkflowExecutor evaluates condition when reaching ConditionalNode
-- [ ] "true" branch executes if condition evaluates to true
-- [ ] "false" branch executes if condition evaluates to false
-- [ ] Execution visualization shows which branch was taken (highlight edge)
-- [ ] ExecutionHistory records branch taken for debugging
-- [ ] Errors in condition evaluation fail workflow with clear message
-- [ ] Unit test coverage ≥90%
-- [ ] Integration tests validate end-to-end conditional execution
+- [x] WorkflowExecutor evaluates condition when reaching ConditionalNode
+- [x] "true" branch executes if condition evaluates to true
+- [x] "false" branch executes if condition evaluates to false
+- [x] Execution visualization shows which branch was taken (highlight edge)
+- [x] ExecutionHistory records branch taken for debugging
+- [x] Errors in condition evaluation fail workflow with clear message
+- [x] Unit test coverage ≥90%
+- [x] Integration tests validate end-to-end conditional execution
 
 **Priority:** High
 
@@ -90,15 +90,15 @@
 
 ## Definition of Done
 
-- [ ] All 3 user stories completed with acceptance criteria met
-- [ ] Code coverage ≥90%
-- [ ] Integration tests validate conditional execution
-- [ ] No TypeScript/linter errors
-- [ ] Performance: Condition evaluation <10ms
-- [ ] Security review passed (safe expression evaluation)
-- [ ] Code reviewed and approved
-- [ ] Documentation updated (conditional node guide, condition syntax reference)
-- [ ] Demo: Workflow with conditional branching executes correctly
+- [x] All 3 user stories completed with acceptance criteria met
+- [x] Code coverage ≥90%
+- [x] Integration tests validate conditional execution
+- [x] No TypeScript/linter errors
+- [x] Performance: Condition evaluation <10ms
+- [x] Security review passed (safe expression evaluation)
+- [x] Code reviewed and approved
+- [x] Documentation updated (conditional node guide, condition syntax reference)
+- [x] Demo: Workflow with conditional branching executes correctly
 
 ## Notes
 
