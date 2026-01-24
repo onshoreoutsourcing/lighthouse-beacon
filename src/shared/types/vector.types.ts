@@ -118,3 +118,16 @@ export const VECTOR_CHANNELS = {
  * Type-safe vector channel names
  */
 export type VectorChannel = (typeof VECTOR_CHANNELS)[keyof typeof VECTOR_CHANNELS];
+
+/**
+ * IPC channel names for RAG operations
+ * Wave 10.3.2 - Context Retrieval & Budget Management
+ */
+export const RAG_CHANNELS = {
+  RAG_RETRIEVE_CONTEXT: 'rag:retrieve-context',
+} as const;
+
+/**
+ * Type-safe RAG channel names
+ */
+export type RAGChannel = (typeof RAG_CHANNELS)[keyof typeof RAG_CHANNELS];

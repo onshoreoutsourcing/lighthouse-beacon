@@ -60,10 +60,22 @@ export interface AppSettings {
 
 /**
  * Options for streaming AI messages
+ * Wave 10.3.3 - Added RAG integration options
  */
 export interface StreamOptions {
   conversationId?: string;
   systemPrompt?: string;
+
+  /** Enable RAG context retrieval (Wave 10.3.3) */
+  useRAG?: boolean;
+
+  /** RAG retrieval options (Wave 10.3.3) */
+  ragOptions?: {
+    topK?: number;
+    minScore?: number;
+    maxTokens?: number;
+    includeSources?: boolean;
+  };
 }
 
 /**

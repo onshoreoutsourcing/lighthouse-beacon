@@ -435,4 +435,14 @@ export type {
   VectorMemoryStatus,
 } from './vector.types';
 
-export { VECTOR_CHANNELS } from './vector.types';
+export { VECTOR_CHANNELS, RAG_CHANNELS } from './vector.types';
+
+/**
+ * Export RAG types (Feature 10.3 - Wave 10.3.2)
+ */
+export type {
+  RetrievedChunk,
+  RetrievedContext,
+  RetrievalOptions,
+  SourceAttribution,
+} from '../main/services/rag/types';

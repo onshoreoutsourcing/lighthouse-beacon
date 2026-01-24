@@ -39,6 +39,8 @@ import type {
   VectorIndexStats,
   BatchAddResult,
   VectorMemoryStatus,
+  RetrievedContext,
+  RetrievalOptions,
 } from '@shared/types';
 import {
   IPC_CHANNELS,
@@ -47,6 +49,7 @@ import {
   WORKFLOW_EXECUTION_CHANNELS,
   WORKFLOW_DEBUG_CHANNELS,
   VECTOR_CHANNELS,
+  RAG_CHANNELS,
 } from '@shared/types';
 
 /**
@@ -873,6 +876,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     list: (): Promise<Result<DocumentInput[]>> => {
       return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_LIST);
+    },
+  },
+
+  /**
+   * RAG (Retrieval-Augmented Generation) Operations (Feature 10.3 - Wave 10.3.2)
+   */
+  rag: {
+    /**
+     * Retrieve relevant context for a query with budget management
+     * Wave 10.3.2 - Context Retrieval & Budget Management
+     *
+     * @param query - Search query text
+     * @param options - Retrieval options (topK, minScore, maxTokens, includeSources)
+     * @returns Retrieved context with chunks, sources, and formatted text
+     */
+    retrieveContext: (
+      query: string,
+      options?: RetrievalOptions
+    ): Promise<Result<RetrievedContext>> => {
+      return ipcRenderer.invoke(RAG_CHANNELS.RAG_RETRIEVE_CONTEXT, query, options);
     },
   },
 
