@@ -1,6 +1,7 @@
 /**
  * KnowledgeTab Component Tests
  * Wave 10.2.1 - Knowledge Tab & Document List
+ * Wave 10.2.3 - File Operations & Zustand Store
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -8,16 +9,37 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { KnowledgeTab } from '../KnowledgeTab';
 import { useKnowledgeStore } from '@renderer/stores/knowledge.store';
-import type { Result, DocumentInput } from '@shared/types';
 
 // Mock the store
 vi.mock('@renderer/stores/knowledge.store');
 
+// Mock RAGToggle component
+vi.mock('../RAGToggle', () => ({
+  RAGToggle: ({
+    enabled,
+    documentCount,
+    onToggle,
+  }: {
+    enabled: boolean;
+    documentCount: number;
+    onToggle: () => void;
+  }) => (
+    <div data-testid="rag-toggle">
+      <input type="checkbox" checked={enabled} onChange={onToggle} aria-label="RAG Toggle" />
+      <span>{documentCount} docs</span>
+    </div>
+  ),
+}));
+
 // Mock electronAPI
 const mockElectronAPI = {
   vector: {
-    list: vi.fn<[], Promise<Result<DocumentInput[]>>>(),
-    remove: vi.fn<[string], Promise<Result<void>>>(),
+    list: vi.fn(),
+    remove: vi.fn(),
+  },
+  fileSystem: {
+    showOpenDialog: vi.fn(),
+    readFile: vi.fn(),
   },
 };
 
@@ -35,8 +57,15 @@ describe('KnowledgeTab', () => {
     startIndexing: vi.fn().mockResolvedValue(undefined),
     updateIndexingProgress: vi.fn(),
     clearIndexingProgress: vi.fn(),
+    addFiles: vi.fn().mockResolvedValue(undefined),
+    toggleRag: vi.fn(),
+    setProjectPath: vi.fn(),
+    loadProjectRagPreference: vi.fn(),
     clearError: vi.fn(),
     reset: vi.fn(),
+    ragEnabled: false,
+    isAddingFiles: false,
+    currentProjectPath: null,
   });
 
   it('should render header with title', () => {
@@ -235,6 +264,104 @@ describe('KnowledgeTab', () => {
     // Confirmation dialog should appear
     await waitFor(() => {
       expect(screen.getByText(/are you sure/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Wave 10.2.3 - File Operations & RAG Toggle', () => {
+    it('should render Add Files button', () => {
+      vi.mocked(useKnowledgeStore).mockReturnValue({
+        documents: [],
+        isLoading: false,
+        error: null,
+        memoryStatus: null,
+        indexingProgress: null,
+        ...createDefaultMocks(),
+      });
+
+      render(<KnowledgeTab />);
+
+      expect(screen.getByRole('button', { name: /add files/i })).toBeInTheDocument();
+    });
+
+    it('should render Add Folder button', () => {
+      vi.mocked(useKnowledgeStore).mockReturnValue({
+        documents: [],
+        isLoading: false,
+        error: null,
+        memoryStatus: null,
+        indexingProgress: null,
+        ...createDefaultMocks(),
+      });
+
+      render(<KnowledgeTab />);
+
+      expect(screen.getByRole('button', { name: /add folder/i })).toBeInTheDocument();
+    });
+
+    it('should render RAG toggle', () => {
+      vi.mocked(useKnowledgeStore).mockReturnValue({
+        documents: [],
+        isLoading: false,
+        error: null,
+        memoryStatus: null,
+        indexingProgress: null,
+        ...createDefaultMocks(),
+      });
+
+      render(<KnowledgeTab />);
+
+      expect(screen.getByTestId('rag-toggle')).toBeInTheDocument();
+    });
+
+    it('should call toggleRag when RAG toggle is clicked', async () => {
+      const user = userEvent.setup();
+      const mockToggleRag = vi.fn();
+
+      vi.mocked(useKnowledgeStore).mockReturnValue({
+        documents: [
+          {
+            id: 'doc-1',
+            filePath: '/path/to/file.txt',
+            relativePath: 'file.txt',
+            size: 1024,
+            timestamp: Date.now(),
+            status: 'indexed',
+          },
+        ],
+        isLoading: false,
+        error: null,
+        memoryStatus: null,
+        indexingProgress: null,
+        ...createDefaultMocks(),
+        toggleRag: mockToggleRag,
+      });
+
+      render(<KnowledgeTab />);
+
+      const toggle = screen.getByLabelText('RAG Toggle');
+      await user.click(toggle);
+
+      expect(mockToggleRag).toHaveBeenCalledTimes(1);
+    });
+
+    it('should disable buttons during file addition', () => {
+      vi.mocked(useKnowledgeStore).mockReturnValue({
+        documents: [],
+        isLoading: false,
+        error: null,
+        memoryStatus: null,
+        indexingProgress: null,
+        ...createDefaultMocks(),
+        isAddingFiles: true,
+      });
+
+      render(<KnowledgeTab />);
+
+      const addFilesButton = screen.getByRole('button', { name: /add files/i });
+      const addFolderButton = screen.getByRole('button', { name: /add folder/i });
+
+      expect(addFilesButton).toBeDisabled();
+      expect(addFolderButton).toBeDisabled();
     });
   });
 });

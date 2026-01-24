@@ -2,9 +2,12 @@
  * KnowledgeTab Component
  * Wave 10.2.1 - Knowledge Tab & Document List
  * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
+ * Wave 10.2.3 - File Operations & Zustand Store
  *
  * Main knowledge base view showing:
  * - Header with title and document count
+ * - Add Files/Folder buttons (Wave 10.2.3)
+ * - RAG toggle (Wave 10.2.3)
  * - Memory usage bar (Wave 10.2.2)
  * - Indexing progress indicator (Wave 10.2.2)
  * - Refresh button
@@ -14,11 +17,12 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Database, RefreshCw, X, AlertCircle } from 'lucide-react';
+import { Database, RefreshCw, X, AlertCircle, FileText, FolderPlus } from 'lucide-react';
 import { useKnowledgeStore } from '@renderer/stores/knowledge.store';
 import { DocumentList } from './DocumentList';
 import { MemoryUsageBar } from './MemoryUsageBar';
 import { IndexingProgress } from './IndexingProgress';
+import { RAGToggle } from './RAGToggle';
 
 export const KnowledgeTab: React.FC = () => {
   const {
@@ -27,9 +31,13 @@ export const KnowledgeTab: React.FC = () => {
     error,
     memoryStatus,
     indexingProgress,
+    ragEnabled,
+    isAddingFiles,
     fetchDocuments,
     removeDocument,
     refreshMemoryStatus,
+    // addFiles, // TODO: Will be used when IPC handlers are implemented
+    toggleRag,
     clearError,
   } = useKnowledgeStore();
 
@@ -83,6 +91,26 @@ export const KnowledgeTab: React.FC = () => {
     setConfirmRemoveId(null);
   };
 
+  /**
+   * Handle Add Files button click
+   * Wave 10.2.3 - File Operations & Zustand Store
+   */
+  const handleAddFiles = () => {
+    // TODO: Implement file picker dialog when IPC handlers are ready
+    // For now, this is a placeholder
+    // Add Files clicked - IPC integration pending
+  };
+
+  /**
+   * Handle Add Folder button click
+   * Wave 10.2.3 - File Operations & Zustand Store
+   */
+  const handleAddFolder = () => {
+    // TODO: Implement folder picker dialog when IPC handlers are ready
+    // For now, this is a placeholder
+    // Add Folder clicked - IPC integration pending
+  };
+
   const documentToRemove = documents.find((doc) => doc.id === confirmRemoveId);
 
   return (
@@ -100,20 +128,48 @@ export const KnowledgeTab: React.FC = () => {
             )}
           </div>
 
-          {/* Refresh Button */}
-          <button
-            onClick={() => void handleRefresh()}
-            disabled={isLoading || isRefreshing}
-            className="p-1.5 rounded hover:bg-vscode-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Refresh documents"
-            title="Refresh"
-          >
-            <RefreshCw
-              className={`w-4 h-4 text-vscode-text-muted ${isRefreshing ? 'animate-spin' : ''}`}
-            />
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* Add Files Button - Wave 10.2.3 */}
+            <button
+              onClick={handleAddFiles}
+              disabled={isAddingFiles || isLoading}
+              className="p-1.5 rounded hover:bg-vscode-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Add Files"
+              title="Add Files"
+            >
+              <FileText className="w-4 h-4 text-vscode-text-muted" />
+            </button>
+
+            {/* Add Folder Button - Wave 10.2.3 */}
+            <button
+              onClick={handleAddFolder}
+              disabled={isAddingFiles || isLoading}
+              className="p-1.5 rounded hover:bg-vscode-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Add Folder"
+              title="Add Folder"
+            >
+              <FolderPlus className="w-4 h-4 text-vscode-text-muted" />
+            </button>
+
+            {/* Refresh Button */}
+            <button
+              onClick={() => void handleRefresh()}
+              disabled={isLoading || isRefreshing}
+              className="p-1.5 rounded hover:bg-vscode-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Refresh documents"
+              title="Refresh"
+            >
+              <RefreshCw
+                className={`w-4 h-4 text-vscode-text-muted ${isRefreshing ? 'animate-spin' : ''}`}
+              />
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* RAG Toggle - Wave 10.2.3 */}
+      <RAGToggle enabled={ragEnabled} documentCount={documents.length} onToggle={toggleRag} />
 
       {/* Memory Usage Bar */}
       {memoryStatus && <MemoryUsageBar memoryStatus={memoryStatus} />}

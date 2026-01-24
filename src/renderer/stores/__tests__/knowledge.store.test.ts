@@ -14,15 +14,20 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useKnowledgeStore } from '../knowledge.store';
-import type { VectorIndexStats, Result, DocumentInput, VectorMemoryStatus } from '@shared/types';
+import type { VectorMemoryStatus } from '@shared/types';
 
 // Mock electronAPI
 const mockElectronAPI = {
   vector: {
-    getStats: vi.fn<[], Promise<Result<VectorIndexStats>>>(),
-    remove: vi.fn<[string], Promise<Result<void>>>(),
-    list: vi.fn<[], Promise<Result<DocumentInput[]>>>(),
-    getMemoryStatus: vi.fn<[], Promise<Result<VectorMemoryStatus>>>(),
+    getStats: vi.fn(),
+    remove: vi.fn(),
+    list: vi.fn(),
+    getMemoryStatus: vi.fn(),
+    addBatch: vi.fn(),
+  },
+  fileSystem: {
+    showOpenDialog: vi.fn(),
+    readFile: vi.fn(),
   },
 };
 
@@ -375,6 +380,283 @@ describe('KnowledgeStore', () => {
       useKnowledgeStore.getState().clearIndexingProgress();
 
       expect(useKnowledgeStore.getState().indexingProgress).toBe(null);
+    });
+  });
+
+  describe('Wave 10.2.3 - File Operations & RAG Toggle', () => {
+    describe('addFiles', () => {
+      it('should set isAddingFiles state while adding files', async () => {
+        const filePaths = ['/path/to/file1.txt', '/path/to/file2.txt'];
+
+        mockElectronAPI.vector.addBatch.mockImplementation(() => {
+          const { isAddingFiles } = useKnowledgeStore.getState();
+          expect(isAddingFiles).toBe(true);
+          return Promise.resolve({
+            success: true,
+            data: { successCount: 2, failureCount: 0, errors: [] },
+          });
+        });
+
+        mockElectronAPI.vector.list.mockResolvedValue({
+          success: true,
+          data: [
+            {
+              id: '/path/to/file1.txt',
+              content: 'Content 1',
+              metadata: { filePath: '/path/to/file1.txt', timestamp: Date.now() },
+            },
+            {
+              id: '/path/to/file2.txt',
+              content: 'Content 2',
+              metadata: { filePath: '/path/to/file2.txt', timestamp: Date.now() },
+            },
+          ],
+        });
+
+        mockElectronAPI.vector.getMemoryStatus.mockResolvedValue({
+          success: true,
+          data: {
+            usedBytes: 200 * 1024 * 1024,
+            budgetBytes: 500 * 1024 * 1024,
+            availableBytes: 300 * 1024 * 1024,
+            percentUsed: 40,
+            documentCount: 2,
+            status: 'ok',
+            usedMB: '200.0 MB',
+            budgetMB: '500.0 MB',
+          },
+        });
+
+        await useKnowledgeStore.getState().addFiles(filePaths);
+
+        const { isAddingFiles } = useKnowledgeStore.getState();
+        expect(isAddingFiles).toBe(false);
+      });
+
+      it('should successfully add files and refresh documents', async () => {
+        const filePaths = ['/path/to/file1.txt', '/path/to/file2.txt'];
+
+        mockElectronAPI.vector.addBatch.mockResolvedValue({
+          success: true,
+          data: { successCount: 2, failureCount: 0, errors: [] },
+        });
+
+        mockElectronAPI.vector.list.mockResolvedValue({
+          success: true,
+          data: [
+            {
+              id: '/path/to/file1.txt',
+              content: 'Content 1',
+              metadata: { filePath: '/path/to/file1.txt', timestamp: Date.now() },
+            },
+            {
+              id: '/path/to/file2.txt',
+              content: 'Content 2',
+              metadata: { filePath: '/path/to/file2.txt', timestamp: Date.now() },
+            },
+          ],
+        });
+
+        mockElectronAPI.vector.getMemoryStatus.mockResolvedValue({
+          success: true,
+          data: {
+            usedBytes: 200 * 1024 * 1024,
+            budgetBytes: 500 * 1024 * 1024,
+            availableBytes: 300 * 1024 * 1024,
+            percentUsed: 40,
+            documentCount: 2,
+            status: 'ok',
+            usedMB: '200.0 MB',
+            budgetMB: '500.0 MB',
+          },
+        });
+
+        await useKnowledgeStore.getState().addFiles(filePaths);
+
+        const { documents, isAddingFiles } = useKnowledgeStore.getState();
+        expect(isAddingFiles).toBe(false);
+        expect(documents).toHaveLength(2);
+
+        expect(mockElectronAPI.vector.addBatch).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ id: '/path/to/file1.txt' }),
+            expect.objectContaining({ id: '/path/to/file2.txt' }),
+          ])
+        );
+      });
+
+      it('should handle add files error', async () => {
+        const filePaths = ['/path/to/file1.txt'];
+
+        mockElectronAPI.vector.addBatch.mockResolvedValue({
+          success: false,
+          error: new Error('Failed to add files'),
+        });
+
+        await useKnowledgeStore.getState().addFiles(filePaths);
+
+        const { isAddingFiles } = useKnowledgeStore.getState();
+        expect(isAddingFiles).toBe(false);
+        // Documents should remain unchanged on error
+      });
+
+      it('should start and clear indexing progress', async () => {
+        const filePaths = ['/path/to/file1.txt', '/path/to/file2.txt'];
+
+        mockElectronAPI.vector.addBatch.mockResolvedValue({
+          success: true,
+          data: { successCount: 2, failureCount: 0, errors: [] },
+        });
+
+        mockElectronAPI.vector.list.mockResolvedValue({
+          success: true,
+          data: [],
+        });
+
+        mockElectronAPI.vector.getMemoryStatus.mockResolvedValue({
+          success: true,
+          data: {
+            usedBytes: 0,
+            budgetBytes: 500 * 1024 * 1024,
+            availableBytes: 500 * 1024 * 1024,
+            percentUsed: 0,
+            documentCount: 0,
+            status: 'ok',
+            usedMB: '0.0 MB',
+            budgetMB: '500.0 MB',
+          },
+        });
+
+        // Verify indexing progress is set during operation
+        const addPromise = useKnowledgeStore.getState().addFiles(filePaths);
+
+        // Should have indexing progress immediately after calling
+        const { indexingProgress: progressDuring } = useKnowledgeStore.getState();
+        expect(progressDuring).not.toBe(null);
+
+        await addPromise;
+
+        // Should clear indexing progress after completion
+        const { indexingProgress: progressAfter } = useKnowledgeStore.getState();
+        expect(progressAfter).toBe(null);
+      });
+    });
+
+    describe('toggleRag', () => {
+      it('should toggle RAG enabled state from false to true', () => {
+        const { ragEnabled: initialState } = useKnowledgeStore.getState();
+        expect(initialState).toBe(false); // Default OFF
+
+        useKnowledgeStore.getState().toggleRag();
+
+        const { ragEnabled: afterToggle } = useKnowledgeStore.getState();
+        expect(afterToggle).toBe(true);
+      });
+
+      it('should toggle RAG enabled state from true to false', () => {
+        // Set to true first
+        useKnowledgeStore.setState({ ragEnabled: true });
+
+        useKnowledgeStore.getState().toggleRag();
+
+        const { ragEnabled } = useKnowledgeStore.getState();
+        expect(ragEnabled).toBe(false);
+      });
+
+      it('should toggle multiple times correctly', () => {
+        // Start with default (false)
+        expect(useKnowledgeStore.getState().ragEnabled).toBe(false);
+
+        // Toggle 1
+        useKnowledgeStore.getState().toggleRag();
+        expect(useKnowledgeStore.getState().ragEnabled).toBe(true);
+
+        // Toggle 2
+        useKnowledgeStore.getState().toggleRag();
+        expect(useKnowledgeStore.getState().ragEnabled).toBe(false);
+
+        // Toggle 3
+        useKnowledgeStore.getState().toggleRag();
+        expect(useKnowledgeStore.getState().ragEnabled).toBe(true);
+      });
+    });
+
+    describe('setProjectPath', () => {
+      it('should set current project path', () => {
+        const projectPath = '/path/to/project';
+
+        useKnowledgeStore.getState().setProjectPath(projectPath);
+
+        const { currentProjectPath } = useKnowledgeStore.getState();
+        expect(currentProjectPath).toBe(projectPath);
+      });
+
+      it('should load RAG preference for project', () => {
+        const projectPath = '/path/to/project';
+
+        // Set a saved preference in localStorage
+        localStorage.setItem(`rag-enabled-${projectPath}`, 'true');
+
+        useKnowledgeStore.getState().setProjectPath(projectPath);
+
+        const { ragEnabled } = useKnowledgeStore.getState();
+        expect(ragEnabled).toBe(true);
+      });
+    });
+
+    describe('loadProjectRagPreference', () => {
+      it('should load saved RAG preference from localStorage', () => {
+        const projectPath = '/path/to/project';
+
+        // Set project path first
+        useKnowledgeStore.setState({ currentProjectPath: projectPath });
+
+        // Save preference in localStorage
+        localStorage.setItem(`rag-enabled-${projectPath}`, 'true');
+
+        useKnowledgeStore.getState().loadProjectRagPreference();
+
+        const { ragEnabled } = useKnowledgeStore.getState();
+        expect(ragEnabled).toBe(true);
+      });
+
+      it('should not change RAG state if no saved preference', () => {
+        const projectPath = '/path/to/new-project';
+
+        // Set project path with no saved preference
+        useKnowledgeStore.setState({ currentProjectPath: projectPath, ragEnabled: false });
+
+        useKnowledgeStore.getState().loadProjectRagPreference();
+
+        const { ragEnabled } = useKnowledgeStore.getState();
+        expect(ragEnabled).toBe(false); // Should remain default
+      });
+
+      it('should handle no project path gracefully', () => {
+        useKnowledgeStore.setState({ currentProjectPath: null });
+
+        // Should not throw
+        expect(() => {
+          useKnowledgeStore.getState().loadProjectRagPreference();
+        }).not.toThrow();
+      });
+    });
+
+    describe('Initial State - Wave 10.2.3', () => {
+      it('should have RAG disabled by default', () => {
+        const { ragEnabled } = useKnowledgeStore.getState();
+        expect(ragEnabled).toBe(false);
+      });
+
+      it('should not be adding files initially', () => {
+        const { isAddingFiles } = useKnowledgeStore.getState();
+        expect(isAddingFiles).toBe(false);
+      });
+
+      it('should have no project path initially', () => {
+        const { currentProjectPath } = useKnowledgeStore.getState();
+        expect(currentProjectPath).toBe(null);
+      });
     });
   });
 });
