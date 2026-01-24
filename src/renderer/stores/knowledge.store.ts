@@ -1,19 +1,22 @@
 /**
  * Knowledge Store
  * Wave 10.2.1 - Knowledge Tab & Document List
+ * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
  *
  * Manages knowledge base state including indexed documents, loading states,
- * and document operations (view, remove).
+ * memory status, and document operations.
  *
  * Features:
  * - Document list management
  * - Document removal with optimistic updates
+ * - Memory status tracking (Wave 10.2.2)
+ * - Indexing progress tracking (Wave 10.2.2)
  * - Loading and error states
  * - Integration with VectorService via IPC
  */
 
 import { create } from 'zustand';
-import type { DocumentInput, Result } from '@shared/types';
+import type { DocumentInput, Result, VectorMemoryStatus } from '@shared/types';
 
 /**
  * Indexed document display format
@@ -29,6 +32,17 @@ export interface IndexedDocument {
 }
 
 /**
+ * Indexing progress data
+ * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
+ */
+export interface IndexingProgress {
+  current: number;
+  total: number;
+  currentFile: string;
+  startTime: number; // timestamp
+}
+
+/**
  * Knowledge state interface
  */
 interface KnowledgeState {
@@ -39,12 +53,24 @@ interface KnowledgeState {
   isLoading: boolean;
   /** Error message from failed operations */
   error: string | null;
+  /** Memory status from VectorService (Wave 10.2.2) */
+  memoryStatus: VectorMemoryStatus | null;
+  /** Indexing progress tracking (Wave 10.2.2) */
+  indexingProgress: IndexingProgress | null;
 
   // Actions
   /** Fetch all indexed documents */
   fetchDocuments: () => Promise<void>;
   /** Remove a document from the index */
   removeDocument: (id: string) => Promise<void>;
+  /** Fetch memory status from VectorService (Wave 10.2.2) */
+  refreshMemoryStatus: () => Promise<void>;
+  /** Start indexing files with progress tracking (Wave 10.2.2) */
+  startIndexing: (files: string[]) => void;
+  /** Update indexing progress (Wave 10.2.2) */
+  updateIndexingProgress: (progress: IndexingProgress) => void;
+  /** Clear indexing progress (Wave 10.2.2) */
+  clearIndexingProgress: () => void;
   /** Clear error state */
   clearError: () => void;
   /** Reset store to initial state */
@@ -86,6 +112,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   documents: [],
   isLoading: false,
   error: null,
+  memoryStatus: null,
+  indexingProgress: null,
 
   /**
    * Fetch all indexed documents from VectorService
@@ -159,6 +187,64 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   },
 
   /**
+   * Fetch memory status from VectorService
+   * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
+   */
+  refreshMemoryStatus: async () => {
+    try {
+      const result: Result<VectorMemoryStatus> = await window.electronAPI.vector.getMemoryStatus();
+
+      if (result.success) {
+        set({ memoryStatus: result.data });
+      }
+    } catch (err) {
+      // Silent fail - memory status is not critical
+      console.error('Failed to refresh memory status:', err);
+    }
+  },
+
+  /**
+   * Start indexing files with progress tracking
+   * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
+   *
+   * Note: This is a placeholder for future implementation.
+   * Actual file indexing will be implemented in a later wave.
+   * For now, this just sets up the progress tracking structure.
+   */
+  startIndexing: (files: string[]) => {
+    const startTime = Date.now();
+
+    // Initialize progress
+    set({
+      indexingProgress: {
+        current: 0,
+        total: files.length,
+        currentFile: files[0] || '',
+        startTime,
+      },
+    });
+
+    // TODO: Implement actual file indexing in future wave
+    // For now, this just demonstrates the progress tracking structure
+  },
+
+  /**
+   * Update indexing progress
+   * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
+   */
+  updateIndexingProgress: (progress: IndexingProgress) => {
+    set({ indexingProgress: progress });
+  },
+
+  /**
+   * Clear indexing progress
+   * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
+   */
+  clearIndexingProgress: () => {
+    set({ indexingProgress: null });
+  },
+
+  /**
    * Clear error state
    */
   clearError: () => {
@@ -173,6 +259,8 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
       documents: [],
       isLoading: false,
       error: null,
+      memoryStatus: null,
+      indexingProgress: null,
     });
   },
 }));

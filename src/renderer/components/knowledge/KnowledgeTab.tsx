@@ -1,9 +1,12 @@
 /**
  * KnowledgeTab Component
  * Wave 10.2.1 - Knowledge Tab & Document List
+ * Wave 10.2.2 - Memory Usage Bar & Progress Indicators
  *
  * Main knowledge base view showing:
  * - Header with title and document count
+ * - Memory usage bar (Wave 10.2.2)
+ * - Indexing progress indicator (Wave 10.2.2)
  * - Refresh button
  * - Loading/error states
  * - Document list
@@ -14,22 +17,52 @@ import React, { useEffect, useState } from 'react';
 import { Database, RefreshCw, X, AlertCircle } from 'lucide-react';
 import { useKnowledgeStore } from '@renderer/stores/knowledge.store';
 import { DocumentList } from './DocumentList';
+import { MemoryUsageBar } from './MemoryUsageBar';
+import { IndexingProgress } from './IndexingProgress';
 
 export const KnowledgeTab: React.FC = () => {
-  const { documents, isLoading, error, fetchDocuments, removeDocument, clearError } =
-    useKnowledgeStore();
+  const {
+    documents,
+    isLoading,
+    error,
+    memoryStatus,
+    indexingProgress,
+    fetchDocuments,
+    removeDocument,
+    refreshMemoryStatus,
+    clearError,
+  } = useKnowledgeStore();
 
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch documents on mount
+  // Fetch documents and memory status on mount
   useEffect(() => {
     void fetchDocuments();
-  }, [fetchDocuments]);
+    void refreshMemoryStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  // Auto-refresh memory status during indexing (polling with throttle)
+  useEffect(() => {
+    if (!indexingProgress) {
+      return;
+    }
+
+    // Poll every 2 seconds during indexing
+    const intervalId = window.setInterval(() => {
+      void refreshMemoryStatus();
+    }, 2000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indexingProgress]); // Only depend on indexingProgress state
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchDocuments();
+    await Promise.all([fetchDocuments(), refreshMemoryStatus()]);
     setIsRefreshing(false);
   };
 
@@ -41,6 +74,8 @@ export const KnowledgeTab: React.FC = () => {
     if (confirmRemoveId) {
       await removeDocument(confirmRemoveId);
       setConfirmRemoveId(null);
+      // Refresh memory status after document removal
+      await refreshMemoryStatus();
     }
   };
 
@@ -79,6 +114,12 @@ export const KnowledgeTab: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {/* Memory Usage Bar */}
+      {memoryStatus && <MemoryUsageBar memoryStatus={memoryStatus} />}
+
+      {/* Indexing Progress */}
+      {indexingProgress && <IndexingProgress progress={indexingProgress} />}
 
       {/* Error Banner */}
       {error && (

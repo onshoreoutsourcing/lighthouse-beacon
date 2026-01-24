@@ -27,15 +27,26 @@ beforeEach(() => {
 });
 
 describe('KnowledgeTab', () => {
+  // Default mock functions that return resolved promises
+  const createDefaultMocks = () => ({
+    fetchDocuments: vi.fn().mockResolvedValue(undefined),
+    removeDocument: vi.fn().mockResolvedValue(undefined),
+    refreshMemoryStatus: vi.fn().mockResolvedValue(undefined),
+    startIndexing: vi.fn().mockResolvedValue(undefined),
+    updateIndexingProgress: vi.fn(),
+    clearIndexingProgress: vi.fn(),
+    clearError: vi.fn(),
+    reset: vi.fn(),
+  });
+
   it('should render header with title', () => {
     vi.mocked(useKnowledgeStore).mockReturnValue({
       documents: [],
       isLoading: false,
       error: null,
-      fetchDocuments: vi.fn(),
-      removeDocument: vi.fn(),
-      clearError: vi.fn(),
-      reset: vi.fn(),
+      memoryStatus: null,
+      indexingProgress: null,
+      ...createDefaultMocks(),
     });
 
     render(<KnowledgeTab />);
@@ -44,16 +55,16 @@ describe('KnowledgeTab', () => {
   });
 
   it('should fetch documents on mount', () => {
-    const mockFetch = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(undefined);
 
     vi.mocked(useKnowledgeStore).mockReturnValue({
       documents: [],
       isLoading: false,
       error: null,
+      memoryStatus: null,
+      indexingProgress: null,
+      ...createDefaultMocks(),
       fetchDocuments: mockFetch,
-      removeDocument: vi.fn(),
-      clearError: vi.fn(),
-      reset: vi.fn(),
     });
 
     render(<KnowledgeTab />);
@@ -66,10 +77,9 @@ describe('KnowledgeTab', () => {
       documents: [],
       isLoading: true,
       error: null,
-      fetchDocuments: vi.fn(),
-      removeDocument: vi.fn(),
-      clearError: vi.fn(),
-      reset: vi.fn(),
+      memoryStatus: null,
+      indexingProgress: null,
+      ...createDefaultMocks(),
     });
 
     render(<KnowledgeTab />);
@@ -84,8 +94,14 @@ describe('KnowledgeTab', () => {
       documents: [],
       isLoading: false,
       error: 'Failed to load documents',
+      memoryStatus: null,
+      indexingProgress: null,
       fetchDocuments: vi.fn(),
       removeDocument: vi.fn(),
+      refreshMemoryStatus: vi.fn(),
+      startIndexing: vi.fn(),
+      updateIndexingProgress: vi.fn(),
+      clearIndexingProgress: vi.fn(),
       clearError: mockClearError,
       reset: vi.fn(),
     });
@@ -107,8 +123,14 @@ describe('KnowledgeTab', () => {
       documents: [],
       isLoading: false,
       error: 'Test error',
+      memoryStatus: null,
+      indexingProgress: null,
       fetchDocuments: vi.fn(),
       removeDocument: vi.fn(),
+      refreshMemoryStatus: vi.fn(),
+      startIndexing: vi.fn(),
+      updateIndexingProgress: vi.fn(),
+      clearIndexingProgress: vi.fn(),
       clearError: mockClearError,
       reset: vi.fn(),
     });
@@ -143,10 +165,9 @@ describe('KnowledgeTab', () => {
       ],
       isLoading: false,
       error: null,
-      fetchDocuments: vi.fn(),
-      removeDocument: vi.fn(),
-      clearError: vi.fn(),
-      reset: vi.fn(),
+      memoryStatus: null,
+      indexingProgress: null,
+      ...createDefaultMocks(),
     });
 
     render(<KnowledgeTab />);
@@ -155,17 +176,19 @@ describe('KnowledgeTab', () => {
   });
 
   it('should show refresh button', async () => {
-    const mockFetch = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValue(undefined);
+    const mockRefreshMemory = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
 
     vi.mocked(useKnowledgeStore).mockReturnValue({
       documents: [],
       isLoading: false,
       error: null,
+      memoryStatus: null,
+      indexingProgress: null,
+      ...createDefaultMocks(),
       fetchDocuments: mockFetch,
-      removeDocument: vi.fn(),
-      clearError: vi.fn(),
-      reset: vi.fn(),
+      refreshMemoryStatus: mockRefreshMemory,
     });
 
     render(<KnowledgeTab />);
@@ -175,6 +198,8 @@ describe('KnowledgeTab', () => {
 
     // Should call fetch twice: once on mount, once on click
     expect(mockFetch).toHaveBeenCalledTimes(2);
+    // Should also call refreshMemoryStatus twice
+    expect(mockRefreshMemory).toHaveBeenCalledTimes(2);
   });
 
   it('should show confirmation dialog when removing document', async () => {
@@ -193,10 +218,9 @@ describe('KnowledgeTab', () => {
       ],
       isLoading: false,
       error: null,
-      fetchDocuments: vi.fn(),
-      removeDocument: vi.fn(),
-      clearError: vi.fn(),
-      reset: vi.fn(),
+      memoryStatus: null,
+      indexingProgress: null,
+      ...createDefaultMocks(),
     });
 
     render(<KnowledgeTab />);
