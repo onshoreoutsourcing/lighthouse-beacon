@@ -38,6 +38,7 @@ import type {
   SearchOptions,
   VectorIndexStats,
   BatchAddResult,
+  VectorMemoryStatus,
 } from '@shared/types';
 import {
   IPC_CHANNELS,
@@ -800,7 +801,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
-   * Vector Search Operations (Feature 10.1 - Wave 10.1.1)
+   * Vector Search Operations (Feature 10.1 - Wave 10.1.1, Wave 10.1.3)
    */
   vector: {
     /**
@@ -854,6 +855,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
      */
     getStats: (): Promise<Result<VectorIndexStats>> => {
       return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_STATS);
+    },
+
+    /**
+     * Get memory status
+     * Wave 10.1.3 - User Story 2: Memory Threshold Alerts
+     * @returns Memory status (used, budget, percent, status level)
+     */
+    getMemoryStatus: (): Promise<Result<VectorMemoryStatus>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_MEMORY_STATUS);
+    },
+
+    /**
+     * List all documents in the vector index
+     * Wave 10.2.1 - Knowledge Tab & Document List
+     * @returns Array of indexed documents with metadata
+     */
+    list: (): Promise<Result<DocumentInput[]>> => {
+      return ipcRenderer.invoke(VECTOR_CHANNELS.VECTOR_LIST);
     },
   },
 

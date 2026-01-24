@@ -5,6 +5,7 @@ import FileExplorerPanel from './components/panels/FileExplorerPanel';
 import CodeEditorPanel from './components/panels/CodeEditorPanel';
 import AIChatPanel from './components/panels/AIChatPanel';
 import { WorkflowCanvas } from './components/workflow/WorkflowCanvas';
+import { KnowledgeTab } from './components/knowledge/KnowledgeTab';
 import { PermissionModal } from './components/modals/PermissionModal';
 
 const App: React.FC = () => {
@@ -32,9 +33,13 @@ const App: React.FC = () => {
               centerPanel={<CodeEditorPanel />}
               rightPanel={<AIChatPanel />}
             />
-          ) : (
+          ) : activeView === 'workflow' ? (
             <div className="w-full h-full" style={{ backgroundColor: '#1e1e1e' }}>
               <WorkflowCanvas />
+            </div>
+          ) : (
+            <div className="w-full h-full" style={{ backgroundColor: '#1e1e1e' }}>
+              <KnowledgeTab />
             </div>
           )}
         </div>

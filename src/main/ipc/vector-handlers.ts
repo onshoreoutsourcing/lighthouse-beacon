@@ -2,9 +2,10 @@
  * Vector Search IPC Handlers
  * Feature 10.1 - Vector Service & Embedding Infrastructure
  * Wave 10.1.1 - Vector-lite Integration & Basic Search
+ * Wave 10.1.3 - Memory Monitoring & Index Persistence
  *
  * Provides IPC bridge between renderer process and VectorService.
- * Handles vector operations: add, search, remove, clear, stats.
+ * Handles vector operations: add, search, remove, clear, stats, memory status.
  */
 
 import { ipcMain } from 'electron';
@@ -14,6 +15,7 @@ import type {
   SearchOptions,
   VectorIndexStats,
   BatchAddResult,
+  VectorMemoryStatus,
   Result,
 } from '@shared/types';
 import { VECTOR_CHANNELS } from '@shared/types';
@@ -214,6 +216,59 @@ export function registerVectorHandlers(): void {
     }
   });
 
+  /**
+   * VECTOR_MEMORY_STATUS: Get memory status
+   * Wave 10.1.3 - User Story 2: Memory Threshold Alerts
+   */
+  ipcMain.handle(
+    VECTOR_CHANNELS.VECTOR_MEMORY_STATUS,
+    async (): Promise<Result<VectorMemoryStatus>> => {
+      try {
+        const service = await getVectorService();
+        const status = service.getMemoryStatus();
+
+        return {
+          success: true,
+          data: status,
+        };
+      } catch (error) {
+        logger.error('[VectorHandlers] Get memory status failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+
+        return {
+          success: false,
+          error: error instanceof Error ? error : new Error('Failed to get memory status'),
+        };
+      }
+    }
+  );
+
+  /**
+   * VECTOR_LIST: List all documents in the index
+   * Wave 10.2.1 - Knowledge Tab & Document List
+   */
+  ipcMain.handle(VECTOR_CHANNELS.VECTOR_LIST, async (): Promise<Result<DocumentInput[]>> => {
+    try {
+      const service = await getVectorService();
+      const documents = await service.listDocuments();
+
+      return {
+        success: true,
+        data: documents,
+      };
+    } catch (error) {
+      logger.error('[VectorHandlers] List documents failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return {
+        success: false,
+        error: error instanceof Error ? error : new Error('Failed to list documents'),
+      };
+    }
+  });
+
   logger.info('[VectorHandlers] IPC handlers registered');
 }
 
@@ -228,6 +283,8 @@ export function unregisterVectorHandlers(): void {
   ipcMain.removeHandler(VECTOR_CHANNELS.VECTOR_REMOVE);
   ipcMain.removeHandler(VECTOR_CHANNELS.VECTOR_CLEAR);
   ipcMain.removeHandler(VECTOR_CHANNELS.VECTOR_STATS);
+  ipcMain.removeHandler(VECTOR_CHANNELS.VECTOR_MEMORY_STATUS);
+  ipcMain.removeHandler(VECTOR_CHANNELS.VECTOR_LIST);
 
   vectorService = null;
 

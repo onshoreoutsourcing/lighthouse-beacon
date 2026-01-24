@@ -7,9 +7,9 @@
  */
 
 import React from 'react';
-import { Files, Network } from 'lucide-react';
+import { Files, Network, Database } from 'lucide-react';
 
-export type ActivityView = 'explorer' | 'workflow';
+export type ActivityView = 'explorer' | 'workflow' | 'knowledge';
 
 interface ActivityBarProps {
   activeView: ActivityView;
@@ -72,6 +72,13 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({ activeView, onViewChan
         view="workflow"
         isActive={activeView === 'workflow'}
         onClick={() => onViewChange('workflow')}
+      />
+      <ActivityTab
+        icon={<Database className="w-6 h-6" />}
+        label="Knowledge Base"
+        view="knowledge"
+        isActive={activeView === 'knowledge'}
+        onClick={() => onViewChange('knowledge')}
       />
     </div>
   );

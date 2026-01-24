@@ -3,11 +3,13 @@
  * Feature 10.1 - Vector Service & Embedding Infrastructure
  * Wave 10.1.1 - Vector-lite Integration & Basic Search
  * Wave 10.1.2 - Transformers.js Embedding Generation
+ * Wave 10.1.3 - Memory Monitoring & Index Persistence
  *
  * Provides semantic search capabilities using Vectra's LocalIndex with:
  * - Hybrid search combining semantic (70%) and keyword (30%) scoring
  * - In-memory index for fast retrieval (<50ms for 1000 documents)
  * - Local embedding generation using Transformers.js
+ * - Memory budget tracking and enforcement (500MB default)
  * - Document add/remove/search operations
  * - Index statistics and management
  */
@@ -17,12 +19,15 @@ import path from 'path';
 import { app } from 'electron';
 import { logger } from '../../logger';
 import { EmbeddingService } from './EmbeddingService';
+import { MemoryMonitor } from './MemoryMonitor';
+import { IndexPersistence, type PersistedDocument } from './IndexPersistence';
 import type {
   DocumentInput,
   SearchResult,
   SearchOptions,
   VectorIndexStats,
   BatchAddResult,
+  VectorMemoryStatus,
 } from '@shared/types';
 
 /**
@@ -32,6 +37,7 @@ import type {
  * Uses Vectra's LocalIndex for file-backed, in-memory vector storage.
  * Supports hybrid search combining semantic similarity and BM25 keyword search.
  * Default weighting: 70% semantic, 30% keyword (via isBm25=true)
+ * Memory tracking enforces 500MB budget with warnings at 80% and critical at 95%.
  */
 export class VectorService {
   private index: LocalIndex;
@@ -40,13 +46,16 @@ export class VectorService {
   private isInitialized = false;
   private embeddingService: EmbeddingService | null = null;
   private isEmbeddingServiceReady = false;
+  private memoryMonitor: MemoryMonitor;
+  private indexPersistence: IndexPersistence;
 
   /**
    * Creates a new VectorService instance
    *
    * @param indexName - Optional name for the index (defaults to 'beacon-vector-index')
+   * @param memoryBudgetMB - Memory budget in MB (default: 500MB)
    */
-  constructor(indexName = 'beacon-vector-index') {
+  constructor(indexName = 'beacon-vector-index', memoryBudgetMB = 500) {
     // Store index in app's user data directory
     const userDataPath = app.getPath('userData');
     this.indexPath = path.join(userDataPath, 'vector-indices', indexName);
@@ -54,7 +63,16 @@ export class VectorService {
     // Initialize Vectra LocalIndex
     this.index = new LocalIndex(this.indexPath);
 
-    logger.info('[VectorService] Initialized', { indexPath: this.indexPath });
+    // Initialize MemoryMonitor (Wave 10.1.3)
+    this.memoryMonitor = new MemoryMonitor(memoryBudgetMB);
+
+    // Initialize IndexPersistence (Wave 10.1.3)
+    this.indexPersistence = new IndexPersistence();
+
+    logger.info('[VectorService] Initialized', {
+      indexPath: this.indexPath,
+      memoryBudgetMB,
+    });
   }
 
   /**
@@ -62,6 +80,7 @@ export class VectorService {
    *
    * @remarks
    * Creates the index if it doesn't exist, or loads existing index.
+   * Auto-loads persisted documents from disk (Wave 10.1.3).
    * EmbeddingService is initialized lazily on first use for faster startup.
    * Must be called before any other operations.
    *
@@ -84,6 +103,9 @@ export class VectorService {
       } else {
         logger.info('[VectorService] Loaded existing vector index');
       }
+
+      // Auto-load persisted documents (Wave 10.1.3)
+      await this.loadPersistedDocuments();
 
       this.isInitialized = true;
     } catch (error) {
@@ -127,13 +149,17 @@ export class VectorService {
    *
    * @param document - Document to add (id, content, optional metadata, optional embedding)
    * @returns Promise that resolves when document is added
-   * @throws Error if document with same ID already exists
+   * @throws Error if document with same ID already exists or memory budget exceeded
    */
   async addDocument(document: DocumentInput): Promise<void> {
     this.ensureInitialized();
 
     try {
       const startTime = Date.now();
+
+      // Track memory BEFORE adding to index (Wave 10.1.3)
+      // This will throw if budget would be exceeded
+      this.memoryMonitor.trackDocument(document.id, document.content, document.metadata);
 
       // Generate real embedding if not provided (Wave 10.1.2)
       let embedding: number[];
@@ -157,13 +183,22 @@ export class VectorService {
       // Insert item into index
       await this.index.insertItem(item);
 
+      // Persist to disk (Wave 10.1.3)
+      await this.saveDocumentsToDisk();
+
       const duration = Date.now() - startTime;
+      const memoryStatus = this.memoryMonitor.getStatus();
       logger.info('[VectorService] Added document', {
         documentId: document.id,
         contentLength: document.content.length,
         durationMs: duration,
+        memoryUsedMB: memoryStatus.usedMB,
+        memoryStatus: memoryStatus.status,
       });
     } catch (error) {
+      // If memory tracking failed, remove from tracking
+      this.memoryMonitor.removeDocument(document.id);
+
       logger.error('[VectorService] Failed to add document', {
         documentId: document.id,
         error: error instanceof Error ? error.message : String(error),
@@ -191,6 +226,16 @@ export class VectorService {
 
     try {
       const startTime = Date.now();
+
+      // Track memory for batch BEFORE adding (Wave 10.1.3)
+      // This will throw if budget would be exceeded
+      this.memoryMonitor.trackBatch(
+        documents.map((doc) => ({
+          id: doc.id,
+          content: doc.content,
+          metadata: doc.metadata,
+        }))
+      );
 
       // Ensure embedding service is ready
       await this.ensureEmbeddingService();
@@ -242,13 +287,24 @@ export class VectorService {
       await this.index.batchInsertItems(items);
       result.successCount = documents.length;
 
+      // Persist to disk (Wave 10.1.3)
+      await this.saveDocumentsToDisk();
+
       const duration = Date.now() - startTime;
+      const memoryStatus = this.memoryMonitor.getStatus();
       logger.info('[VectorService] Batch added documents', {
         count: documents.length,
         durationMs: duration,
+        memoryUsedMB: memoryStatus.usedMB,
+        memoryStatus: memoryStatus.status,
       });
     } catch (error) {
-      // If batch fails, try adding individually to identify failures
+      // If batch fails, remove all from memory tracking
+      for (const doc of documents) {
+        this.memoryMonitor.removeDocument(doc.id);
+      }
+
+      // Try adding individually to identify failures
       logger.warn('[VectorService] Batch insert failed, trying individually', {
         error: error instanceof Error ? error.message : String(error),
       });
@@ -366,8 +422,14 @@ export class VectorService {
         throw new Error(`Document with ID '${documentId}' not found`);
       }
 
-      // Delete document
+      // Delete document from index
       await this.index.deleteItem(documentId);
+
+      // Remove from memory tracking (Wave 10.1.3)
+      this.memoryMonitor.removeDocument(documentId);
+
+      // Persist to disk (Wave 10.1.3)
+      await this.saveDocumentsToDisk();
 
       logger.info('[VectorService] Removed document', { documentId });
     } catch (error) {
@@ -399,6 +461,12 @@ export class VectorService {
           indexed: ['type', 'source', 'timestamp'],
         },
       });
+
+      // Clear memory tracking (Wave 10.1.3)
+      this.memoryMonitor.clear();
+
+      // Delete persisted index (Wave 10.1.3)
+      await this.indexPersistence.delete();
 
       logger.info('[VectorService] Cleared vector index');
     } catch (error) {
@@ -449,6 +517,138 @@ export class VectorService {
    */
   isEmbeddingReady(): boolean {
     return this.isEmbeddingServiceReady && this.embeddingService !== null;
+  }
+
+  /**
+   * Get current memory status
+   * Wave 10.1.3 - Memory Monitoring & Index Persistence
+   * User Story 2: Memory Threshold Alerts
+   *
+   * @returns Memory status with usage, budget, and threshold information
+   */
+  getMemoryStatus(): VectorMemoryStatus {
+    return this.memoryMonitor.getStatus();
+  }
+
+  /**
+   * List all documents in the index
+   * Wave 10.2.1 - Knowledge Tab & Document List
+   *
+   * @returns Promise that resolves with array of document metadata
+   */
+  async listDocuments(): Promise<DocumentInput[]> {
+    this.ensureInitialized();
+
+    try {
+      // Fetch all items from index (listItems returns all items at once)
+      const items = await this.index.listItems();
+      const documents: DocumentInput[] = [];
+
+      for (const item of items) {
+        documents.push({
+          id: item.id,
+          content: (item.metadata.content as string) || '',
+          metadata: this.extractUserMetadata(item.metadata),
+          embedding: item.vector,
+        });
+      }
+
+      logger.debug('[VectorService] Listed documents', { count: documents.length });
+      return documents;
+    } catch (error) {
+      logger.error('[VectorService] Failed to list documents', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to list documents: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * Load persisted documents from disk (Wave 10.1.3)
+   * Called during initialization to restore index
+   *
+   * @returns Promise that resolves when documents are loaded
+   */
+  private async loadPersistedDocuments(): Promise<void> {
+    try {
+      const documents = await this.indexPersistence.load();
+
+      if (!documents || documents.length === 0) {
+        logger.info('[VectorService] No persisted documents to load');
+        return;
+      }
+
+      logger.info('[VectorService] Loading persisted documents', {
+        count: documents.length,
+      });
+
+      // Track memory for loaded documents
+      this.memoryMonitor.trackBatch(
+        documents.map((doc) => ({
+          id: doc.id,
+          content: doc.content,
+          metadata: doc.metadata,
+        }))
+      );
+
+      // Add documents to Vectra index
+      const items: Partial<IndexItem>[] = documents.map((doc) => ({
+        id: doc.id,
+        vector: doc.embedding,
+        metadata: {
+          content: doc.content,
+          ...(doc.metadata || {}),
+        },
+      }));
+
+      await this.index.batchInsertItems(items);
+
+      logger.info('[VectorService] Successfully loaded persisted documents', {
+        count: documents.length,
+      });
+    } catch (error) {
+      logger.error('[VectorService] Failed to load persisted documents', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Don't throw - allow service to initialize even if persistence fails
+    }
+  }
+
+  /**
+   * Save current documents to disk (Wave 10.1.3)
+   *
+   * @returns Promise that resolves when documents are saved
+   */
+  private async saveDocumentsToDisk(): Promise<void> {
+    try {
+      // Get all items from index (listItems returns all items at once)
+      const items = await this.index.listItems();
+      const documents: PersistedDocument[] = [];
+
+      // Convert items to persisted document format
+      for (const item of items) {
+        documents.push({
+          id: item.id,
+          content: (item.metadata.content as string) || '',
+          metadata: this.extractUserMetadata(item.metadata),
+          embedding: item.vector,
+        });
+      }
+
+      // Save to disk
+      await this.indexPersistence.save(documents, this.embeddingDimension);
+
+      logger.debug('[VectorService] Saved documents to disk', {
+        count: documents.length,
+      });
+    } catch (error) {
+      logger.error('[VectorService] Failed to save documents to disk', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Don't throw - persistence is best-effort
+    }
   }
 
   /**

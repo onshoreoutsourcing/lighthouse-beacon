@@ -77,6 +77,30 @@ export interface BatchAddResult {
 }
 
 /**
+ * Memory status for vector index
+ * Wave 10.1.3 - Memory Monitoring & Index Persistence
+ *
+ * @property usedBytes - Total memory used in bytes
+ * @property budgetBytes - Memory budget in bytes (500MB default)
+ * @property availableBytes - Available memory in bytes
+ * @property percentUsed - Memory usage percentage (0-100)
+ * @property documentCount - Number of documents tracked
+ * @property status - Status level: 'ok', 'warning', 'critical', 'exceeded'
+ * @property usedMB - Human-readable memory used (e.g., "245.3 MB")
+ * @property budgetMB - Human-readable memory budget (e.g., "500.0 MB")
+ */
+export interface VectorMemoryStatus {
+  usedBytes: number;
+  budgetBytes: number;
+  availableBytes: number;
+  percentUsed: number;
+  documentCount: number;
+  status: 'ok' | 'warning' | 'critical' | 'exceeded';
+  usedMB: string;
+  budgetMB: string;
+}
+
+/**
  * IPC channel names for vector operations
  */
 export const VECTOR_CHANNELS = {
@@ -86,6 +110,8 @@ export const VECTOR_CHANNELS = {
   VECTOR_REMOVE: 'vector:remove',
   VECTOR_CLEAR: 'vector:clear',
   VECTOR_STATS: 'vector:stats',
+  VECTOR_MEMORY_STATUS: 'vector:get-memory-status',
+  VECTOR_LIST: 'vector:list',
 } as const;
 
 /**

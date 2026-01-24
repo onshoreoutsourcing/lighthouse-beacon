@@ -424,7 +424,7 @@ export const WORKFLOW_DEBUG_CHANNELS = {
 } as const;
 
 /**
- * Export Vector Search types (Feature 10.1 - Wave 10.1.1)
+ * Export Vector Search types (Feature 10.1 - Wave 10.1.1, Wave 10.1.3)
  */
 export type {
   DocumentInput,
@@ -432,6 +432,7 @@ export type {
   SearchOptions,
   VectorIndexStats,
   BatchAddResult,
+  VectorMemoryStatus,
 } from './vector.types';
 
 export { VECTOR_CHANNELS } from './vector.types';
