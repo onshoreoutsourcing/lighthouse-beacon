@@ -2,9 +2,11 @@
  * Vector Handlers IPC Integration Tests
  * Feature 10.1 - Vector Service & Embedding Infrastructure
  * Wave 10.1.1 - Vector-lite Integration & Basic Search
+ * Wave 10.3.1 - Document Chunking & Processing
  *
  * Tests IPC bridge between renderer and VectorService.
  * Verifies end-to-end IPC flow for vector operations.
+ * Documents are automatically chunked before indexing (Wave 10.3.1).
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -32,6 +34,26 @@ vi.mock('../../logger', () => ({
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
+  },
+}));
+
+// Mock EmbeddingService to avoid downloading Transformers.js model during tests
+vi.mock('../../services/vector/EmbeddingService', () => ({
+  EmbeddingService: class {
+    initialize() {
+      return Promise.resolve();
+    }
+    generateEmbedding(_text: string): Promise<number[]> {
+      // Return dummy embedding
+      return Promise.resolve(new Array(384).fill(0.5) as number[]);
+    }
+    generateBatchEmbeddings(texts: string[]): Promise<number[][]> {
+      // Return dummy embeddings for each text
+      return Promise.resolve(texts.map(() => new Array(384).fill(0.5) as number[]));
+    }
+    isReady() {
+      return true;
+    }
   },
 }));
 
@@ -109,10 +131,12 @@ describe('Vector Handlers IPC', () => {
       const handler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD);
       expect(handler).toBeDefined();
 
+      // Provide embedding to avoid downloading model during tests
       const doc: DocumentInput = {
         id: 'test-doc',
         content: 'Test content',
         metadata: { type: 'test' },
+        embedding: new Array(384).fill(0.1), // Pre-computed embedding
       };
 
       const result = await handler?.(null, doc);
@@ -125,19 +149,21 @@ describe('Vector Handlers IPC', () => {
       expect(result).toHaveProperty('data');
     });
 
-    it('should return error on invalid document', async () => {
+    it('should return error on duplicate chunk', async () => {
       const handler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD);
       expect(handler).toBeDefined();
 
-      // Add document twice to trigger error
+      // Add document twice to trigger error (chunks will have same ID)
       const doc: DocumentInput = {
         id: 'duplicate',
         content: 'Test',
+        embedding: new Array(384).fill(0.1),
       };
 
       await handler?.(null, doc);
       const result = await handler?.(null, doc);
 
+      // With chunking, this creates duplicate chunk IDs (duplicate:chunk:0)
       expect(result).toHaveProperty('success', false);
       expect(result).toHaveProperty('error');
     });
@@ -148,16 +174,18 @@ describe('Vector Handlers IPC', () => {
       const handler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD_BATCH);
       expect(handler).toBeDefined();
 
+      // Provide embeddings to avoid downloading model
       const docs: DocumentInput[] = [
-        { id: 'batch1', content: 'Document 1' },
-        { id: 'batch2', content: 'Document 2' },
-        { id: 'batch3', content: 'Document 3' },
+        { id: 'batch1', content: 'Document 1', embedding: new Array(384).fill(0.1) },
+        { id: 'batch2', content: 'Document 2', embedding: new Array(384).fill(0.2) },
+        { id: 'batch3', content: 'Document 3', embedding: new Array(384).fill(0.3) },
       ];
 
       const result = await handler?.(null, docs);
 
       expect(result).toHaveProperty('success', true);
       const data = (result as { data: { successCount: number } }).data;
+      // 3 documents, each becomes 1 chunk = 3 chunks total
       expect(data.successCount).toBe(3);
     });
 
@@ -175,12 +203,16 @@ describe('Vector Handlers IPC', () => {
 
   describe('VECTOR_SEARCH handler', () => {
     beforeEach(async () => {
-      // Add test documents
+      // Add test documents with embeddings
       const addHandler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD_BATCH);
       const docs: DocumentInput[] = [
-        { id: 'search1', content: 'JavaScript programming' },
-        { id: 'search2', content: 'TypeScript types' },
-        { id: 'search3', content: 'Python data science' },
+        {
+          id: 'search1',
+          content: 'JavaScript programming',
+          embedding: new Array(384).fill(0.5),
+        },
+        { id: 'search2', content: 'TypeScript types', embedding: new Array(384).fill(0.6) },
+        { id: 'search3', content: 'Python data science', embedding: new Array(384).fill(0.7) },
       ];
       await addHandler?.(null, docs);
     });
@@ -221,16 +253,21 @@ describe('Vector Handlers IPC', () => {
 
   describe('VECTOR_REMOVE handler', () => {
     beforeEach(async () => {
-      // Add test document
+      // Add test document (will be chunked)
       const addHandler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD);
-      await addHandler?.(null, { id: 'removable', content: 'Test' });
+      await addHandler?.(null, {
+        id: 'removable',
+        content: 'Test',
+        embedding: new Array(384).fill(0.1),
+      });
     });
 
-    it('should remove document successfully', async () => {
+    it('should remove chunk successfully', async () => {
       const handler = handlers.get(VECTOR_CHANNELS.VECTOR_REMOVE);
       expect(handler).toBeDefined();
 
-      const result = await handler?.(null, 'removable');
+      // Small documents become single chunk: "removable:chunk:0"
+      const result = await handler?.(null, 'removable:chunk:0');
 
       expect(result).toHaveProperty('success', true);
     });
@@ -248,11 +285,11 @@ describe('Vector Handlers IPC', () => {
 
   describe('VECTOR_CLEAR handler', () => {
     beforeEach(async () => {
-      // Add test documents
+      // Add test documents with embeddings
       const addHandler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD_BATCH);
       const docs: DocumentInput[] = [
-        { id: 'clear1', content: 'Document 1' },
-        { id: 'clear2', content: 'Document 2' },
+        { id: 'clear1', content: 'Document 1', embedding: new Array(384).fill(0.1) },
+        { id: 'clear2', content: 'Document 2', embedding: new Array(384).fill(0.2) },
       ];
       await addHandler?.(null, docs);
     });
@@ -292,12 +329,12 @@ describe('Vector Handlers IPC', () => {
     });
 
     it('should return correct document count', async () => {
-      // Add documents
+      // Add documents with embeddings
       const addHandler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD_BATCH);
       const docs: DocumentInput[] = [
-        { id: 'stats1', content: 'Test 1' },
-        { id: 'stats2', content: 'Test 2' },
-        { id: 'stats3', content: 'Test 3' },
+        { id: 'stats1', content: 'Test 1', embedding: new Array(384).fill(0.1) },
+        { id: 'stats2', content: 'Test 2', embedding: new Array(384).fill(0.2) },
+        { id: 'stats3', content: 'Test 3', embedding: new Array(384).fill(0.3) },
       ];
       await addHandler?.(null, docs);
 
@@ -306,6 +343,7 @@ describe('Vector Handlers IPC', () => {
 
       expect(result).toHaveProperty('success', true);
       const data = (result as { data: { documentCount: number } }).data;
+      // 3 documents, each becomes 1 chunk = 3 chunks total
       expect(data.documentCount).toBe(3);
     });
   });
@@ -315,10 +353,19 @@ describe('Vector Handlers IPC', () => {
       const handler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD);
       expect(handler).toBeDefined();
 
-      // Add document with duplicate ID
-      await handler?.(null, { id: 'error-test', content: 'First' });
-      const result = await handler?.(null, { id: 'error-test', content: 'Second' });
+      // Add document with duplicate ID (creates duplicate chunks)
+      await handler?.(null, {
+        id: 'error-test',
+        content: 'First',
+        embedding: new Array(384).fill(0.1),
+      });
+      const result = await handler?.(null, {
+        id: 'error-test',
+        content: 'Second',
+        embedding: new Array(384).fill(0.2),
+      });
 
+      // Both create "error-test:chunk:0" which triggers duplicate error
       expect(result).toHaveProperty('success', false);
       expect(result).toHaveProperty('error');
       const error = (result as { error: Error }).error;
@@ -338,12 +385,13 @@ describe('Vector Handlers IPC', () => {
   });
 
   describe('integration flow', () => {
-    it('should handle full CRUD lifecycle', async () => {
-      // Add
+    it('should handle full CRUD lifecycle with chunking', async () => {
+      // Add (document will be chunked)
       const addHandler = handlers.get(VECTOR_CHANNELS.VECTOR_ADD);
       const addResult = await addHandler?.(null, {
         id: 'lifecycle-test',
         content: 'Lifecycle test document',
+        embedding: new Array(384).fill(0.5),
       });
       expect((addResult as { success: boolean }).success).toBe(true);
 
@@ -361,9 +409,9 @@ describe('Vector Handlers IPC', () => {
       const statsData = (statsResult as { data: { documentCount: number } }).data;
       expect(statsData.documentCount).toBeGreaterThan(0);
 
-      // Remove
+      // Remove (use chunk ID since document was chunked)
       const removeHandler = handlers.get(VECTOR_CHANNELS.VECTOR_REMOVE);
-      const removeResult = await removeHandler?.(null, 'lifecycle-test');
+      const removeResult = await removeHandler?.(null, 'lifecycle-test:chunk:0');
       expect((removeResult as { success: boolean }).success).toBe(true);
 
       // Verify removed

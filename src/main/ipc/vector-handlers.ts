@@ -3,9 +3,11 @@
  * Feature 10.1 - Vector Service & Embedding Infrastructure
  * Wave 10.1.1 - Vector-lite Integration & Basic Search
  * Wave 10.1.3 - Memory Monitoring & Index Persistence
+ * Wave 10.3.1 - Document Chunking & Processing
  *
  * Provides IPC bridge between renderer process and VectorService.
  * Handles vector operations: add, search, remove, clear, stats, memory status.
+ * Automatically chunks documents before indexing (Wave 10.3.1).
  */
 
 import { ipcMain } from 'electron';
@@ -20,6 +22,7 @@ import type {
 } from '@shared/types';
 import { VECTOR_CHANNELS } from '@shared/types';
 import { VectorService } from '../services/vector/VectorService';
+import { DocumentChunker } from '../services/rag/DocumentChunker';
 import { logger } from '../logger';
 
 /**
@@ -27,6 +30,16 @@ import { logger } from '../logger';
  */
 let vectorService: VectorService | null = null;
 let initializationPromise: Promise<void> | null = null;
+
+/**
+ * Chunking configuration
+ * Wave 10.3.1 - Document Chunking & Processing
+ */
+const CHUNKING_CONFIG = {
+  enabled: true, // Enable automatic chunking
+  chunkSize: 500, // 500 tokens per chunk
+  overlap: 50, // 50 tokens overlap
+};
 
 /**
  * Get or create VectorService instance and ensure it's initialized
@@ -52,19 +65,68 @@ async function getVectorService(): Promise<VectorService> {
 }
 
 /**
+ * Chunk a document and create DocumentInput for each chunk
+ * Wave 10.3.1 - Document Chunking & Processing
+ *
+ * @param document - Original document to chunk
+ * @returns Array of DocumentInput (chunks) ready for vector indexing
+ */
+function chunkDocument(document: DocumentInput): DocumentInput[] {
+  if (!CHUNKING_CONFIG.enabled) {
+    return [document];
+  }
+
+  const result = DocumentChunker.chunk(document.content, {
+    filePath: document.id,
+    chunkSize: CHUNKING_CONFIG.chunkSize,
+    overlap: CHUNKING_CONFIG.overlap,
+  });
+
+  // Convert chunks to DocumentInput format
+  return result.chunks.map((chunk) => ({
+    id: `${document.id}:chunk:${chunk.metadata.chunkIndex}`,
+    content: chunk.text,
+    metadata: {
+      ...document.metadata,
+      // Chunk metadata
+      originalDocumentId: document.id,
+      chunkIndex: chunk.metadata.chunkIndex,
+      totalChunks: chunk.metadata.totalChunks,
+      startLine: chunk.metadata.startLine,
+      endLine: chunk.metadata.endLine,
+      chunkTokens: chunk.tokens,
+    },
+  }));
+}
+
+/**
  * Register all vector search IPC handlers
  * Call this function during app initialization
  */
 export function registerVectorHandlers(): void {
   /**
    * VECTOR_ADD: Add a single document to the vector index
+   * Wave 10.3.1 - Automatically chunks documents before indexing
    */
   ipcMain.handle(
     VECTOR_CHANNELS.VECTOR_ADD,
     async (_event, document: DocumentInput): Promise<Result<void>> => {
       try {
         const service = await getVectorService();
-        await service.addDocument(document);
+
+        // Chunk the document (Wave 10.3.1)
+        const chunks = chunkDocument(document);
+
+        logger.info('[VectorHandlers] Chunked document for indexing', {
+          documentId: document.id,
+          totalChunks: chunks.length,
+          contentLength: document.content.length,
+        });
+
+        // Add each chunk to the index
+        for (const chunk of chunks) {
+          await service.addDocument(chunk);
+        }
 
         return {
           success: true,
@@ -86,13 +148,28 @@ export function registerVectorHandlers(): void {
 
   /**
    * VECTOR_ADD_BATCH: Add multiple documents in batch
+   * Wave 10.3.1 - Automatically chunks all documents before indexing
    */
   ipcMain.handle(
     VECTOR_CHANNELS.VECTOR_ADD_BATCH,
     async (_event, documents: DocumentInput[]): Promise<Result<BatchAddResult>> => {
       try {
         const service = await getVectorService();
-        const result = await service.addDocuments(documents);
+
+        // Chunk all documents (Wave 10.3.1)
+        const allChunks: DocumentInput[] = [];
+        for (const doc of documents) {
+          const chunks = chunkDocument(doc);
+          allChunks.push(...chunks);
+        }
+
+        logger.info('[VectorHandlers] Chunked batch documents for indexing', {
+          originalDocuments: documents.length,
+          totalChunks: allChunks.length,
+        });
+
+        // Add all chunks in batch
+        const result = await service.addDocuments(allChunks);
 
         return {
           success: true,
