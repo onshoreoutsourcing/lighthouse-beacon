@@ -4,7 +4,8 @@
 - **Wave ID:** Wave-10.2.3
 - **Feature:** Feature 10.2 - Knowledge Base UI
 - **Epic:** Epic 10 - RAG Knowledge Base
-- **Status:** Planning
+- **Status:** Completed (January 24, 2026)
+- **Commit:** 69e4e1b
 - **Scope:** Implement file/folder add dialogs, Zustand store, context menu, and RAG toggle
 - **Wave Goal:** Complete Knowledge Base UI with all file operations and state management
 
