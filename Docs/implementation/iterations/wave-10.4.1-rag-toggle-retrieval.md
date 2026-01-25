@@ -4,7 +4,8 @@
 - **Wave ID:** Wave-10.4.1
 - **Feature:** Feature 10.4 - Chat Integration & Source Citations
 - **Epic:** Epic 10 - RAG Knowledge Base
-- **Status:** Planning
+- **Status:** Completed (January 25, 2026)
+- **Commit:** 24c06ab
 - **Scope:** Integrate RAG toggle into Chat UI and implement automatic context retrieval on message send
 - **Wave Goal:** Enable RAG-augmented chat with user-controlled activation
 
