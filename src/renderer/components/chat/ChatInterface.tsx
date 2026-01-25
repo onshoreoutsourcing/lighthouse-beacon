@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '@renderer/stores/chat.store';
+import { useKnowledgeStore } from '@renderer/stores/knowledge.store';
 import ChatMessage from './ChatMessage';
 import MessageInput from './MessageInput';
 import { MessageSquare, Trash2, ArrowDown, Plus, Settings } from 'lucide-react';
 import { useSmartScroll } from '@renderer/hooks/useSmartScroll';
 import SettingsModal from '../modals/SettingsModal';
+import { RAGToggle } from './RAGToggle';
 
 /**
  * ChatInterface Component
@@ -28,6 +30,10 @@ const ChatInterface: React.FC = () => {
 
   const { messages, initializeAI, clearMessages, newConversation, isInitializing, isInitialized } =
     useChatStore();
+
+  // Wave 10.4.1 - RAG state from knowledge store
+  const { ragEnabled, toggleRag, documents } = useKnowledgeStore();
+  const documentCount = documents.length;
 
   // Smart scroll behavior (Wave 2.2.2)
   const { showScrollButton, scrollToBottom } = useSmartScroll(messagesContainerRef, [messages]);
@@ -77,7 +83,14 @@ const ChatInterface: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          {/* Wave 10.4.1 - RAG Toggle */}
+          <RAGToggle
+            enabled={ragEnabled}
+            documentCount={documentCount}
+            onToggle={toggleRag}
+          />
+
           {/* Settings Button */}
           <button
             onClick={() => setIsSettingsOpen(true)}

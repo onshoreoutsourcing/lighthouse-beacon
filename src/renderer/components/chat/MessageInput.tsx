@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Square } from 'lucide-react';
 import { useChatStore } from '@renderer/stores/chat.store';
+import { useKnowledgeStore } from '@renderer/stores/knowledge.store';
+import { useChatRAG } from '@renderer/hooks/useChatRAG';
+import { RAGStatusIndicator } from './RAGStatusIndicator';
 
 /**
  * MessageInput Component
@@ -18,10 +21,24 @@ const MessageInput: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { sendMessage, cancelStreaming, streamingMessageId, isInitialized, error } = useChatStore();
+  const {
+    sendMessage,
+    cancelStreaming,
+    streamingMessageId,
+    isInitialized,
+    error,
+    messages: _messages,
+    attachSourcesToMessage,
+    markMessageRAGFailed,
+  } = useChatStore();
+
+  // Wave 10.4.1 - RAG integration
+  const { ragEnabled, documents } = useKnowledgeStore();
+  const { isSearching, sendMessageWithRAG } = useChatRAG();
+  const documentCount = documents.length;
 
   const isStreaming = !!streamingMessageId;
-  const canSend = isInitialized && inputValue.trim().length > 0 && !isStreaming;
+  const canSend = isInitialized && inputValue.trim().length > 0 && !isStreaming && !isSearching;
 
   /**
    * Auto-resize textarea based on content
@@ -35,8 +52,10 @@ const MessageInput: React.FC = () => {
 
   /**
    * Handle send message
+   * Wave 10.4.1 - Use RAG-augmented flow if enabled
+   * Wave 10.4.2 - Attach retrieved sources to assistant message
    */
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!canSend) {
       return;
     }
@@ -49,7 +68,39 @@ const MessageInput: React.FC = () => {
       textareaRef.current.style.height = 'auto';
     }
 
-    void sendMessage(message);
+    // Use RAG-augmented flow if enabled
+    if (ragEnabled && documentCount > 0) {
+      try {
+        // Send message and retrieve context
+        const context = await sendMessageWithRAG(message, {
+          ragEnabled: true,
+          documentCount,
+        });
+
+        // Wait for assistant message to be created
+        // The assistant message is the last message in the array after sendMessageWithRAG
+        setTimeout(() => {
+          const currentMessages = useChatStore.getState().messages;
+          const assistantMessage = currentMessages[currentMessages.length - 1];
+
+          if (assistantMessage && assistantMessage.role === 'assistant') {
+            if (context && context.sources && context.sources.length > 0) {
+              // Attach sources to assistant message
+              attachSourcesToMessage(assistantMessage.id, context.sources);
+            } else if (!context) {
+              // RAG retrieval failed
+              markMessageRAGFailed(assistantMessage.id);
+            }
+          }
+        }, 100); // Small delay to ensure message is created
+      } catch (err) {
+        console.error('[MessageInput] RAG flow error:', err);
+        // Standard flow fallback happens in useChatRAG
+      }
+    } else {
+      // Standard message flow
+      void sendMessage(message);
+    }
   };
 
   /**
@@ -71,13 +122,17 @@ const MessageInput: React.FC = () => {
   };
 
   return (
-    <div className="border-t border-vscode-border bg-vscode-bg p-4">
-      {/* Error Display */}
-      {error && (
-        <div className="mb-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
-          {error}
-        </div>
-      )}
+    <div className="border-t border-vscode-border bg-vscode-bg">
+      {/* Wave 10.4.1 - RAG Status Indicator */}
+      <RAGStatusIndicator isSearching={isSearching} />
+
+      <div className="p-4">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
+            {error}
+          </div>
+        )}
 
       {/* Input Area */}
       <div className="flex items-end gap-2">
@@ -120,13 +175,16 @@ const MessageInput: React.FC = () => {
         )}
       </div>
 
-      {/* Help Text */}
-      <div className="mt-2 text-xs text-vscode-text-muted">
-        {isStreaming
-          ? 'Generating response...'
-          : isInitialized
-            ? 'Press Enter to send, Shift+Enter for new line'
-            : 'Please wait while AI service initializes'}
+        {/* Help Text */}
+        <div className="mt-2 text-xs text-vscode-text-muted">
+          {isSearching
+            ? 'Retrieving context from knowledge base...'
+            : isStreaming
+              ? 'Generating response...'
+              : isInitialized
+                ? 'Press Enter to send, Shift+Enter for new line'
+                : 'Please wait while AI service initializes'}
+        </div>
       </div>
     </div>
   );
