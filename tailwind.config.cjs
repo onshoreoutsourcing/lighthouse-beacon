@@ -12,6 +12,7 @@ module.exports = {
         'vscode-bg-secondary': '#252526',
         'vscode-panel': '#252526',
         'vscode-border': '#3e3e42',
+        'vscode-hover': '#2a2d2e',
         'vscode-accent': '#007acc',
         'vscode-text': '#d4d4d4',
         'vscode-text-muted': '#858585',

@@ -4,7 +4,8 @@
 - **Wave ID:** Wave-10.1.2
 - **Feature:** Feature 10.1 - Vector Service & Embedding Infrastructure
 - **Epic:** Epic 10 - RAG Knowledge Base
-- **Status:** Planning
+- **Status:** Completed (January 24, 2026)
+- **Commit:** 6319c03
 - **Scope:** Integrate Transformers.js for local embedding generation with all-MiniLM-L6-v2 model
 - **Wave Goal:** Enable local text-to-embedding conversion for document indexing
 

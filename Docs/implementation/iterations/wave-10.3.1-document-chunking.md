@@ -4,7 +4,8 @@
 - **Wave ID:** Wave-10.3.1
 - **Feature:** Feature 10.3 - RAG Pipeline & Context Retrieval
 - **Epic:** Epic 10 - RAG Knowledge Base
-- **Status:** Planning
+- **Status:** Completed (January 25, 2026)
+- **Commit:** 56f2469
 - **Scope:** Implement document chunking with fixed-size chunks and token counting
 - **Wave Goal:** Enable documents to be split into searchable, indexable chunks
 

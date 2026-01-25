@@ -11,6 +11,8 @@ import { registerToolHandlers, unregisterToolHandlers } from './ipc/toolHandlers
 import { registerLogHandlers, unregisterLogHandlers } from './ipc/logHandlers';
 import { registerWorkflowHandlers, unregisterWorkflowHandlers } from './ipc/workflow-handlers';
 import { registerWorkflowDebugHandlers } from './ipc/workflow-debug-handlers';
+import { registerVectorHandlers, unregisterVectorHandlers } from './ipc/vector-handlers';
+import { registerRAGHandlers, unregisterRAGHandlers } from './ipc/rag-handlers';
 import { initializeLogger, logger } from './logger';
 
 // Initialize logger before any other operations
@@ -62,6 +64,8 @@ void app.whenReady().then(() => {
   registerLogHandlers();
   registerWorkflowHandlers();
   registerWorkflowDebugHandlers();
+  registerVectorHandlers();
+  registerRAGHandlers();
 
   createMainWindow();
 
@@ -99,6 +103,8 @@ app.on('before-quit', () => {
   unregisterToolHandlers();
   unregisterLogHandlers();
   unregisterWorkflowHandlers();
+  unregisterVectorHandlers();
+  unregisterRAGHandlers();
 
   if (windowManager) {
     windowManager.destroy();

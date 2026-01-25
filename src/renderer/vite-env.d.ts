@@ -36,6 +36,12 @@ import type {
   StepMode,
   Breakpoint,
   DebugContext,
+  DocumentInput,
+  SearchResult,
+  SearchOptions,
+  VectorIndexStats,
+  BatchAddResult,
+  VectorMemoryStatus,
 } from '@shared/types';
 
 /**
@@ -184,6 +190,16 @@ declare global {
             callback: (data: { path: string; value: unknown }) => void
           ) => () => void;
         };
+      };
+      vector: {
+        add: (document: DocumentInput) => Promise<Result<void>>;
+        addBatch: (documents: DocumentInput[]) => Promise<Result<BatchAddResult>>;
+        search: (query: string, options?: SearchOptions) => Promise<Result<SearchResult[]>>;
+        remove: (documentId: string) => Promise<Result<void>>;
+        clear: () => Promise<Result<void>>;
+        getStats: () => Promise<Result<VectorIndexStats>>;
+        getMemoryStatus: () => Promise<Result<VectorMemoryStatus>>;
+        list: () => Promise<Result<DocumentInput[]>>;
       };
     };
   }

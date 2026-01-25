@@ -15,6 +15,7 @@ export default defineConfig({
         'src/main/logger.ts',
         'src/main/utils/diskSpace.ts',
         'src/main/services/workflow/PythonExecutor.ts',
+        'src/main/services/vector/VectorService.ts',
       ],
       exclude: [
         'src/main/**/__tests__/**',

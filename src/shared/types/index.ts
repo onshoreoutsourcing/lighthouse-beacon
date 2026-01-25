@@ -422,3 +422,27 @@ export const WORKFLOW_DEBUG_CHANNELS = {
   MODE_CHANGED: 'workflow:debug:mode-changed',
   VARIABLE_CHANGED: 'workflow:debug:variable-changed',
 } as const;
+
+/**
+ * Export Vector Search types (Feature 10.1 - Wave 10.1.1, Wave 10.1.3)
+ */
+export type {
+  DocumentInput,
+  SearchResult,
+  SearchOptions,
+  VectorIndexStats,
+  BatchAddResult,
+  VectorMemoryStatus,
+} from './vector.types';
+
+export { VECTOR_CHANNELS, RAG_CHANNELS } from './vector.types';
+
+/**
+ * Export RAG types (Feature 10.3 - Wave 10.3.2)
+ */
+export type {
+  RetrievedChunk,
+  RetrievedContext,
+  RetrievalOptions,
+  SourceAttribution,
+} from '../main/services/rag/types';
