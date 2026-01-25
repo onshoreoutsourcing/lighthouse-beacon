@@ -336,10 +336,49 @@ When you need clarification:
 
 ## Current Status
 
-**Project Phase:** Phase 2 - AI Integration (Epic 2 & 3)
-**Current Activity:** Implementing Epic 2 (AI Integration) and Epic 3 (File Operation Tools - MVP)
-**Completed:** Epic 1 - Desktop Foundation with Basic UI (14 waves, all complete)
-**Current Branch:** `development` (all new work branches from here)
+**Project Phase:** Epic 9 - Visual Workflow Generator (90% Complete)
+**Current Activity:** Completing Feature 9.5 - UX Polish & Templates
+**Current Branch:** `epic-9-visual-workflow-generator`
+
+### Completed Epics:
+- Epic 1 - Desktop Foundation with Basic UI (14 waves, all complete)
+- Epic 7 - Infrastructure & Operations (Logging infrastructure complete)
+- Epic 9 - Visual Workflow Generator (Features 9.1-9.4 complete, 9.5 partial)
+
+### Epic 9 Overview (Visual Workflow Generator):
+Epic 9 adds visual automation workflow capabilities to Lighthouse Chat IDE. Key features:
+
+**Completed:**
+- React Flow canvas with drag-and-drop workflow editing
+- YAML workflow parser and schema validator (ADR-017)
+- Secure Python script execution with path validation (ADR-016)
+- Real-time execution visualization on canvas
+- Workflow CRUD operations and file management
+- Conditional branching (if/else nodes)
+- Loop nodes (iterate over collections)
+- Parallel execution (independent steps simultaneously)
+- Variable interpolation (`${...}` syntax)
+- Step-by-step debugging infrastructure
+
+**In Progress (Feature 9.5):**
+- AI-assisted workflow generation (Claude creates workflows)
+- Workflow testing UI with mock inputs
+- Monaco-based prompt template editor
+
+**Related ADRs:**
+- ADR-015: React Flow for Visual Workflows
+- ADR-016: Python Script Execution Security Strategy
+- ADR-017: Workflow YAML Schema Design
+
+### Key Implementation Files:
+```
+src/renderer/components/workflow/     # Workflow UI components
+src/renderer/stores/workflow.store.ts # Workflow state management
+src/main/services/workflow/           # Workflow backend services
+src/main/ipc/workflow-handlers.ts     # Workflow IPC handlers
+src/shared/types/workflow.types.ts    # Workflow type definitions
+```
+
 **Next Steps:** Will be explicitly communicated
 
 ---
@@ -358,4 +397,4 @@ This project values **thorough planning over rapid implementation**. Take time t
 
 ---
 
-*Last Updated: January 20, 2026*
+*Last Updated: January 23, 2026*

@@ -163,6 +163,8 @@ The architecture follows **SOLID principles** throughout, with clear separation 
 - **State Management**: Zustand
 - **Build Tool**: Vite
 - **Code Editor**: Monaco Editor
+- **Visual Workflow Canvas**: React Flow (@xyflow/react v12+) - Added 2026-01-23
+- **YAML Processing**: js-yaml v4.1+ - Added 2026-01-23
 - **Package Manager**: pnpm
 
 ## System Context
@@ -357,6 +359,17 @@ graph TB
 | **PermissionPrompt** | Approve/deny file operations | React Modal | Phase 2 |
 | **DiffView** | Visual diff with accept/reject | Monaco Diff Editor | Phase 5 |
 | **SettingsPanel** | Configuration UI | React + Zustand | Phase 4 |
+| **WorkflowCanvas** | Visual workflow editor canvas | React Flow (@xyflow/react) | Epic 9 (Added 2026-01-23) |
+| **WorkflowExplorer** | Workflow file browser and management | React + Zustand | Epic 9 (Added 2026-01-23) |
+| **PythonScriptNode** | Custom Python step node component | React Flow | Epic 9 (Added 2026-01-23) |
+| **ClaudeAPINode** | Custom Claude AI step node component | React Flow | Epic 9 (Added 2026-01-23) |
+| **ConditionalNode** | Conditional branching node component | React Flow | Epic 9 (Added 2026-01-23) |
+| **LoopNode** | Loop iteration node component | React Flow | Epic 9 (Added 2026-01-23) |
+| **ExecutionVisualizer** | Real-time workflow execution display | React + Zustand | Epic 9 (Added 2026-01-23) |
+| **DebugMode** | Step-by-step workflow debugging UI | React + Zustand | Epic 9 (Added 2026-01-23) |
+| **TestingUI** | Workflow testing with mock inputs | React + Zustand | Epic 9 (Added 2026-01-23) |
+| **PromptEditor** | Monaco-based prompt template editor | Monaco Editor | Epic 9 (Added 2026-01-23) |
+| **AIWorkflowGenerator** | Natural language workflow generation | React + AIChatSDK | Epic 9 (Added 2026-01-23) |
 
 #### Main Process Services (Business Logic Layer)
 
@@ -368,6 +381,13 @@ graph TB
 | **ToolExecutionService** | File operation tool execution | Custom + AIChatSDK | Phase 3 |
 | **PermissionService** | Operation approval logic | Custom | Phase 2 |
 | **SettingsService** | Configuration persistence | Electron store | Phase 4 |
+| **WorkflowService** | Workflow CRUD and execution | Custom + YAML | Epic 9 (Added 2026-01-23) |
+| **PythonExecutor** | Secure Python script execution | Node.js child_process | Epic 9 (Added 2026-01-23) |
+| **WorkflowParser** | YAML workflow parsing and validation | js-yaml | Epic 9 (Added 2026-01-23) |
+| **VariableResolver** | Variable interpolation (`${...}` syntax) | Custom | Epic 9 (Added 2026-01-23) |
+| **ParallelExecutor** | Parallel workflow step execution | Custom | Epic 9 (Added 2026-01-23) |
+| **DryRunExecutor** | Mock workflow execution for testing | Custom | Epic 9 (Added 2026-01-23) |
+| **AIWorkflowGenerator** | AI-assisted workflow creation | AIChatSDK | Epic 9 (Added 2026-01-23) |
 
 #### Shared Layer (Common Code)
 
@@ -760,6 +780,165 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 }));
 ```
 
+### Visual Workflow Generator Architecture (Epic 9 - Added 2026-01-23)
+
+The Visual Workflow Generator enables developers to create AI-powered automation workflows through a visual node-based editor. Workflows combine Python scripts, Claude AI operations, and existing file operations into repeatable automation sequences.
+
+#### Architecture Overview
+
+The workflow system follows the same three-layer architecture as the main application:
+
+```mermaid
+graph TB
+    subgraph "Renderer Process (React)"
+        WC[WorkflowCanvas]
+        WE[WorkflowExplorer]
+        EV[ExecutionVisualizer]
+        WS[useWorkflowStore]
+
+        WC --> WS
+        WE --> WS
+        EV --> WS
+    end
+
+    subgraph "IPC Bridge"
+        WH[Workflow IPC Handlers]
+    end
+
+    subgraph "Main Process (Node.js)"
+        WSVC[WorkflowService]
+        PE[PythonExecutor]
+        WP[WorkflowParser]
+        WX[WorkflowExecutor]
+        VR[VariableResolver]
+
+        WSVC --> WP
+        WSVC --> WX
+        WX --> PE
+        WX --> VR
+    end
+
+    WS <--> WH
+    WH <--> WSVC
+```
+
+#### Core Components
+
+**WorkflowService** (Main Process):
+- Workflow CRUD operations (create, read, update, delete)
+- Workflow execution coordination
+- Workflow validation and schema checking
+- Storage in `~/Documents/Lighthouse/workflows/`
+
+**WorkflowExecutor** (Main Process):
+- Sequential, conditional, loop, and parallel step execution
+- Step output collection and variable resolution
+- Real-time execution event emission
+- Error handling and retry logic
+
+**PythonExecutor** (Main Process):
+- Secure Python script execution with path validation (ADR-011)
+- 30-second timeout enforcement per script (ADR-016)
+- stdin/stdout JSON interface for inputs/outputs
+- Process isolation via Node.js child_process.spawn
+
+**WorkflowCanvas** (Renderer):
+- React Flow-based visual workflow editor
+- Custom node components (Python, Claude, Conditional, Loop, etc.)
+- Drag-and-drop workflow creation
+- Real-time execution visualization
+
+#### YAML Workflow Format (ADR-017)
+
+Workflows are defined in YAML following GitHub Actions patterns:
+
+```yaml
+workflow:
+  name: "Documentation Generator"
+  version: "1.0.0"
+
+inputs:
+  - id: repo_path
+    type: file
+    required: true
+
+steps:
+  - id: analyze_repo
+    type: python
+    script: ./scripts/analyze_repo.py
+    inputs:
+      repo_path: ${workflow.inputs.repo_path}
+    outputs:
+      - structure
+
+  - id: generate_docs
+    type: claude
+    model: "claude-sonnet-4"
+    prompt_template: |
+      Generate documentation for:
+      ${steps.analyze_repo.outputs.structure}
+    outputs:
+      - documentation
+```
+
+#### Control Flow Features
+
+| Feature | Description | Implementation |
+|---------|-------------|----------------|
+| **Sequential Execution** | Steps execute in order | Default execution mode |
+| **Conditional Branching** | If/else logic based on step outputs | ConditionalNode + ConditionEvaluator |
+| **Loop Iteration** | Iterate over arrays/objects | LoopNode + LoopExecutor |
+| **Parallel Execution** | Run independent steps simultaneously | ParallelExecutor + DependencyGraphAnalyzer |
+| **Variable Interpolation** | `${...}` syntax for dynamic values | VariableResolver |
+| **Error Handling** | Fallback nodes, retry policies | ErrorPropagationStrategy |
+
+#### Security Architecture (ADR-016)
+
+Python script execution follows a defense-in-depth approach:
+
+1. **Path Validation**: Scripts must be within project directory (PathValidator from ADR-011)
+2. **Process Isolation**: Scripts run in separate child process
+3. **Timeout Enforcement**: 30-second default timeout per script
+4. **Permission Prompts**: Workflow execution requires user approval (ADR-008)
+5. **Input Validation**: All file paths in inputs validated before execution
+
+**Threat Model**: Protecting against accidents (wrong file paths, infinite loops), not malicious users attacking themselves. Users run their own scripts in their own projects.
+
+#### IPC Handlers
+
+```typescript
+// Workflow IPC channels
+ipcMain.handle('workflow:list', async () => workflowService.listWorkflows());
+ipcMain.handle('workflow:load', async (_, id) => workflowService.loadWorkflow(id));
+ipcMain.handle('workflow:save', async (_, workflow) => workflowService.saveWorkflow(workflow));
+ipcMain.handle('workflow:execute', async (_, id, inputs) => workflowService.executeWorkflow(id, inputs));
+ipcMain.handle('workflow:validate', async (_, yaml) => workflowService.validateWorkflow(yaml));
+```
+
+#### State Management (Zustand)
+
+```typescript
+// src/renderer/stores/workflow.store.ts
+interface WorkflowState {
+  workflows: WorkflowMetadata[];
+  activeWorkflow: Workflow | null;
+  nodes: Node[];
+  edges: Edge[];
+  executionStatus: 'idle' | 'running' | 'success' | 'error';
+
+  loadWorkflow: (id: string) => Promise<void>;
+  saveWorkflow: (workflow: Workflow) => Promise<void>;
+  executeWorkflow: (inputs: WorkflowInputs) => Promise<WorkflowResult>;
+  updateNode: (nodeId: string, updates: Partial<NodeData>) => void;
+}
+```
+
+#### Related ADRs
+
+- **ADR-015**: React Flow for Visual Workflows
+- **ADR-016**: Python Script Execution Security Strategy
+- **ADR-017**: Workflow YAML Schema Design
+
 ### Security Architecture
 
 #### Electron Security Best Practices
@@ -984,13 +1163,77 @@ export interface IPCResponse<T = any> {
 - **Theme system**: CSS variables for light/dark themes
 - **Layout presets**: Saved layouts in settings
 
+### Epic 9: Visual Workflow Generator (Added 2026-01-23)
+
+**Status**: 90% Complete (Features 9.1-9.4 Complete, Feature 9.5 Partially Complete)
+
+Epic 9 adds visual workflow automation capabilities to Lighthouse Chat IDE:
+
+**Core Infrastructure (Complete)**:
+- React Flow canvas with drag-and-drop workflow editing
+- YAML workflow parser and schema validator
+- Basic workflow execution engine (sequential steps)
+- Workflow CRUD operations and file management
+
+**Execution Engine (Complete)**:
+- Secure Python script execution with path validation
+- 30-second timeout enforcement per script
+- Real-time execution visualization on canvas
+- Execution history with logs
+
+**Advanced Control Flow (Complete)**:
+- Conditional branching (if/else nodes)
+- Loop nodes (iterate over collections)
+- Parallel execution (independent steps simultaneously)
+- Variable interpolation (`${...}` syntax)
+- Step-by-step debugging infrastructure
+
+**UX Polish & Templates (Partially Complete)**:
+- AI-assisted workflow generation (Claude creates workflows)
+- Workflow testing UI with mock inputs
+- Monaco-based prompt template editor
+- Template marketplace (deferred)
+- Performance optimizations for 1000+ nodes (not started)
+
+**Related ADRs**:
+- ADR-015: React Flow for Visual Workflows
+- ADR-016: Python Script Execution Security Strategy
+- ADR-017: Workflow YAML Schema Design
+
+### Future: In-Memory RAG Pipeline (Planned)
+
+The architecture supports future integration of an in-memory RAG (Retrieval-Augmented Generation) pipeline for enhanced code understanding:
+
+**Potential Components**:
+- Document embeddings service for code files
+- In-memory vector store for semantic search
+- Context enrichment for AI conversations
+- Code similarity and pattern detection
+
+**Integration Points**:
+- AIService would coordinate RAG context injection
+- FileSystemService would trigger embedding updates on file changes
+- ChatInterface would display RAG-enhanced responses
+- WorkflowService could use RAG for intelligent workflow suggestions
+
+**Note**: RAG pipeline is not yet implemented. This section documents the architectural approach for future development.
+
 ## Document Information
 
 - **Created By**: Claude (AI Assistant) + Roy Love
 - **Creation Date**: January 19, 2026
-- **Last Updated**: January 19, 2026
-- **Version**: 1.0 (Lighthouse IDF Artifact)
-- **Next Review Date**: After Phase 1 implementation (validate architecture decisions)
-- **Approval Status**: Draft - Awaiting Review
-- **Source Documents**: PHASE-1-ARCHITECTURE.md, REQUIREMENTS.md
-- **Related Documents**: 01-Product-Vision.md, 02-Product-Plan.md, 03-Business-Requirements.md, 05-User-Experience.md (pending)
+- **Last Updated**: January 23, 2026
+- **Version**: 1.2 (Updated for Epic 9 - Visual Workflow Generator)
+- **Next Review Date**: After Epic 9 completion
+- **Approval Status**: Active
+- **Source Documents**: PHASE-1-ARCHITECTURE.md, REQUIREMENTS.md, epic-9-workflow-generator-master-plan.md
+- **Related Documents**: 01-Product-Vision.md, 02-Product-Plan.md, 03-Business-Requirements.md, 05-User-Experience.md
+- **Related ADRs**: ADR-015-react-flow-for-visual-workflows.md, ADR-016-python-script-execution-security.md, ADR-017-workflow-yaml-schema-design.md
+
+### Change History
+
+| Version | Date | Changes | Author |
+|---------|------|---------|--------|
+| 1.0 | 2026-01-19 | Initial architecture document | Claude + Roy Love |
+| 1.1 | 2026-01-20 | Added Epic 1-7 implementation details | Claude |
+| 1.2 | 2026-01-23 | Added Epic 9 Visual Workflow Generator architecture | Claude |

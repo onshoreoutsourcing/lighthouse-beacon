@@ -32,6 +32,7 @@ import type {
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
 import { FileOperationEventService } from '../services/FileOperationEventService';
+import { logger } from '@main/logger';
 
 interface DeleteToolParams {
   path: string;
@@ -171,8 +172,10 @@ export class DeleteTool implements ToolExecutor {
         };
 
         // SOC logging
-        // eslint-disable-next-line no-console
-        console.log(`[DeleteTool] Deleted directory ${params.path} (${itemsDeleted} items)`);
+        logger.debug('[DeleteTool] Directory deleted', {
+          path: params.path,
+          itemsDeleted,
+        });
 
         // Emit file operation event (Feature 3.4 - Wave 3.4.1)
         const eventService = FileOperationEventService.getInstance();
@@ -200,8 +203,9 @@ export class DeleteTool implements ToolExecutor {
       };
 
       // SOC logging
-      // eslint-disable-next-line no-console
-      console.log(`[DeleteTool] Deleted file ${params.path}`);
+      logger.debug('[DeleteTool] File deleted', {
+        path: params.path,
+      });
 
       // Emit file operation event (Feature 3.4 - Wave 3.4.1)
       const eventService = FileOperationEventService.getInstance();
@@ -218,7 +222,10 @@ export class DeleteTool implements ToolExecutor {
         duration: Date.now() - startTime,
       };
     } catch (error) {
-      console.error('[DeleteTool] Execution error:', error);
+      logger.error('[DeleteTool] Execution error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return {
         success: false,
         error: `Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}. Check permissions.`,

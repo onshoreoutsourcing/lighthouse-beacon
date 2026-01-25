@@ -536,6 +536,116 @@ Lighthouse Chat IDE provides an integrated desktop development environment where
 - **Dependencies**: AIChatSDK conversation management, local storage (Electron userData)
 - **Assumptions**: AI providers handle conversation history well (context windows 100K+ tokens); conversation storage in JSON format sufficient
 
+### Visual Workflow Generator Requirements (Epic 9 - Added 2026-01-23)
+
+#### FR-11: Visual Workflow Canvas
+
+- **Description**: React Flow-based visual canvas for creating and editing automation workflows through drag-and-drop node placement
+- **Business Justification**: Enables non-programmers and developers alike to create AI-powered automation workflows visually; reduces learning curve for workflow creation
+- **User Stories**:
+  - As a developer, I want to create automation workflows by dragging and dropping nodes so that I can build complex automations without writing code
+  - As a developer, I want to see my workflow execution in real-time on the canvas so that I understand what's happening
+  - As a developer, I want to connect Python scripts and Claude AI calls visually so that I can chain operations together
+- **Priority**: P1 (High - Epic 9 Feature)
+- **Acceptance Criteria**:
+  - [ ] React Flow canvas renders workflow nodes and edges
+  - [ ] Drag-and-drop node creation from palette
+  - [ ] Custom node types: Python Script, Claude API, Conditional, Loop
+  - [ ] Edge connections between node outputs and inputs
+  - [ ] Real-time execution visualization (node states: pending, running, success, error)
+  - [ ] Zoom and pan controls for large workflows
+- **Dependencies**: React Flow (@xyflow/react v12+), Zustand state management
+- **Related ADR**: ADR-015-react-flow-for-visual-workflows.md
+
+#### FR-12: YAML Workflow Definition
+
+- **Description**: Workflows stored and parsed as YAML files following a defined schema, inspired by GitHub Actions format
+- **Business Justification**: Human-readable format allows version control, sharing, and manual editing of workflows
+- **User Stories**:
+  - As a developer, I want to define workflows in YAML so that I can version control them with my code
+  - As a developer, I want to import existing YAML workflow files so that I can share workflows with my team
+  - As a developer, I want YAML validation errors highlighted so that I can fix problems before execution
+- **Priority**: P1 (High - Epic 9 Feature)
+- **Acceptance Criteria**:
+  - [ ] YAML parser validates workflow schema
+  - [ ] Error messages identify line numbers and specific issues
+  - [ ] Support for workflow metadata (name, version, description)
+  - [ ] Support for workflow inputs with types and defaults
+  - [ ] Support for step definitions (type, inputs, outputs)
+  - [ ] Variable interpolation syntax: `${workflow.inputs.x}`, `${steps.foo.outputs.y}`
+- **Dependencies**: js-yaml v4.1+, WorkflowParser service
+- **Related ADR**: ADR-017-workflow-yaml-schema-design.md
+
+#### FR-13: Secure Python Script Execution
+
+- **Description**: Execute Python scripts as workflow steps with path validation, timeout enforcement, and process isolation
+- **Business Justification**: Python is the most common automation language; secure execution enables powerful custom workflow steps
+- **User Stories**:
+  - As a developer, I want to run Python scripts as workflow steps so that I can leverage existing automation code
+  - As a developer, I want Python scripts to receive JSON inputs and return JSON outputs so that data flows between steps
+  - As a developer, I want script execution to timeout so that infinite loops don't hang my workflow
+- **Priority**: P1 (High - Epic 9 Feature)
+- **Acceptance Criteria**:
+  - [ ] Python scripts execute via Node.js child_process.spawn
+  - [ ] Path validation ensures scripts are within project directory (ADR-011)
+  - [ ] 30-second default timeout per script (configurable)
+  - [ ] JSON inputs passed via stdin
+  - [ ] JSON outputs captured from stdout
+  - [ ] Process isolation (separate child process per execution)
+  - [ ] Error handling captures stderr and exit codes
+- **Dependencies**: Node.js child_process, PathValidator service
+- **Related ADR**: ADR-016-python-script-execution-security.md
+
+#### FR-14: Advanced Control Flow
+
+- **Description**: Conditional branching, loop iteration, and parallel execution capabilities in workflows
+- **Business Justification**: Complex automation requires control flow; without these, only simple linear workflows are possible
+- **User Stories**:
+  - As a developer, I want to branch my workflow based on step outputs so that I can handle different scenarios
+  - As a developer, I want to iterate over arrays in my workflow so that I can process multiple items
+  - As a developer, I want independent steps to run in parallel so that my workflow completes faster
+- **Priority**: P2 (Medium - Epic 9 Phase 2)
+- **Acceptance Criteria**:
+  - [ ] Conditional nodes evaluate expressions and route to true/false branches
+  - [ ] Loop nodes iterate over arrays with max iteration safety limit (default: 100)
+  - [ ] Parallel execution runs independent steps simultaneously
+  - [ ] Variable interpolation resolves `${loop.item}` and `${loop.index}` in loop bodies
+  - [ ] Condition evaluation uses safe expression parser (no arbitrary code execution)
+- **Dependencies**: ConditionEvaluator, LoopExecutor, ParallelExecutor services
+
+#### FR-15: Workflow Testing and Debugging
+
+- **Description**: Mock input testing, dry run mode, and step-by-step debugging for workflows
+- **Business Justification**: Developers need to test workflows without side effects; debugging complex workflows requires step-through capability
+- **User Stories**:
+  - As a developer, I want to test my workflow with mock inputs so that I can verify logic without executing real operations
+  - As a developer, I want to set breakpoints in my workflow so that I can inspect state at specific steps
+  - As a developer, I want a dry run mode so that I can validate my workflow without making API calls
+- **Priority**: P2 (Medium - Epic 9 Phase 2)
+- **Acceptance Criteria**:
+  - [ ] Mock input editor allows specifying test data
+  - [ ] Dry run mode validates workflow without executing steps
+  - [ ] Breakpoints can be set on any node
+  - [ ] Step-through execution (pause, resume, step-over)
+  - [ ] Variable inspector shows current values during debugging
+- **Dependencies**: DryRunExecutor, DebugMode components
+
+#### FR-16: AI-Assisted Workflow Generation
+
+- **Description**: Claude AI generates workflow YAML from natural language descriptions
+- **Business Justification**: Lowers barrier to workflow creation; users can describe what they want and AI creates the workflow
+- **User Stories**:
+  - As a developer, I want to describe my automation in plain English and have Claude generate the workflow so that I can create workflows faster
+  - As a developer, I want Claude to explain its workflow design decisions so that I can learn and modify the generated workflow
+- **Priority**: P2 (Medium - Epic 9 Phase 3)
+- **Acceptance Criteria**:
+  - [ ] Natural language input field for workflow description
+  - [ ] Claude generates valid YAML workflow definition
+  - [ ] Generated workflow loads directly into canvas
+  - [ ] AI reasoning displayed alongside generated workflow
+  - [ ] 80%+ of generated workflows are valid (no schema errors)
+- **Dependencies**: AIService, AIWorkflowGenerator component
+
 ### AI-Specific Requirements
 
 #### Natural Language Processing
@@ -848,13 +958,39 @@ Lighthouse Chat IDE provides an integrated desktop development environment where
   - Impact if unavailable: Medium - delays validation, but development can continue
   - Mitigation: Development team can self-test; external beta nice-to-have, not blocker
 
+### Epic 9 Dependencies (Added 2026-01-23)
+
+- **React Flow**: @xyflow/react v12+ required for workflow canvas
+  - Status: Available (open source, actively maintained)
+  - Impact if unavailable: Critical for Epic 9 - no visual workflow editor
+  - Mitigation: Alternative libraries exist (React Flow is best-in-class for this use case)
+
+- **js-yaml**: YAML parser for workflow definitions
+  - Status: Available (open source, standard library)
+  - Impact if unavailable: Medium - could use alternative YAML parsers
+  - Mitigation: Multiple YAML parsing options available in npm ecosystem
+
+- **Python**: Required on user's system for workflow script execution
+  - Status: User-dependent (not bundled with application)
+  - Impact if unavailable: Workflow Python steps will not execute
+  - Mitigation: Clear error messages; alternative step types available (Claude, file operations)
+
 ## Document Information
 
 - **Created By**: Claude (AI Assistant) + Roy Love
 - **Creation Date**: January 19, 2026
-- **Last Updated**: January 19, 2026
-- **Version**: 1.0 (Lighthouse IDF Artifact)
-- **Next Review Date**: After Phase 1 completion (review functional requirements coverage)
-- **Approval Status**: Draft - Awaiting Review
-- **Source Documents**: REQUIREMENTS.md, PRODUCT-SUMMARY.md, DEVELOPMENT-PHASES.md
-- **Related Documents**: 01-Product-Vision.md, 02-Product-Plan.md, 04-Architecture.md (pending), 05-User-Experience.md (pending)
+- **Last Updated**: January 23, 2026
+- **Version**: 1.2 (Updated for Epic 9 - Visual Workflow Generator)
+- **Next Review Date**: After Epic 9 completion
+- **Approval Status**: Active
+- **Source Documents**: REQUIREMENTS.md, PRODUCT-SUMMARY.md, DEVELOPMENT-PHASES.md, epic-9-workflow-generator-master-plan.md
+- **Related Documents**: 01-Product-Vision.md, 02-Product-Plan.md, 04-Architecture.md, 05-User-Experience.md
+- **Related ADRs**: ADR-015-react-flow-for-visual-workflows.md, ADR-016-python-script-execution-security.md, ADR-017-workflow-yaml-schema-design.md
+
+### Change History
+
+| Version | Date | Changes | Author |
+|---------|------|---------|--------|
+| 1.0 | 2026-01-19 | Initial requirements document | Claude + Roy Love |
+| 1.1 | 2026-01-20 | Added Epic 1-7 requirements | Claude |
+| 1.2 | 2026-01-23 | Added Epic 9 Visual Workflow Generator requirements (FR-11 through FR-16) | Claude |

@@ -1,3 +1,4 @@
+import type { SourceAttribution } from '@shared/types';
 /**
  * Chat Store
  *
@@ -44,6 +45,10 @@ export interface ChatMessage {
   status: MessageStatus;
   /** Error message if status is 'error' */
   error?: string;
+  /** Source attributions from RAG retrieval (Wave 10.4.2) */
+  sources?: SourceAttribution[];
+  /** Whether RAG retrieval failed (Wave 10.4.2) */
+  ragFailed?: boolean;
 }
 
 /**
@@ -69,6 +74,10 @@ interface ChatState {
   initializeAI: () => Promise<void>;
   /** Send a message to AI */
   sendMessage: (content: string) => Promise<void>;
+  /** Attach RAG sources to a message (Wave 10.4.2) */
+  attachSourcesToMessage: (messageId: string, sources: SourceAttribution[]) => void;
+  /** Mark message as RAG failed (Wave 10.4.2) */
+  markMessageRAGFailed: (messageId: string) => void;
   /** Cancel current streaming request */
   cancelStreaming: () => Promise<void>;
   /** Save conversation to storage (debounced) */
@@ -319,6 +328,49 @@ export const useChatStore = create<ChatState>((set, get) => {
       } catch (err) {
         onError(err instanceof Error ? err.message : 'Failed to send message');
       }
+    },
+
+    /**
+     * Attach RAG sources to a message
+     * Wave 10.4.2 - User Story 3: Chat Message Integration
+     *
+     * @param messageId - Message ID to attach sources to
+     * @param sources - Source attributions from RAG retrieval
+     */
+    attachSourcesToMessage: (messageId: string, sources: SourceAttribution[]) => {
+      const { messages } = get();
+
+      const updatedMessages = messages.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              sources,
+            }
+          : msg
+      );
+
+      set({ messages: updatedMessages });
+    },
+
+    /**
+     * Mark message as RAG failed
+     * Wave 10.4.2 - User Story 4: Retrieval Failure Messaging
+     *
+     * @param messageId - Message ID to mark as failed
+     */
+    markMessageRAGFailed: (messageId: string) => {
+      const { messages } = get();
+
+      const updatedMessages = messages.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              ragFailed: true,
+            }
+          : msg
+      );
+
+      set({ messages: updatedMessages });
     },
 
     /**

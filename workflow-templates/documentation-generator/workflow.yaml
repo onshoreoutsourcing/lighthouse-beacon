@@ -1,0 +1,78 @@
+workflow:
+  name: "Documentation Generator"
+  version: "1.0.0"
+  description: "Generates comprehensive documentation from code repository using AI analysis"
+  tags:
+    - documentation
+    - ai
+    - automation
+  author: "Lighthouse Beacon"
+
+inputs:
+  - id: repo_path
+    type: directory
+    label: "Repository Path"
+    description: "Path to the code repository to document"
+    required: true
+
+steps:
+  - id: analyze_code
+    type: python
+    label: "Analyze Code Structure"
+    description: "Scan repository and extract code structure, functions, and classes"
+    script: "./scripts/analyze_code.py"
+    inputs:
+      repo_path: "${workflow.inputs.repo_path}"
+    outputs:
+      - analysis
+      - file_list
+      - structure
+
+  - id: generate_docs
+    type: claude
+    label: "Generate Documentation"
+    description: "Use Claude AI to generate comprehensive documentation"
+    depends_on:
+      - analyze_code
+    model: "claude-sonnet-4"
+    prompt_template: |
+      You are a technical documentation expert. Generate comprehensive documentation for the following code repository.
+
+      Repository Analysis:
+      ${steps.analyze_code.outputs.analysis}
+
+      File Structure:
+      ${steps.analyze_code.outputs.structure}
+
+      Please create documentation that includes:
+      1. Project Overview and Purpose
+      2. Architecture and Design Patterns
+      3. API Documentation
+      4. Setup and Installation Instructions
+      5. Usage Examples
+      6. Contributing Guidelines
+
+      Format the documentation in Markdown with clear sections and examples.
+    max_tokens: 4096
+    temperature: 0.3
+
+  - id: save_docs
+    type: python
+    label: "Save Documentation"
+    description: "Save generated documentation to DOCUMENTATION.md"
+    depends_on:
+      - generate_docs
+    script: "./scripts/save_docs.py"
+    inputs:
+      content: "${steps.generate_docs.outputs.result}"
+      path: "${workflow.inputs.repo_path}/DOCUMENTATION.md"
+    outputs:
+      - file_path
+
+  - id: output_result
+    type: output
+    label: "Display Result"
+    depends_on:
+      - save_docs
+    message: "Documentation generated successfully at: ${steps.save_docs.outputs.file_path}"
+    format: text

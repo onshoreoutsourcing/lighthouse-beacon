@@ -1,0 +1,120 @@
+workflow:
+  name: "Batch File Processing"
+  version: "1.0.0"
+  description: "Process multiple files with Python scripts - resize images, convert formats, or apply transformations"
+  tags:
+    - batch
+    - file-processing
+    - automation
+    - python
+  author: "Lighthouse Beacon"
+
+inputs:
+  - id: input_directory
+    type: directory
+    label: "Input Directory"
+    description: "Directory containing files to process"
+    required: true
+
+  - id: output_directory
+    type: directory
+    label: "Output Directory"
+    description: "Directory for processed files"
+    required: true
+
+  - id: file_pattern
+    type: string
+    label: "File Pattern"
+    description: "Glob pattern to match files (e.g., *.txt, *.jpg, **/*.md)"
+    required: false
+    default: "*.*"
+    pattern: "^[*\\w\\-\\./ ]+$"
+
+  - id: operation
+    type: select
+    label: "Operation"
+    description: "Type of processing to perform"
+    required: true
+    default: "copy"
+    options:
+      - copy
+      - rename
+      - transform
+      - convert
+
+steps:
+  - id: list_files
+    type: python
+    label: "List Input Files"
+    description: "Scan directory and find files matching pattern"
+    script: "./scripts/list_files.py"
+    inputs:
+      directory: "${workflow.inputs.input_directory}"
+      pattern: "${workflow.inputs.file_pattern}"
+    outputs:
+      - file_list
+      - file_count
+
+  - id: validate_output_dir
+    type: python
+    label: "Validate Output Directory"
+    description: "Ensure output directory exists and is writable"
+    depends_on:
+      - list_files
+    script: "./scripts/validate_dir.py"
+    inputs:
+      directory: "${workflow.inputs.output_directory}"
+    outputs:
+      - is_valid
+      - absolute_path
+
+  - id: process_files
+    type: python
+    label: "Process Files"
+    description: "Apply selected operation to all files"
+    depends_on:
+      - validate_output_dir
+    script: "./scripts/process_batch.py"
+    inputs:
+      files: "${steps.list_files.outputs.file_list}"
+      output_dir: "${steps.validate_output_dir.outputs.absolute_path}"
+      operation: "${workflow.inputs.operation}"
+    outputs:
+      - processed_count
+      - failed_count
+      - results
+
+  - id: generate_report
+    type: python
+    label: "Generate Processing Report"
+    description: "Create summary report of batch operation"
+    depends_on:
+      - process_files
+    script: "./scripts/generate_report.py"
+    inputs:
+      results: "${steps.process_files.outputs.results}"
+      total_files: "${steps.list_files.outputs.file_count}"
+      processed: "${steps.process_files.outputs.processed_count}"
+      failed: "${steps.process_files.outputs.failed_count}"
+      operation: "${workflow.inputs.operation}"
+    outputs:
+      - report_path
+      - summary
+
+  - id: output_results
+    type: output
+    label: "Display Results"
+    depends_on:
+      - generate_report
+    message: |
+      Batch Processing Complete!
+
+      Operation: ${workflow.inputs.operation}
+      Files Found: ${steps.list_files.outputs.file_count}
+      Successfully Processed: ${steps.process_files.outputs.processed_count}
+      Failed: ${steps.process_files.outputs.failed_count}
+
+      ${steps.generate_report.outputs.summary}
+
+      Full report: ${steps.generate_report.outputs.report_path}
+    format: text

@@ -12,6 +12,7 @@ import type {
 import { IPC_CHANNELS } from '@shared/types';
 import { FileSystemService } from '../services/FileSystemService';
 import { initializeToolsWithProjectRoot } from './toolHandlers';
+import { logger } from '../logger';
 
 /**
  * File System IPC Handlers
@@ -266,8 +267,7 @@ export function registerFileSystemHandlers(): void {
     }
   );
 
-  // eslint-disable-next-line no-console
-  console.log('File system IPC handlers registered');
+  logger.info('[FileSystemHandlers] IPC handlers registered');
 }
 
 /**
@@ -285,6 +285,5 @@ export function unregisterFileSystemHandlers(): void {
 
   fileSystemService = null;
 
-  // eslint-disable-next-line no-console
-  console.log('File system IPC handlers unregistered');
+  logger.info('[FileSystemHandlers] IPC handlers unregistered');
 }

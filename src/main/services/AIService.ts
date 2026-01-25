@@ -1,4 +1,7 @@
 import type { AIStatus } from '@shared/types';
+import { AIChatSDK } from '@ai-chat-sdk/core/typescript';
+import type { AIChatConfig, ChatMessage, ChatResponse } from '@ai-chat-sdk/core/typescript';
+import { logger } from '@main/logger';
 
 /**
  * AIService Configuration
@@ -51,8 +54,7 @@ export interface StreamCallbacks {
  * const response = await service.sendMessage('Hello, Claude!');
  */
 export class AIService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private client: any = null; // Will be AIChatClient from AIChatSDK
+  private client: AIChatSDK | null = null;
   private currentAbortController: AbortController | null = null;
   private status: AIStatus = {
     initialized: false,
@@ -67,45 +69,48 @@ export class AIService {
    * @param config - Service configuration including API key
    * @throws Error if initialization fails
    */
-  initialize(config: AIServiceConfig): void {
+  async initialize(config: AIServiceConfig): Promise<void> {
     try {
-      // NOTE: AIChatSDK import will be configured in tsconfig/vite
-      // For now, this is a placeholder that will be replaced with actual SDK
-      // const { AIChatClient, ClaudeProvider } = await import('AIChatSDK');
-
-      // Temporary implementation until AIChatSDK is integrated
-      // eslint-disable-next-line no-console
-      console.log('[AIService] Initialize called with config:', {
-        model: config.model || 'claude-3-sonnet-20240229',
+      logger.info('[AIService] Initialize called with config', {
+        model: config.model || 'claude-sonnet-4-5-20250929',
         socEndpoint: config.socEndpoint || 'not configured',
         hasApiKey: !!config.apiKey,
       });
 
-      // TODO: Replace with actual AIChatSDK initialization
-      // const provider = new ClaudeProvider({
-      //   apiKey: config.apiKey,
-      //   model: config.model || 'claude-3-sonnet-20240229',
-      // });
+      // Build SDK configuration
+      const sdkConfig: AIChatConfig = {
+        provider: 'anthropic',
+        providerConfig: {
+          apiKey: config.apiKey,
+          model: config.model || 'claude-sonnet-4-5-20250929',
+          maxTokens: 4096,
+        },
+      };
 
-      // const socConfig = {
-      //   enabled: true,
-      //   endpoint: config.socEndpoint || process.env.LIGHTHOUSE_SOC_ENDPOINT,
-      // };
+      // Add SOC configuration if endpoint provided
+      if (config.socEndpoint) {
+        sdkConfig.socConfig = {
+          apiUrl: config.socEndpoint,
+          apiKey: config.apiKey, // Using same API key for SOC (can be configured differently)
+          projectId: 'lighthouse-beacon',
+        };
+      }
 
-      // this.client = new AIChatClient({
-      //   provider,
-      //   soc: socConfig,
-      // });
-
-      // Validate connection with minimal request
-      // await this.client.validateConnection();
+      // Create and initialize SDK client
+      this.client = new AIChatSDK(sdkConfig);
+      await this.client.initialize();
 
       this.status = {
         initialized: true,
         provider: 'anthropic',
-        model: config.model || 'claude-3-sonnet-20240229',
+        model: config.model || 'claude-sonnet-4-5-20250929',
         error: null,
       };
+
+      logger.info('[AIService] Successfully initialized AIChatSDK', {
+        provider: 'anthropic',
+        model: this.status.model,
+      });
     } catch (error) {
       this.status = {
         initialized: false,
@@ -113,6 +118,62 @@ export class AIService {
         model: null,
         error: this.formatError(error),
       };
+      // Extract full error chain for debugging
+      const errorChain: Array<{
+        message: string;
+        name: string;
+        statusCode?: number;
+        code?: string;
+        context?: unknown;
+        responseStatus?: number;
+        responseData?: unknown;
+      }> = [];
+
+      let currentError = error;
+      while (currentError && typeof currentError === 'object') {
+        const err = currentError as Record<string, unknown>;
+        const errorInfo: {
+          message: string;
+          name: string;
+          statusCode?: number;
+          code?: string;
+          context?: unknown;
+          responseStatus?: number;
+          responseData?: unknown;
+        } = {
+          message: typeof err.message === 'string' ? err.message : 'Unknown error',
+          name: typeof err.name === 'string' ? err.name : 'Error',
+        };
+
+        // Include HTTP-specific details if available
+        if (typeof err.statusCode === 'number') {
+          errorInfo.statusCode = err.statusCode;
+        }
+        if (typeof err.code === 'string') {
+          errorInfo.code = err.code;
+        }
+        if (err.context !== undefined) {
+          errorInfo.context = err.context;
+        }
+        if (err.response && typeof err.response === 'object') {
+          const response = err.response as Record<string, unknown>;
+          if (typeof response.status === 'number') {
+            errorInfo.responseStatus = response.status;
+          }
+          if (response.data !== undefined) {
+            errorInfo.responseData = response.data;
+          }
+        }
+
+        errorChain.push(errorInfo);
+        currentError = err.cause;
+      }
+
+      logger.error('[AIService] Initialization failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        errorChain,
+      });
       throw error;
     }
   }
@@ -125,25 +186,59 @@ export class AIService {
    * @returns AI response as string
    * @throws Error if service not initialized or request fails
    */
-  sendMessage(message: string, options?: SendMessageOptions): string {
-    if (!this.client) {
+  async sendMessage(message: string, options?: SendMessageOptions): Promise<string> {
+    if (!this.status.initialized || !this.client) {
       throw new Error('AI service not initialized. Please configure your API key.');
     }
 
-    try {
-      // TODO: Replace with actual AIChatSDK call
-      // const response = await this.client.chat({
-      //   message,
-      //   conversationId: options?.conversationId,
-      //   systemPrompt: options?.systemPrompt,
-      // });
-      // return response.content;
+    const startTime = Date.now();
 
-      // Temporary mock response
-      // eslint-disable-next-line no-console
-      console.log('[AIService] sendMessage called:', { message, options });
-      return `Mock response to: ${message}`;
+    try {
+      // Build message history
+      const messages: ChatMessage[] = [];
+
+      // Add system prompt if provided
+      if (options?.systemPrompt) {
+        messages.push({
+          role: 'system',
+          content: options.systemPrompt,
+        });
+      }
+
+      // Add user message
+      messages.push({
+        role: 'user',
+        content: message,
+      });
+
+      // Send to SDK
+      const response: ChatResponse = await this.client.chat(messages);
+
+      const duration = Date.now() - startTime;
+
+      // Warn if response time is slow
+      if (duration > 5000) {
+        logger.warn('[AIService] Slow AI response detected', {
+          duration,
+          threshold: 5000,
+          contentLength: response.content.length,
+          usage: response.usage,
+        });
+      } else {
+        logger.debug('[AIService] Received response from AIChatSDK', {
+          duration,
+          contentLength: response.content.length,
+          usage: response.usage,
+        });
+      }
+
+      return response.content;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error('[AIService] sendMessage failed', {
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new Error(this.formatError(error));
     }
   }
@@ -155,50 +250,98 @@ export class AIService {
    * @param callbacks - Callbacks for token, complete, and error events
    * @param options - Optional conversation ID and system prompt
    */
-  streamMessage(message: string, callbacks: StreamCallbacks, options?: SendMessageOptions): void {
-    if (!this.client) {
+  async streamMessage(
+    message: string,
+    callbacks: StreamCallbacks,
+    options?: SendMessageOptions
+  ): Promise<void> {
+    if (!this.status.initialized || !this.client) {
       throw new Error('AI service not initialized. Please configure your API key.');
     }
 
     this.currentAbortController = new AbortController();
+    const startTime = Date.now();
+    let chunkCount = 0;
+    let totalChunkSize = 0;
 
     try {
-      // TODO: Replace with actual AIChatSDK streaming
-      // const stream = this.client.streamChat({
-      //   message,
-      //   conversationId: options?.conversationId,
-      //   systemPrompt: options?.systemPrompt,
-      //   signal: this.currentAbortController.signal,
-      // });
+      // Build message history
+      const messages: ChatMessage[] = [];
 
-      // let fullResponse = '';
-      // for await (const chunk of stream) {
-      //   fullResponse += chunk;
-      //   callbacks.onToken(chunk);
-      // }
-      // callbacks.onComplete(fullResponse);
+      // Add system prompt if provided
+      if (options?.systemPrompt) {
+        messages.push({
+          role: 'system',
+          content: options.systemPrompt,
+        });
+      }
 
-      // Temporary mock streaming
-      // eslint-disable-next-line no-console
-      console.log('[AIService] streamMessage called:', { message, options });
-      const mockResponse = `Mock streaming response to: ${message}`;
-      const tokens = mockResponse.split(' ');
+      // Add user message
+      messages.push({
+        role: 'user',
+        content: message,
+      });
 
-      for (const token of tokens) {
+      // Stream from SDK
+      let fullResponse = '';
+      const stream = this.client.streamChat(messages);
+
+      for await (const chunk of stream) {
+        // Check for abort
         if (this.currentAbortController.signal.aborted) {
+          logger.debug('[AIService] Stream aborted by user');
           return;
         }
-        callbacks.onToken(token + ' ');
-        // Simulate streaming delay (disabled for testing)
-        // await new Promise((resolve) => setTimeout(resolve, 50));
+
+        // Track streaming metrics
+        chunkCount++;
+        totalChunkSize += chunk.content.length;
+
+        // Accumulate response
+        fullResponse += chunk.content;
+
+        // Send token to callback
+        callbacks.onToken(chunk.content);
+
+        // If this is the final chunk, we're done
+        if (chunk.done || chunk.isComplete) {
+          break;
+        }
       }
 
-      callbacks.onComplete(mockResponse);
+      const duration = Date.now() - startTime;
+      const averageChunkSize = chunkCount > 0 ? totalChunkSize / chunkCount : 0;
+
+      // Warn if streaming took too long
+      if (duration > 5000) {
+        logger.warn('[AIService] Slow streaming response detected', {
+          duration,
+          threshold: 5000,
+          totalLength: fullResponse.length,
+          chunkCount,
+          averageChunkSize: Math.round(averageChunkSize),
+        });
+      } else {
+        logger.debug('[AIService] Stream complete', {
+          duration,
+          totalLength: fullResponse.length,
+          chunkCount,
+          averageChunkSize: Math.round(averageChunkSize),
+        });
+      }
+
+      callbacks.onComplete(fullResponse);
     } catch (error) {
+      const duration = Date.now() - startTime;
       if (error instanceof Error && error.name === 'AbortError') {
         // Request was cancelled, not an error
+        logger.debug('[AIService] Stream cancelled', { duration });
         return;
       }
+      logger.error('[AIService] Stream error', {
+        duration,
+        error: error instanceof Error ? error.message : String(error),
+      });
       callbacks.onError(new Error(this.formatError(error)));
     } finally {
       this.currentAbortController = null;
@@ -227,11 +370,18 @@ export class AIService {
   /**
    * Shutdown AI service and cleanup resources
    */
-  shutdown(): void {
+  async shutdown(): Promise<void> {
     this.cancelCurrentRequest();
     if (this.client) {
-      // TODO: Call actual disconnect when AIChatSDK is integrated
-      // await this.client.disconnect();
+      try {
+        await this.client.destroy();
+        logger.info('[AIService] Successfully shut down AIChatSDK');
+      } catch (error) {
+        logger.error('[AIService] Error during shutdown', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+      }
       this.client = null;
     }
     this.status = {

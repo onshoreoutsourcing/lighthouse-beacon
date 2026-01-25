@@ -29,10 +29,15 @@ information on how to write ADRs, see
 | 012   | Bash Command Safety Strategy                   | Accepted | 2026-01-19 | Epic-3, Feature-3.3, NFR-3  |
 | 013   | Visual Integration Pattern                     | Accepted | 2026-01-19 | Epic-3, Feature-3.4, FR-7   |
 | 014   | Permission System Enhancement                  | Accepted | 2026-01-19 | Epic-3, Feature-3.3, FR-6   |
+| 015   | React Flow for Visual Workflows                | Accepted | 2026-01-21 | Epic-9, ADR-002, ADR-003    |
+| 016   | Python Script Execution Security Strategy      | Accepted | 2026-01-21 | Epic-9, ADR-011, ADR-012, ADR-008 |
+| 017   | Workflow YAML Schema Design                    | Accepted | 2026-01-21 | Epic-9, Feature-9.1, ADR-015 |
+| 018   | RAG Knowledge Base Architecture                | Accepted | 2026-01-23 | Epic-10, ADR-006, ADR-003, ADR-011, ADR-019 |
+| 019   | Vectra LocalIndex for Vector Storage           | Accepted | 2026-01-25 | Epic-10, ADR-018             |
 
 ## Next ADR Number
 
-**Next Available: ADR-015**
+**Next Available: ADR-020**
 
 ## Creating a New ADR
 

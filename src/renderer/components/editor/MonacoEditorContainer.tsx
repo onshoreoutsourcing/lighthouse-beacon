@@ -15,6 +15,10 @@
 
 import React, { useRef, useEffect } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
+
+// Monaco editor view state type
+type EditorViewState = editor.ICodeEditorViewState | null;
 
 /**
  * Props for MonacoEditorContainer component
@@ -27,13 +31,13 @@ interface MonacoEditorContainerProps {
   /** Monaco language identifier (e.g., 'typescript', 'python', 'json') */
   language: string;
   /** Monaco editor view state (cursor position, scroll position) */
-  initialViewState?: unknown;
+  initialViewState?: EditorViewState;
   /** Callback when content changes */
   onChange: (content: string) => void;
   /** Callback when save is triggered (Ctrl+S / Cmd+S) */
   onSave: () => void;
   /** Callback when view state changes (for persistence) */
-  onViewStateChange?: (viewState: unknown) => void;
+  onViewStateChange?: (viewState: EditorViewState) => void;
 }
 
 /**
@@ -64,14 +68,13 @@ export const MonacoEditorContainer: React.FC<MonacoEditorContainerProps> = ({
     editorRef.current = editor;
 
     // Register Ctrl+S / Cmd+S keyboard shortcut for save
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       onSave();
     });
 
     // Restore view state if available (cursor position, scroll position)
     if (initialViewState) {
-      editor.restoreViewState(initialViewState as ReturnType<typeof editor.saveViewState>);
+      editor.restoreViewState(initialViewState);
     }
 
     // Focus editor after mount

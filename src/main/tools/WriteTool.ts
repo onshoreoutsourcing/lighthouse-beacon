@@ -33,6 +33,7 @@ import type {
 } from '@shared/types';
 import { PathValidator } from './PathValidator';
 import { FileOperationEventService } from '../services/FileOperationEventService';
+import { logger } from '@main/logger';
 
 interface WriteToolParams {
   path: string;
@@ -141,10 +142,9 @@ export class WriteTool implements ToolExecutor {
     _context: ToolExecutionContext
   ): Promise<ToolExecutionResult> {
     const startTime = Date.now();
+    const params = parameters as unknown as WriteToolParams;
 
     try {
-      const params = parameters as unknown as WriteToolParams;
-
       // Validate path security
       const pathValidation = this.validator.validate(params.path);
       if (!pathValidation.isValid) {
@@ -178,8 +178,9 @@ export class WriteTool implements ToolExecutor {
           try {
             await fs.mkdir(parentDir, { recursive: true });
             parentDirCreated = true;
-            // eslint-disable-next-line no-console
-            console.log(`[WriteTool] Created parent directories for ${params.path}`);
+            logger.info('[WriteTool] Created parent directories', {
+              path: params.path,
+            });
           } catch (error) {
             return {
               success: false,
@@ -221,8 +222,11 @@ export class WriteTool implements ToolExecutor {
 
         // SOC logging
         const action = fileExists ? 'Updated' : 'Created';
-        // eslint-disable-next-line no-console
-        console.log(`[WriteTool] ${action} file ${params.path} (${bytesWritten} bytes)`);
+        logger.info('[WriteTool] File write operation complete', {
+          action,
+          path: params.path,
+          bytesWritten,
+        });
 
         // Emit file operation event (Feature 3.4 - Wave 3.4.1)
         const eventService = FileOperationEventService.getInstance();
@@ -253,7 +257,11 @@ export class WriteTool implements ToolExecutor {
         };
       }
     } catch (error) {
-      console.error('[WriteTool] Execution error:', error);
+      logger.error('[WriteTool] Execution error', {
+        path: params.path,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return {
         success: false,
         error: `Failed to write file: ${error instanceof Error ? error.message : 'Unknown error'}`,

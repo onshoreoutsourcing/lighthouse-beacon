@@ -2,6 +2,7 @@ import { app, safeStorage } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import type { AppSettings } from '@shared/types';
+import { logger } from '../logger';
 
 /**
  * SettingsService
@@ -31,12 +32,17 @@ export class SettingsService {
   private static readonly DEFAULT_SETTINGS: AppSettings = {
     ai: {
       provider: 'anthropic',
-      model: 'claude-3-sonnet-20240229',
+      model: 'claude-sonnet-4-5-20250929',
       hasApiKey: false,
     },
     soc: {
       enabled: true,
       endpoint: process.env.LIGHTHOUSE_SOC_ENDPOINT || '',
+    },
+    logging: {
+      level: 'debug',
+      enableFileLogging: true,
+      enableConsoleLogging: true,
     },
   };
 
@@ -55,9 +61,7 @@ export class SettingsService {
     try {
       // Check if encryption is available
       if (!safeStorage.isEncryptionAvailable()) {
-        console.warn(
-          '[SettingsService] Encryption not available. API key storage may be insecure.'
-        );
+        logger.warn('[SettingsService] Encryption not available - API key storage may be insecure');
       }
 
       const encryptedKey = await fs.readFile(this.apiKeyPath);
@@ -144,6 +148,7 @@ export class SettingsService {
       const settings: AppSettings = {
         ai: { ...SettingsService.DEFAULT_SETTINGS.ai, ...parsedData.ai },
         soc: { ...SettingsService.DEFAULT_SETTINGS.soc, ...parsedData.soc },
+        logging: { ...SettingsService.DEFAULT_SETTINGS.logging, ...parsedData.logging },
       };
 
       // Always check if API key exists (file-based, not in settings)
@@ -172,9 +177,32 @@ export class SettingsService {
     const updatedSettings: AppSettings = {
       ai: updates.ai ? { ...settings.ai, ...updates.ai } : settings.ai,
       soc: updates.soc ? { ...settings.soc, ...updates.soc } : settings.soc,
+      logging: updates.logging ? { ...settings.logging, ...updates.logging } : settings.logging,
     };
 
     await this.saveSettings(updatedSettings);
+  }
+
+  /**
+   * Get current logging configuration
+   *
+   * @returns Current logging settings
+   */
+  async getLoggingConfig(): Promise<AppSettings['logging']> {
+    const settings = await this.getSettings();
+    return settings.logging;
+  }
+
+  /**
+   * Update logging configuration
+   *
+   * @param config - Partial logging config to merge with current settings
+   */
+  async setLoggingConfig(config: Partial<AppSettings['logging']>): Promise<void> {
+    const current = await this.getLoggingConfig();
+    await this.updateSettings({
+      logging: { ...current, ...config },
+    });
   }
 
   /**
