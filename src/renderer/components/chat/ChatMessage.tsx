@@ -3,6 +3,8 @@ import type { ChatMessage as ChatMessageType } from '@renderer/stores/chat.store
 import { User, Bot } from 'lucide-react';
 import { useBufferedStream } from '@renderer/hooks/useBufferedStream';
 import MarkdownContent from './MarkdownContent';
+import { SourceCitations } from './SourceCitations';
+import { RAGFailureWarning } from './RAGFailureWarning';
 
 /**
  * ChatMessage Component Props
@@ -100,6 +102,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           <div className="mt-2 text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
             Error: {message.error}
           </div>
+        )}
+
+        {/* RAG Failure Warning (Wave 10.4.2 - User Story 4) */}
+        {!isUser && message.ragFailed && (
+          <RAGFailureWarning ragFailed={message.ragFailed} />
+        )}
+
+        {/* Source Citations (Wave 10.4.2 - User Story 1 & 3) */}
+        {!isUser && !isStreaming && message.sources && message.sources.length > 0 && (
+          <SourceCitations sources={message.sources} />
         )}
       </div>
     </div>
