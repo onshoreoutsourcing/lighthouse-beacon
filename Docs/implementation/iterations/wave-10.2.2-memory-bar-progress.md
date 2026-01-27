@@ -127,4 +127,4 @@
 **Total Stories:** 4
 **Total Hours:** 34
 **Total Objective UCP:** 27
-**Wave Status:** Planning
+**Wave Status:** Completed
